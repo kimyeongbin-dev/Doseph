@@ -1,10 +1,12 @@
-"""Tests for logging infrastructure (B0~B4).
+"""Tests for logging infrastructure (B0~B4, B6).
 
 - B0 안전: 메시지 truncate / 시간+크기 회전 / 제한권한 / 인젝션 이스케이프
 - B1: 예외 핸들러 로깅 헬퍼(요청 컨텍스트 + 스택)
 - B2: request_id 컨텍스트 주입(필터·JSON 필드)
 - B3: env 기반 포맷(prod=JSON / local=사람형식) + funcName(위치) 필드
 - B4: 외부 경계 관측 헬퍼(진입 DEBUG / 성공 INFO+ms / 실패 WARN·ERROR)
+- B6: 통합 하네스(조립된 로거 파이프라인 — 필터 배선·e2e 스크럽+request_id)
+  (B5 마스킹 유닛은 test_log_safe.py)
 """
 
 import asyncio
@@ -13,6 +15,7 @@ import sys
 
 import pytest
 
+from app.core.log_safe import ScrubFilter
 from app.core.logger import (
     _DIR_MODE,
     _FILE_MODE,
@@ -246,3 +249,46 @@ def test_log_boundary_server_error_logs_stack_and_reraises(caplog) -> None:
     record = caplog.records[-1]
     assert record.levelno == logging.ERROR
     assert record.exc_info is not None  # 스택 포함
+
+
+# ── B6: 통합 하네스 (조립된 로거 파이프라인) ──────────────────────────
+def test_setup_logger_wires_all_filters(tmp_path, monkeypatch) -> None:
+    """setup_logger 콘솔 핸들러에 truncate·scrub·request_id 필터가 모두 부착."""
+    monkeypatch.setenv("ENV", "local")
+    monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
+    logger = setup_logger("test.b6.filters")
+
+    filter_types = [type(f) for f in _console_handler(logger).filters]
+    assert TruncateFilter in filter_types
+    assert ScrubFilter in filter_types
+    assert RequestIdFilter in filter_types
+
+
+def test_setup_logger_has_rotating_file_handler(tmp_path, monkeypatch) -> None:
+    """파일 핸들러(시간+크기 회전)가 부착된다."""
+    monkeypatch.setenv("ENV", "local")
+    monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
+    logger = setup_logger("test.b6.file")
+
+    assert any(isinstance(h, SizeTimedRotatingFileHandler) for h in logger.handlers)
+
+
+def test_logger_pipeline_scrubs_and_tags_request_id(tmp_path, monkeypatch) -> None:
+    """end-to-end: 파이프라인 통과 후 request_id 포함 + JWT 토큰 스크럽 동시 적용."""
+    monkeypatch.setenv("ENV", "local")
+    monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
+    logger = setup_logger("test.b6.e2e")
+    handler = _console_handler(logger)
+
+    token = request_id_var.set("req-b6")
+    try:
+        record = logging.LogRecord("test.b6.e2e", logging.INFO, __file__, 1, "auth Bearer eyJa.bcd.efg done", (), None)
+        for log_filter in handler.filters:
+            log_filter.filter(record)
+        out = handler.formatter.format(record)
+    finally:
+        request_id_var.reset(token)
+
+    assert "req-b6" in out  # request_id 주입
+    assert "eyJa.bcd.efg" not in out  # 토큰 스크럽
+    assert "***" in out
