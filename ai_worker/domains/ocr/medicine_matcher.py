@@ -193,5 +193,5 @@ async def _extract_medicines_with_llm(raw_text: str) -> list[dict]:
         result = json.loads(response.choices[0].message.content)
         return result.get("items", [])
     except Exception as e:
-        logger.error(f"LLM 텍스트 추출 실패: {e}")
+        logger.error("LLM 텍스트 추출 실패: %s", e)
         return []
