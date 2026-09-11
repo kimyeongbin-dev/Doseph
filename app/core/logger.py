@@ -33,6 +33,8 @@ import sys
 import time
 from typing import override
 
+from app.core.log_safe import ScrubFilter
+
 _LOG_DIR_ENV = "LOG_DIR"
 _DEFAULT_LOG_DIR = "/app/logs"
 # 시간 기반 회전 — 3h x (활성 1 + 백업 2) = 9h 보존
@@ -187,12 +189,16 @@ def setup_logger(
     # 콘솔·파일 동일 포맷터 사용 — local 파일도 사람형식으로 읽기 쉽게.
     active_formatter: logging.Formatter = JsonFormatter() if _is_prod() else logging.Formatter(_CONSOLE_FORMAT)
     # 필터는 핸들러에 부착(자식 logger 전파 record 에도 적용되도록).
+    # 순서: truncate(크기) -> scrub(민감패턴 안전망) -> request_id(컨텍스트).
+    # scrub 은 병합·트렁케이트된 최종 메시지에 적용돼야 하므로 truncate 뒤.
     truncate_filter = TruncateFilter()
+    scrub_filter = ScrubFilter()
     request_id_filter = RequestIdFilter()
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(active_formatter)
     console_handler.addFilter(truncate_filter)
+    console_handler.addFilter(scrub_filter)
     console_handler.addFilter(request_id_filter)
     logger.addHandler(console_handler)
 
@@ -207,6 +213,7 @@ def setup_logger(
             utc=True,
         )
         file_handler.addFilter(truncate_filter)
+        file_handler.addFilter(scrub_filter)
         file_handler.addFilter(request_id_filter)
         # 백업 파일 이름에 ISO 타임스탬프 suffix (예: app.log.2026-05-01_15)
         file_handler.suffix = "%Y-%m-%d_%H"
