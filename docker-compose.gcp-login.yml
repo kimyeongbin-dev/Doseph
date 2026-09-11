@@ -27,6 +27,9 @@ services:
     networks:
       - web
     restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
       interval: 30s
@@ -37,6 +40,27 @@ services:
       driver: "json-file"
       options:
         max-size: "20m"
+        max-file: "3"
+
+  # ── DB 마이그레이션 (배포마다 1회 실행 후 종료) ──────────────────────
+  # 흐름: aerich upgrade(pending 마이그레이션 적용) -> exit 0 -> fastapi 기동.
+  # 빈 DB 면 0~head 전체 생성, 이미 최신이면 no-op. 스키마 드리프트 재발 방지.
+  # aerich 는 app 의존성 그룹에 포함되어 prod 이미지에 존재.
+  migrate:
+    container_name: migrate
+    build:
+      context: .
+      dockerfile: app/Dockerfile.prod
+    command: ["aerich", "upgrade"]
+    env_file:
+      - .env
+    networks:
+      - web
+    restart: "no"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
         max-file: "3"
 
   # Cloudflare Tunnel — 원격관리(토큰) 방식. 공개 호스트명(api.doseph.com) →
