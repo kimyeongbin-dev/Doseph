@@ -14,6 +14,7 @@ import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 
+from app.core.http_client import close_http_client
 from app.workers.intake_log_worker import generate_today_intake_logs
 from app.workers.medication_worker import expire_medications
 from app.workers.ocr_cleanup_worker import prune_stale_ocr_drafts
@@ -50,4 +51,6 @@ async def scheduler_lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     yield
 
     scheduler.shutdown(wait=False)
+    # 공유 httpx 클라이언트 정리 — 커넥션·fd 누수 방지.
+    await close_http_client()
     logger.info("APScheduler shutdown complete")

@@ -16,6 +16,7 @@ from tortoise.transactions import in_transaction
 
 from app.core import config
 from app.core.config import Env
+from app.core.http_client import get_http_client
 from app.core.logger import log_boundary
 from app.models.accounts import Account, AuthProvider
 from app.models.profiles import Gender, Profile, RelationType
@@ -102,27 +103,28 @@ class OAuthService:
             "code": code.strip(),
         }
 
-        async with httpx.AsyncClient() as client:
-            try:
-                # 경계 계측: 실패(예: KOE320)가 HTTPException 번역 전에 서버 로그에 남도록.
-                async with log_boundary(logger, "kakao_token_exchange", url=self.kakao_token_url):
-                    response = await client.post(self.kakao_token_url, data=data, timeout=5.0)
-                    response.raise_for_status()
-                    return response.json()
-            except httpx.HTTPStatusError as e:
-                error_detail = e.response.json() if e.response.content else {"error": "token_exchange_failed"}
-                raise HTTPException(
-                    status_code=e.response.status_code,
-                    detail=error_detail,
-                ) from e
-            except httpx.RequestError as e:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail={
-                        "error": "network_error",
-                        "error_description": "Cannot communicate with authentication server. Please try again later.",
-                    },
-                ) from e
+        # 공유 클라이언트 재사용(커넥션 풀). secret 은 client 기본값 아닌 요청별로 전달.
+        client = get_http_client()
+        try:
+            # 경계 계측: 실패(예: KOE320)가 HTTPException 번역 전에 서버 로그에 남도록.
+            async with log_boundary(logger, "kakao_token_exchange", url=self.kakao_token_url):
+                response = await client.post(self.kakao_token_url, data=data)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as e:
+            error_detail = e.response.json() if e.response.content else {"error": "token_exchange_failed"}
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=error_detail,
+            ) from e
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={
+                    "error": "network_error",
+                    "error_description": "Cannot communicate with authentication server. Please try again later.",
+                },
+            ) from e
 
     async def _get_user_info(self, access_token: str) -> dict[str, Any]:
         """Get user information from Kakao (or mock) server using access token.
@@ -141,27 +143,28 @@ class OAuthService:
             "Content-type": "application/x-www-form-urlencoded;charset=utf-8",
         }
 
-        async with httpx.AsyncClient() as client:
-            try:
-                # 경계 계측: 토큰 만료/권한 실패가 HTTPException 번역 전에 서버 로그에 남도록.
-                async with log_boundary(logger, "kakao_userinfo", url=self.kakao_userinfo_url):
-                    response = await client.get(self.kakao_userinfo_url, headers=headers, timeout=5.0)
-                    response.raise_for_status()
-                    return response.json()
-            except httpx.HTTPStatusError as e:
-                error_detail = e.response.json() if e.response.content else {"error": "userinfo_failed"}
-                raise HTTPException(
-                    status_code=e.response.status_code,
-                    detail=error_detail,
-                ) from e
-            except httpx.RequestError as e:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail={
-                        "error": "network_error",
-                        "error_description": "Cannot communicate with user info server.",
-                    },
-                ) from e
+        # 공유 클라이언트 재사용(커넥션 풀). access_token 은 요청별 헤더로만 전달.
+        client = get_http_client()
+        try:
+            # 경계 계측: 토큰 만료/권한 실패가 HTTPException 번역 전에 서버 로그에 남도록.
+            async with log_boundary(logger, "kakao_userinfo", url=self.kakao_userinfo_url):
+                response = await client.get(self.kakao_userinfo_url, headers=headers)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as e:
+            error_detail = e.response.json() if e.response.content else {"error": "userinfo_failed"}
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=error_detail,
+            ) from e
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={
+                    "error": "network_error",
+                    "error_description": "Cannot communicate with user info server.",
+                },
+            ) from e
 
     async def kakao_callback(self, code: str, client_ip: str) -> tuple[Account, bool]:
         """Process Kakao OAuth callback.
