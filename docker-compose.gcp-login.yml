@@ -54,6 +54,9 @@ services:
     command: ["aerich", "upgrade"]
     env_file:
       - .env
+    environment:
+      # migrate 는 logs 볼륨 미마운트 → 쓰기 가능한 임시경로로 지정(파일로깅 폴백 WARNING 제거).
+      LOG_DIR: /tmp/logs
     networks:
       - web
     restart: "no"
