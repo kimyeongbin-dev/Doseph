@@ -9,11 +9,14 @@
 # ─────────────────────────────────────────────────────────────────────
 
 services:
-  # FastAPI API 서버 — VM 에서 amd64 네이티브 빌드 (app/Dockerfile.prod)
+  # FastAPI API 서버 — 이미지는 GHA 가 ghcr 에 빌드/푸시, VM 은 pull 만 (CD pull-only).
+  # image 가 존재하면 compose 는 pull 을 사용하고, 없으면 build 로 폴백(로컬 부트스트랩).
+  # 흐름(CD): GHA buildx -> ghcr push(:latest/:sha) -> VM `compose pull` + `up -d --no-build`.
   # e2-micro(1GB) 는 워커 2개가 OOM(워커 SIGKILL 크래시루프) → 워커 1개로 하향.
   # async 단일 워커로 로그인 MVP 트래픽 충분. 상용 CMD 는 4. Neon TLS 는 DB_SSL=true.
   fastapi:
     container_name: fastapi
+    image: ghcr.io/kimyeongbin-dev/doseph-fastapi:latest
     build:
       context: .
       dockerfile: app/Dockerfile.prod
@@ -46,8 +49,10 @@ services:
   # 흐름: aerich upgrade(pending 마이그레이션 적용) -> exit 0 -> fastapi 기동.
   # 빈 DB 면 0~head 전체 생성, 이미 최신이면 no-op. 스키마 드리프트 재발 방지.
   # aerich 는 app 의존성 그룹에 포함되어 prod 이미지에 존재.
+  # fastapi 와 동일 이미지(app/Dockerfile.prod) 재사용 — command 만 다름 → 별도 pull 불요.
   migrate:
     container_name: migrate
+    image: ghcr.io/kimyeongbin-dev/doseph-fastapi:latest
     build:
       context: .
       dockerfile: app/Dockerfile.prod
