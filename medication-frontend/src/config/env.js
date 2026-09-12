@@ -9,11 +9,11 @@ const ENV = process.env.NEXT_PUBLIC_ENV || 'local';
 // 우선순위: NEXT_PUBLIC_API_BASE_URL(빌드 시 주입) > 아래 기본값.
 const ENV_CONFIG = {
   local: {
-    API_BASE_URL: 'http://localhost',
+    API_BASE_URL: 'http://localhost:8000',
     KAKAO_REDIRECT_URI: 'http://localhost:3000/auth/kakao/callback',
   },
   dev: {
-    API_BASE_URL: 'http://localhost',
+    API_BASE_URL: 'http://localhost:8000',
     KAKAO_REDIRECT_URI: 'http://localhost:3000/auth/kakao/callback',
   },
   prod: {

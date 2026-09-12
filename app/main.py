@@ -127,7 +127,8 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 # CORS settings (environment-specific)
 # localhost is only accessible from local machine, so it's safe to allow in all environments
-_LOCALHOST_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost", "http://localhost:80"]
+# 로컬 독립 API 전환(④): FE(:3000)가 fastapi(:8000)를 직접 호출 → nginx:80 오리진 제거.
+_LOCALHOST_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 if config.ENV == Env.PROD:
     # Production: FRONTEND_URL (env-injected, e.g. https://doseph.com) + localhost for local prod testing
