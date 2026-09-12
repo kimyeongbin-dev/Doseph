@@ -82,6 +82,7 @@ export async function handleLogout() {
   markLoggedOut({ reason: LOGOUT_REASON.SESSION_EXPIRED });
 
   if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 비컴포넌트(lib): router 훅 불가 + 로그아웃 상태 초기화 위해 전체 이동
     window.location.href = '/login';
   }
 }

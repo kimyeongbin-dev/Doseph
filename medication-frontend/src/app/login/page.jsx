@@ -87,6 +87,7 @@ export default function LoginPage() {
         state,
       })
 
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 외부 카카오 OAuth authorize_url 로 전체 이동(외부 URL, router 사용 불가)
       window.location.href = `${authorize_url}?${params.toString()}`
     } catch (err) {
       console.error('카카오 로그인 설정 조회 실패:', err)

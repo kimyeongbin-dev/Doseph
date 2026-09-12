@@ -23,6 +23,7 @@ export default function AuthGuard({ children }) {
       .then(() => setStatus('ok'))
       .catch(() => {
         setStatus('redirect')
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 인증 실패 시 전체 리로드로 앱 상태 초기화 의도
         window.location.href = '/login'
       })
   }, [pathname, isPublic])

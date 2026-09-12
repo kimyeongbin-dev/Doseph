@@ -206,6 +206,7 @@ function OcrResultContent() {
         // 무시
       }
     }
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- OCR 재촬영: 전체 리로드로 진행 상태 초기화 의도
     window.location.href = '/ocr'
   }
 

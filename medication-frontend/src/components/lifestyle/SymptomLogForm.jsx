@@ -91,7 +91,6 @@ export default function SymptomLogForm({ profileId, initialSymptoms, initialNote
   // 부모가 fetchTodaySymptoms 로 prop 을 갱신할 때마다 form 동기화 — 사용자가
   // 같은 페이지에서 누적 기록 (저장 → 결과 카드 갱신 → 새 기록 추가) 흐름
   // 유지. JSON.stringify dep 으로 ref 변경이 아닌 실제 값 변경에만 반응.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     reset({
       log_date: today,

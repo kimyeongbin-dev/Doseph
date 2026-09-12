@@ -110,6 +110,7 @@ export function handleApiError(error, options = {}) {
 
   if (redirectOnAuth && parsed.shouldRedirectToLogin) {
     if (typeof window !== 'undefined') {
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 비컴포넌트(lib): router 훅 불가 + 401 시 전체 리로드로 상태 초기화
       window.location.href = '/login';
     }
   }

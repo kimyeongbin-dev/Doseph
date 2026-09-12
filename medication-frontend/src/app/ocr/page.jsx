@@ -109,6 +109,7 @@ export default function OcrPage() {
             />
             {preview ? (
               <div className="px-4">
+                {/* eslint-disable-next-line @next/next/no-img-element -- 정적 export(unoptimized) + 클라 미리보기(dataURL)라 next/image 이점 없음 */}
                 <img src={preview} alt="미리보기" className="w-full rounded-xl shadow-md" />
                 <p className="text-muted text-xs font-bold mt-4">클릭하여 사진 교체</p>
               </div>
