@@ -71,6 +71,9 @@ services:
   # FastAPI API 서버 — ML 추론은 ai-worker 에 위임, bind mount 로 hot-reload
   fastapi:
     container_name: fastapi
+    # 로컬 전용: Windows 바인드마운트(./logs → /app/logs 가 root:root)에 파일로깅 +
+    # uvicorn --reload 워처가 쓰기/탐색 가능하도록 root 실행. prod 는 Dockerfile.prod 의 appuser 유지.
+    user: "root"
     build:
       context: .
       dockerfile: app/Dockerfile
@@ -121,6 +124,8 @@ services:
   # app/ 바인드: ai_worker.utils.rag → app.dtos.rag 의존
   ai-worker:
     container_name: ai-worker
+    # 로컬 전용: 로그 바인드마운트 쓰기 권한(위 fastapi 주석 참조). prod 는 appuser.
+    user: "root"
     build:
       context: .
       dockerfile: ai_worker/Dockerfile
