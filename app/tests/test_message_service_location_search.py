@@ -51,18 +51,18 @@ def stub_repos(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     captured["account_id"] = session_account
     captured["profile_id"] = session_profile
 
-    async def fake_get_session(_self, sid):  # noqa: ARG001
+    async def fake_get_session(_self, sid):
         return _StubSession(session_id=session_id, account_id=session_account, profile_id=session_profile)
 
-    async def fake_recent(_self, _sid, limit):  # noqa: ARG001
+    async def fake_recent(_self, _sid, limit):
         return []
 
-    async def fake_user_msg(_self, sid, content):  # noqa: ARG001
+    async def fake_user_msg(_self, sid, content):
         msg = _StubChatMessage(message_id=str(uuid4()), content=content, sender_type="USER")
         captured["user"].append(content)
         return msg
 
-    async def fake_assistant_msg(_self, sid, content, metadata=None):  # noqa: ARG001
+    async def fake_assistant_msg(_self, sid, content, metadata=None):
         msg = _StubChatMessage(message_id=str(uuid4()), content=content, sender_type="ASSISTANT")
         msg.metadata = metadata or {}
         captured["assistant"].append(content)
@@ -113,7 +113,7 @@ class TestLocationSearchKeyword:
 
         captured_calls: list[Any] = []
 
-        async def fake_run(*, calls, queue, **_):  # noqa: ARG001
+        async def fake_run(*, calls, queue, **_):
             captured_calls.extend(calls)
             assert len(calls) == 1
             assert calls[0]["name"] == "search_hospitals_by_keyword"
@@ -122,7 +122,7 @@ class TestLocationSearchKeyword:
             tool_id = calls[0]["tool_call_id"]
             return {tool_id: {"places": [{"place_name": "강남스퀘어약국"}]}}
 
-        async def fake_generate(*, messages, queue, system_prompt=None):  # noqa: ARG001
+        async def fake_generate(*, messages, queue, system_prompt=None):
             tool_msgs = [m for m in messages if m.get("role") == "tool"]
             assert len(tool_msgs) == 1
             assert "강남스퀘어약국" in tool_msgs[0]["content"]
