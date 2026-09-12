@@ -7,8 +7,9 @@
 
 from app.dtos.challenge import ChallengeResponse
 from app.dtos.chat_session import ChatSessionResponse
+from app.dtos.intake_log import IntakeLogCreate
 from app.dtos.medication import MedicationResponse
-from app.dtos.message import MessageResponse
+from app.dtos.message import MessageCreate, MessageResponse
 from app.dtos.oauth import AuthMeResponse
 from app.dtos.profile import ProfileCreate, ProfileResponse, ProfileSummaryResponse
 
@@ -58,3 +59,16 @@ class TestRequestRejectsOwnerField:
 
     def test_profile_create_no_account_id(self) -> None:
         assert "account_id" not in ProfileCreate.model_fields
+
+
+class TestRequestRejectsServerDecidedFields:
+    """요청 DTO 는 서버가 결정하는 필드를 입력으로 받지 않아야 한다 (과유입/계약 불일치 방지)."""
+
+    def test_message_create_no_sender_type(self) -> None:
+        # sender_type 은 서버가 USER 로 강제 — 클라가 ASSISTANT 로 위조 지정할 수 없어야 한다.
+        assert "sender_type" not in MessageCreate.model_fields
+
+    def test_intake_log_create_no_status_fields(self) -> None:
+        # 생성 시 상태는 서버가 SCHEDULED 로 결정, 복용 완료/스킵은 /take·/skip 엔드포인트 담당.
+        assert "intake_status" not in IntakeLogCreate.model_fields
+        assert "taken_at" not in IntakeLogCreate.model_fields

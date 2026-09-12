@@ -16,12 +16,12 @@ from app.models.messages import SenderType
 class MessageCreate(BaseModel):
     """Message creation request model.
 
-    Used for creating new messages within chat sessions
-    with sender type specification.
+    서버가 발신자를 USER 로 강제하므로 sender_type 은 요청에서 받지 않는다
+    (클라이언트가 ASSISTANT 로 위조 지정하는 것을 계약 수준에서 차단). ASSISTANT
+    메시지는 서버 내부(recall_notification 등)에서 모델 레벨로만 생성된다.
     """
 
     session_id: UUID = Field(..., description="Connected chat session ID")
-    sender_type: SenderType = Field(..., description="Sender type (USER, ASSISTANT)")
     content: str = Field(..., description="Message content")
 
 
