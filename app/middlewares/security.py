@@ -39,6 +39,16 @@ SUSPICIOUS_PATTERNS: list[tuple[str, str]] = [
 COMPILED_ATTACK_PATTERNS = [(re.compile(p, re.IGNORECASE), name) for p, name in ATTACK_PATTERNS]
 COMPILED_SUSPICIOUS_PATTERNS = [(re.compile(p, re.IGNORECASE), name) for p, name in SUSPICIOUS_PATTERNS]
 
+# Baseline security headers (CSP excluded — handled separately)
+# 문서 CSP 는 FE 정적 _headers, API 전용 CSP 는 별도 주입 -> 여기선 공통 헤더만 관리.
+SECURITY_HEADERS: dict[str, str] = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+}
+
 
 def check_attack_patterns(value: str) -> str | None:
     """Check for clear attack patterns (blocking targets).
@@ -156,17 +166,16 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         return response
 
     def _add_security_headers(self, response: Response) -> None:
-        """Add security headers to response (excluding CSP for SPA compatibility).
+        """Add baseline security headers to the response.
+
+        CSP is intentionally handled outside this loop: the document CSP lives in
+        the Cloudflare Pages ``_headers`` file (static export has no server to emit
+        per-request headers), and the API-specific CSP is injected separately.
 
         Args:
             response: Response object to add headers to.
         """
-        # Basic security headers
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-
-        # CSP is set in Next.js (next.config.js headers())
-        # Excluded from BE due to compatibility issues with SPA inline scripts
+        # ── 기본 보안 헤더 적용 ────────────────────────────────────────
+        # 흐름: SECURITY_HEADERS 상수 순회 -> 응답 헤더에 주입
+        for header_name, header_value in SECURITY_HEADERS.items():
+            response.headers[header_name] = header_value
