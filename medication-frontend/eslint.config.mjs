@@ -22,6 +22,14 @@ const eslintConfig = defineConfig([
       "react-hooks/immutability": "warn",
     },
   },
+  {
+    // [보안 게이트] dangerouslySetInnerHTML 사용 차단 — DOM 기반 XSS 의 대표적 sink.
+    // 현재 코드베이스 사용처 0건이므로 error 로 넣어 신규 유입을 CI 에서 차단한다.
+    // 정말 필요하면 해당 라인에 sanitize(예: DOMPurify) 후 명시적 eslint-disable 로 예외 처리.
+    rules: {
+      "react/no-danger": "error",
+    },
+  },
 ]);
 
 export default eslintConfig;
