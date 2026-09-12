@@ -256,6 +256,7 @@ ignore = [
     "ANN",     # Missing annotations (not required in tests)
     "PLR2004", # Magic value used in comparison (normal in tests)
     "SLF001",  # Private member accessed (Tortoise _meta introspection)
+    "ARG",     # Unused args (test doubles mirror real signatures; side-effect fixtures)
 ]
 "app/tests/mock_data/*" = [
     "E501",    # Line too long (seed dicts intentionally one-line per row)
