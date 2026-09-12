@@ -29,7 +29,6 @@ TORTOISE_APP_MODELS: list[str] = [
     "app.models.challenge",
     "app.models.chat_sessions",
     "app.models.messages",
-    "app.models.message_feedbacks",
     "app.models.intake_log",
     "app.models.data_sync_log",
     "app.models.ocr_draft",
