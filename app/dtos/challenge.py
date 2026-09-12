@@ -86,4 +86,3 @@ class ChallengeResponse(BaseModel):
     started_date: date = Field(..., description="챌린지 시작 날짜")
     created_at: datetime = Field(..., description="생성 일시")
     updated_at: datetime = Field(..., description="수정 일시")
-    deleted_at: datetime | None = Field(None, description="삭제 일시")

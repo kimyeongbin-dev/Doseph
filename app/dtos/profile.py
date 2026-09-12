@@ -35,11 +35,10 @@ class BaseProfile(BaseModel):
 class ProfileCreate(BaseProfile):
     """Profile creation request model.
 
-    Used for creating new user profiles.
-    Account ID is automatically set by backend.
+    Used for creating new user profiles. The owning account is set by the
+    backend from the authenticated context — NOT accepted from the client
+    (mass-assignment 방지).
     """
-
-    account_id: UUID | None = Field(None, description="Connected account ID (automatically set by backend)")
 
 
 class ProfileUpdate(BaseModel):
@@ -84,4 +83,3 @@ class ProfileResponse(BaseProfile):
     account_id: UUID = Field(..., description="Connected account ID")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
-    deleted_at: datetime | None = Field(None, description="Deletion timestamp")

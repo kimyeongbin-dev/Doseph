@@ -50,7 +50,6 @@ class MessageResponse(BaseModel):
     sender_type: SenderType = Field(..., description="Sender type")
     content: str = Field(..., description="Message content")
     created_at: datetime = Field(..., description="Send timestamp")
-    deleted_at: datetime | None = Field(None, description="Deletion timestamp")
 
 
 class ChatAskResponse(BaseModel):

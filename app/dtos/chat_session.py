@@ -53,4 +53,3 @@ class ChatSessionResponse(BaseModel):
     title: str | None = Field(None, description="Session title")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
-    deleted_at: datetime | None = Field(None, description="Deletion timestamp")

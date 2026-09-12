@@ -97,7 +97,6 @@ class MedicationResponse(BaseMedication):
     )
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
-    deleted_at: datetime | None = Field(None, description="Deletion timestamp")
     # 회수·판매중지 알림 페이로드 (Phase 7 §A.2.1·§A.2.2)
     # POST 응답: 등록 시점 모달 페이로드. GET 응답: 마이페이지 라벨 페이로드.
     # medication 객체에 attach 된 속성을 from_attributes 로 자동 매핑한다.
