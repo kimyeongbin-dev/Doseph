@@ -5,9 +5,20 @@ including creation, updates, and response serialization.
 """
 
 from datetime import date, datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class ChallengeStatus(StrEnum):
+    """챌린지 진행 상태 — 서버가 단독으로 계산/전환한다 (클라 입력 불가).
+
+    IN_PROGRESS: 진행 중. COMPLETED: target_days 달성으로 완료.
+    """
+
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
 
 
 class ChallengeCreate(BaseModel):
@@ -38,21 +49,20 @@ class ChallengeStartRequest(BaseModel):
 
 
 class ChallengeUpdate(BaseModel):
-    """Challenge update request model.
+    """Challenge update request model (메타데이터 전용).
 
-    Used for partial updates to existing challenges.
-    All fields are optional for flexible updates.
+    사용자가 편집 가능한 메타데이터만 받는다. 진행 상태(challenge_status)·완료
+    날짜(completed_dates)는 서버가 단독 관리하므로 요청에서 제외 — 체크오프는
+    전용 엔드포인트(POST /challenges/{id}/check)로만 이뤄진다 (완료/스트릭 위조
+    방지). 활성화(is_active)는 '시작하기' PATCH 호환을 위해 유지하되, 전용
+    엔드포인트 PATCH /start 가 정식 경로다.
     """
 
     title: str | None = Field(None, max_length=64, description="챌린지 제목")
     description: str | None = Field(None, max_length=256, description="상세 설명")
     target_days: int | None = Field(None, description="목표 달성 일수")
     difficulty: str | None = Field(None, max_length=16, description="난이도 (쉬움/보통/어려움)")
-    completed_dates: list[date] | None = Field(None, description="달성 완료 날짜 목록")
-    challenge_status: str | None = Field(None, max_length=16, description="진행 상태")
     started_date: date | None = Field(None, description="챌린지 시작 날짜")
-    # [추가] 프론트에서 '시작하기' 버튼 클릭 시 PATCH 요청으로 is_active=true 전송
-    # → 챌린지를 시작된 상태로 전환할 수 있도록 업데이트 DTO에 노출
     is_active: bool | None = Field(None, description="챌린지 활성화 여부")
 
 
@@ -79,7 +89,7 @@ class ChallengeResponse(BaseModel):
     target_days: int = Field(..., description="목표 달성 일수")
     difficulty: str | None = Field(None, description="난이도 (쉬움/보통/어려움)")
     completed_dates: list[date] = Field(default_factory=list, description="달성 완료 날짜 목록")
-    challenge_status: str = Field(..., description="진행 상태")
+    challenge_status: ChallengeStatus = Field(..., description="진행 상태 (서버 단독 관리)")
     # [추가] 챌린지 3-상태 패턴을 위해 응답에 노출
     # False → "시작하기" 버튼 / True + IN_PROGRESS → "오늘 완료 체크" / COMPLETED → 완료 뱃지
     is_active: bool = Field(..., description="사용자가 챌린지를 시작했는지 여부")

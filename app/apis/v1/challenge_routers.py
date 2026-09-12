@@ -168,6 +168,36 @@ async def start_challenge(
     return ChallengeResponse.model_validate(challenge)
 
 
+# ── 오늘 완료 체크 (서버 단독 진행상태 관리) ──────────────────────────
+# 흐름: 소유권 검증 -> 오늘 날짜 멱등 append -> target_days 도달 시 COMPLETED
+#       클라이언트는 완료 날짜·상태를 보내지 않는다 (완료/스트릭 위조 방지).
+@router.post(
+    "/{challenge_id}/check",
+    response_model=ChallengeResponse,
+    summary="Check today's challenge completion",
+)
+async def check_challenge_today(
+    challenge_id: UUID,
+    current_account: CurrentAccount,
+    service: ChallengeServiceDep,
+) -> ChallengeResponse:
+    """오늘 완료를 기록한다.
+
+    완료 날짜와 진행 상태는 서버가 단독으로 결정한다 (오늘 날짜 멱등 추가,
+    target_days 도달 시 COMPLETED). 클라이언트는 트리거만 보낸다.
+
+    Args:
+        challenge_id: 완료 체크할 챌린지 ID.
+        current_account: 현재 인증 계정 (소유권 검증).
+        service: Challenge service instance.
+
+    Returns:
+        ChallengeResponse: 완료가 반영된 챌린지.
+    """
+    challenge = await service.complete_day_with_owner_check(challenge_id, current_account.id)
+    return ChallengeResponse.model_validate(challenge)
+
+
 @router.delete(
     "/{challenge_id}",
     status_code=status.HTTP_204_NO_CONTENT,

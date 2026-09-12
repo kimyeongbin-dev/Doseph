@@ -269,28 +269,47 @@ class ChallengeService:
                 update_fields["target_days"] = data.target_days
         return await self.repository.update(challenge, **update_fields)
 
+    # ── 오늘 완료 체크 (진행 상태 서버 단독 관리) ────────────────────────
+    # 흐름: (소유권 검증) -> 오늘 날짜 멱등 append -> target_days 도달 시 COMPLETED
+    #       클라이언트는 완료 날짜·상태를 보내지 않는다 (완료/스트릭 위조 방지).
+
     async def complete_day(
         self,
         challenge_id: UUID,
         completed_date: date | None = None,
     ) -> Challenge:
-        """Mark challenge day as completed.
+        """Mark challenge day as completed (소유권 미검증 내부용)."""
+        challenge = await self.get_challenge(challenge_id)
+        return await self._apply_completion(challenge, completed_date)
+
+    async def complete_day_with_owner_check(
+        self,
+        challenge_id: UUID,
+        account_id: UUID,
+        completed_date: date | None = None,
+    ) -> Challenge:
+        """오늘(또는 지정일) 완료를 기록한다 — 소유권 검증 후 서버가 날짜·상태 결정.
 
         Args:
             challenge_id: Challenge UUID.
-            completed_date: Date to mark as completed (defaults to today).
+            account_id: Account UUID for ownership check.
+            completed_date: 완료 처리할 날짜 (미지정 시 오늘/KST).
 
         Returns:
-            Challenge: Updated challenge with completion recorded.
+            Challenge: 완료가 반영된 챌린지.
         """
-        challenge = await self.get_challenge(challenge_id)
+        challenge = await self.get_challenge_with_owner_check(challenge_id, account_id)
+        return await self._apply_completion(challenge, completed_date)
+
+    async def _apply_completion(self, challenge: Challenge, completed_date: date | None) -> Challenge:
+        """완료 날짜를 멱등 추가하고 target_days 도달 시 COMPLETED 로 전환."""
         target_date = completed_date or datetime.now(tz=config.TIMEZONE).date()
 
         completed_dates = challenge.completed_dates or []
         if target_date.isoformat() not in completed_dates:
             completed_dates.append(target_date.isoformat())
 
-        # Update status to completed when target is reached
+        # 목표 일수 도달 시에만 상태를 COMPLETED 로 전환한다.
         if len(completed_dates) >= challenge.target_days:
             return await self.repository.update(
                 challenge,

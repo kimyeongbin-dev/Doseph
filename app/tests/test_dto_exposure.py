@@ -5,7 +5,7 @@
 서버가 auth 에서 정하는 소유자 필드(account_id)를 받지 않아야 한다(mass-assignment 방지).
 """
 
-from app.dtos.challenge import ChallengeResponse
+from app.dtos.challenge import ChallengeResponse, ChallengeUpdate
 from app.dtos.chat_session import ChatSessionResponse
 from app.dtos.intake_log import IntakeLogCreate
 from app.dtos.medication import MedicationResponse
@@ -72,3 +72,23 @@ class TestRequestRejectsServerDecidedFields:
         # 생성 시 상태는 서버가 SCHEDULED 로 결정, 복용 완료/스킵은 /take·/skip 엔드포인트 담당.
         assert "intake_status" not in IntakeLogCreate.model_fields
         assert "taken_at" not in IntakeLogCreate.model_fields
+
+
+class TestChallengeUpdateRejectsProgressFields:
+    """ChallengeUpdate 는 진행 상태(서버 단독 관리)를 클라 입력으로 받지 않아야 한다.
+
+    완료 날짜·진행 상태를 generic PATCH 로 직접 기록하면 완료/스트릭 위조가
+    가능하므로, 체크오프는 전용 엔드포인트(POST /challenges/{id}/check)로만
+    이뤄진다. 진행 상태는 서버가 단독으로 계산한다.
+    """
+
+    def test_no_challenge_status(self) -> None:
+        assert "challenge_status" not in ChallengeUpdate.model_fields
+
+    def test_no_completed_dates(self) -> None:
+        assert "completed_dates" not in ChallengeUpdate.model_fields
+
+    def test_response_still_exposes_progress(self) -> None:
+        # 응답에는 진행 상태가 필요하다 (읽기 전용 — UI 3-상태 렌더링용).
+        assert "challenge_status" in ChallengeResponse.model_fields
+        assert "completed_dates" in ChallengeResponse.model_fields
