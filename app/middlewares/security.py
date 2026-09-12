@@ -13,6 +13,8 @@ import re
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.config import config
+
 logger = logging.getLogger(__name__)
 
 # Clear attack patterns (logging + blocking)
@@ -48,6 +50,33 @@ SECURITY_HEADERS: dict[str, str] = {
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
 }
+
+# CSP 위반 리포트 수집 경로 (H2 라우터가 구현) + Reporting API 엔드포인트 이름.
+CSP_REPORT_PATH = "/api/v1/security/csp-report"
+CSP_REPORT_ENDPOINT_NAME = "csp-endpoint"
+
+
+# ── API 전용 CSP 문자열 조립 ──────────────────────────────────────────
+# 흐름: 엄격 기본 지시어 -> (report_uri 있으면) report-uri + report-to 부착
+def build_api_csp(report_uri: str | None = None) -> str:
+    """Build the API-only Content-Security-Policy string.
+
+    API responses return JSON only (no HTML/scripts), so the strictest policy
+    applies: nothing may be loaded, framed, or used as a base URI. When a report
+    URI is given, both report-uri (legacy) and report-to (2026 Reporting API)
+    directives are appended for broad browser compatibility.
+
+    Args:
+        report_uri: Absolute URL that receives CSP violation reports. When None,
+            no reporting directives are added.
+
+    Returns:
+        str: The assembled CSP header value.
+    """
+    directives = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    if report_uri is None:
+        return directives
+    return f"{directives}; report-uri {report_uri}; report-to {CSP_REPORT_ENDPOINT_NAME}"
 
 
 def check_attack_patterns(value: str) -> str | None:
@@ -179,3 +208,11 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         # 흐름: SECURITY_HEADERS 상수 순회 -> 응답 헤더에 주입
         for header_name, header_value in SECURITY_HEADERS.items():
             response.headers[header_name] = header_value
+
+        # ── API 전용 CSP + 리포팅 헤더 주입 ────────────────────────────
+        # 흐름: config.API_BASE_URL 로 리포트 URL 구성 -> 엄격 CSP + Reporting-Endpoints
+        #       API_BASE_URL 미설정 시 리포팅 없이 CSP 만 적용.
+        report_uri = f"{config.API_BASE_URL}{CSP_REPORT_PATH}" if config.API_BASE_URL else None
+        response.headers["Content-Security-Policy"] = build_api_csp(report_uri)
+        if report_uri:
+            response.headers["Reporting-Endpoints"] = f'{CSP_REPORT_ENDPOINT_NAME}="{report_uri}"'
