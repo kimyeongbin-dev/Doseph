@@ -6,10 +6,10 @@ name: CD (deploy)
 #       -> ④ health-check (실패 시 :sha 태그로 롤백)
 # 원칙: 빌드는 GHA(4vCPU), VM 은 pull 만 (e2-micro 빌드부담·다운타임 제거).
 on:
-  # NOTE: 초기 검증(수동 dispatch) 단계 — 안정화 후 push:main 트리거를 활성화한다.
-  # push:
-  #   branches:
-  #     - main
+  # main 에 push 되면 자동 배포. 수동 재배포/롤백용으로 dispatch 도 유지.
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 # 동일 ref 배포 직렬화 (동시 배포로 인한 경쟁 방지)
