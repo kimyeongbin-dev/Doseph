@@ -122,7 +122,7 @@ export default function ChallengePage() {
     completedChallenges,
     unstartedByGuide,
     isLoading: challengesLoading,
-    updateChallenge,
+    checkChallenge,
     deleteChallenge,
   } = useChallenge()
   // 챌린지 시작은 어디서 호출하든 StartChallengeModal 확인 후 실행 (단일 정책)
@@ -185,12 +185,8 @@ export default function ChallengePage() {
     setProcessingIds(prev => [...prev, challenge.id])
 
     try {
-      const newCompletedDates = [...(challenge.completed_dates || []), today]
-      const isCompleted = newCompletedDates.length >= challenge.target_days
-      const updated = await updateChallenge(challenge.id, {
-        completed_dates: newCompletedDates,
-        challenge_status: isCompleted ? 'COMPLETED' : 'IN_PROGRESS',
-      })
+      // 완료 날짜·진행 상태는 서버가 단독 결정한다 (POST /check). 클라는 트리거만.
+      const updated = await checkChallenge(challenge.id)
       if (updated.challenge_status === 'COMPLETED') {
         toast.success('챌린지를 완료했습니다! 수고하셨어요.')
         setActiveTab('완료')

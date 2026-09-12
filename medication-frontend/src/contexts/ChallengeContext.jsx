@@ -80,6 +80,20 @@ export function ChallengeProvider({ children }) {
     },
   })
 
+  // 오늘 완료 체크 — 완료 날짜·진행 상태는 서버가 단독 결정한다 (POST /check).
+  // 클라는 트리거만 보낸다 (완료/스트릭 위조 방지).
+  const checkMutation = useMutation({
+    mutationFn: async (id) => {
+      const { data } = await api.post(`/api/v1/challenges/${id}/check`)
+      return data
+    },
+    onSuccess: (updated, id) => {
+      qc.setQueryData(qk.challenges.list(selectedProfileId), (prev = []) =>
+        prev.map((c) => (c.id === id ? { ...c, ...updated } : c)),
+      )
+    },
+  })
+
   // 외부 호환 API — 기존 시그니처 그대로 (await 가능한 promise 반환).
   const startChallenge = useCallback(
     (id, opts) => startMutation.mutateAsync({ id, ...(opts || {}) }),
@@ -90,6 +104,7 @@ export function ChallengeProvider({ children }) {
     [updateMutation],
   )
   const deleteChallenge = useCallback((id) => deleteMutation.mutateAsync(id), [deleteMutation])
+  const checkChallenge = useCallback((id) => checkMutation.mutateAsync(id), [checkMutation])
   // 가이드 mutation 후 챌린지 추가 INSERT 를 store 에 즉시 union 하던 helper —
   // 이제는 가이드 mutation 의 onSuccess 에서 challenges 키를 invalidate 하므로 별 호출 불요.
   // 외부에서 직접 union 이 필요한 흐름이 남아있을 수 있으니 호환 stub 으로 유지.
@@ -129,6 +144,7 @@ export function ChallengeProvider({ children }) {
         startChallenge,
         updateChallenge,
         deleteChallenge,
+        checkChallenge,
         appendChallenges,
         refetchChallenges,
       }}
@@ -186,7 +202,7 @@ export function useChallengeStart() {
 
 // ── 오늘 완료 체크 단일 정책 ─────────────────────────────────────────
 export function useChallengeCheck() {
-  const { updateChallenge } = useChallenge()
+  const { checkChallenge } = useChallenge()
   const [checkingId, setCheckingId] = useState(null)
 
   const checkToday = useCallback(
@@ -202,12 +218,8 @@ export function useChallengeCheck() {
       }
       setCheckingId(challenge.id)
       try {
-        const newDates = [...(challenge.completed_dates || []), today]
-        const isCompleted = newDates.length >= challenge.target_days
-        const updated = await updateChallenge(challenge.id, {
-          completed_dates: newDates,
-          challenge_status: isCompleted ? 'COMPLETED' : 'IN_PROGRESS',
-        })
+        // 완료 날짜·진행 상태는 서버가 단독 결정한다 (POST /check). 클라는 트리거만.
+        const updated = await checkChallenge(challenge.id)
         if (updated.challenge_status === 'COMPLETED') {
           toast.success('챌린지를 완료했습니다! 수고하셨어요.')
         }
@@ -219,7 +231,7 @@ export function useChallengeCheck() {
         setCheckingId(null)
       }
     },
-    [checkingId, updateChallenge],
+    [checkingId, checkChallenge],
   )
 
   return { checkingId, checkToday }
