@@ -96,7 +96,7 @@ class TestCallbackOk:
     async def test_allow_runs_location_then_calls_llm(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        stub_repo: dict,  # noqa: ARG002
+        stub_repo: dict,
     ) -> None:
         account_id = str(uuid4())
         store = InMemoryPendingTurnStore()
@@ -104,7 +104,7 @@ class TestCallbackOk:
 
         location_calls: list = []
 
-        async def fake_run_tool_calls(*, calls, queue, **_) -> dict:  # noqa: ARG001
+        async def fake_run_tool_calls(*, calls, queue, **_) -> dict:
             # location 만 남아야 함 (keyword 는 eager_results 에서 재활용)
             location_calls.extend(calls)
             assert len(calls) == 1
@@ -112,7 +112,7 @@ class TestCallbackOk:
             assert calls[0]["geolocation"] == {"lat": 37.5, "lng": 127.0}
             return {"c2": {"places": [{"place_name": "미진약국"}]}}
 
-        async def fake_generate(*, messages, system_prompt=None, queue) -> dict:  # noqa: ARG001
+        async def fake_generate(*, messages, system_prompt=None, queue) -> dict:
             # messages 에 두 tool role 결과(c1, c2) 가 모두 포함되어 있어야 함
             tool_ids = [m.get("tool_call_id") for m in messages if m.get("role") == "tool"]
             assert set(tool_ids) == {"c1", "c2"}
@@ -143,7 +143,7 @@ class TestCallbackDenied:
     async def test_denied_skips_location_and_goes_straight_to_llm(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        stub_repo: dict,  # noqa: ARG002
+        stub_repo: dict,
     ) -> None:
         account_id = str(uuid4())
         store = InMemoryPendingTurnStore()
@@ -152,7 +152,7 @@ class TestCallbackDenied:
         async def should_not_run_tool(**_: Any) -> dict:
             raise AssertionError("denied 시 location 호출이 일어나면 안 됨")
 
-        async def fake_generate(*, messages, system_prompt=None, queue) -> dict:  # noqa: ARG001
+        async def fake_generate(*, messages, system_prompt=None, queue) -> dict:
             # location tool 결과가 error payload 로 전달되어야 함
             c2_msg = next((m for m in messages if m.get("tool_call_id") == "c2"), None)
             assert c2_msg is not None

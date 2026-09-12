@@ -49,18 +49,18 @@ def stub_repos(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     captured["account_id"] = session_account
     captured["profile_id"] = session_profile
 
-    async def fake_get_session(_self, sid):  # noqa: ARG001
+    async def fake_get_session(_self, sid):
         return _StubSession(session_id=session_id, account_id=session_account, profile_id=session_profile)
 
-    async def fake_recent(_self, _sid, limit):  # noqa: ARG001
+    async def fake_recent(_self, _sid, limit):
         return []
 
-    async def fake_user_msg(_self, sid, content):  # noqa: ARG001
+    async def fake_user_msg(_self, sid, content):
         msg = _StubChatMessage(message_id=str(uuid4()), content=content, sender_type="USER")
         captured["user"].append(content)
         return msg
 
-    async def fake_assistant_msg(_self, sid, content, metadata=None):  # noqa: ARG001
+    async def fake_assistant_msg(_self, sid, content, metadata=None):
         msg = _StubChatMessage(message_id=str(uuid4()), content=content, sender_type="ASSISTANT")
         msg.metadata = metadata or {}
         captured["assistant"].append(content)
@@ -111,7 +111,7 @@ class TestRecallCheckUserMode:
 
         captured_calls: list[Any] = []
 
-        async def fake_run(*, calls, queue, **_):  # noqa: ARG001
+        async def fake_run(*, calls, queue, **_):
             captured_calls.extend(calls)
             assert len(calls) == 1
             assert calls[0]["name"] == "check_user_medications_recall"
@@ -120,7 +120,7 @@ class TestRecallCheckUserMode:
             tool_id = calls[0]["tool_call_id"]
             return {tool_id: {"matched": True, "recalls": [{"item_seq": "X1"}]}}
 
-        async def fake_generate(*, messages, queue, system_prompt=None):  # noqa: ARG001
+        async def fake_generate(*, messages, queue, system_prompt=None):
             tool_msgs = [m for m in messages if m.get("role") == "tool"]
             assert len(tool_msgs) == 1
             assert "X1" in tool_msgs[0]["content"]
@@ -161,7 +161,7 @@ class TestRecallCheckManufacturerMode:
 
         captured_calls: list[Any] = []
 
-        async def fake_run(*, calls, queue, **_):  # noqa: ARG001
+        async def fake_run(*, calls, queue, **_):
             captured_calls.extend(calls)
             assert calls[0]["name"] == "check_manufacturer_recalls"
             assert calls[0]["arguments"]["manufacturer"] == "동국제약"
@@ -169,7 +169,7 @@ class TestRecallCheckManufacturerMode:
             tool_id = calls[0]["tool_call_id"]
             return {tool_id: {"matched": False, "recalls": []}}
 
-        async def fake_generate(*, messages, queue, system_prompt=None):  # noqa: ARG001
+        async def fake_generate(*, messages, queue, system_prompt=None):
             return {"answer": "동국제약 회수 이력 없습니다.", "token_usage": None}
 
         monkeypatch.setattr("app.services.message_service.run_tool_calls_via_rq", fake_run)
@@ -201,14 +201,14 @@ class TestRecallCheckManufacturerMode:
             _make_classify(IntentType.RECALL_CHECK, recall_query=recall_query),
         )
 
-        async def fake_run(*, calls, queue, **_):  # noqa: ARG001
+        async def fake_run(*, calls, queue, **_):
             assert calls[0]["name"] == "check_manufacturer_recalls"
             # manufacturer 키가 아예 없거나 None
             assert calls[0]["arguments"].get("manufacturer") in (None, "")
             tool_id = calls[0]["tool_call_id"]
             return {tool_id: {"matched": False, "recalls": []}}
 
-        async def fake_generate(*, messages, queue, system_prompt=None):  # noqa: ARG001
+        async def fake_generate(*, messages, queue, system_prompt=None):
             return {"answer": "복용약 제조사 회수 이력 없음.", "token_usage": None}
 
         monkeypatch.setattr("app.services.message_service.run_tool_calls_via_rq", fake_run)
