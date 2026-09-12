@@ -80,10 +80,10 @@ jobs:
         run: uv run ruff format --check app/ ai_worker/
 
   # ── FE 게이트 (ESLint · npm audit · 정적 빌드) ───────────────────────
-  # 흐름: npm ci -> eslint(보안룰 react/no-danger 포함) -> npm audit(report-only)
+  # 흐름: npm ci -> eslint(보안룰 react/no-danger 포함) -> npm audit(blocking)
   #       -> next build(정적 export, out/ 산출)
-  # audit 는 continue-on-error(비차단) — 기존 next transitive 취약점은 Dependabot 이
-  # 수정 PR 로 처리하고, 정리되면 blocking 으로 승격 예정. (정적 export 라 런타임 노출 낮음)
+  # audit 는 blocking(high 이상 발견 시 RED). 2026-09-13 취약점 0건 정리 완료 후
+  # report-only -> blocking 승격(Dependabot next 16.3.4 그룹머지 + npm audit fix).
   frontend:
     name: Frontend (ESLint · audit · build)
     runs-on: ubuntu-latest
@@ -107,9 +107,8 @@ jobs:
       - name: ESLint
         run: npx eslint .
 
-      - name: npm audit (report-only, high 이상)
+      - name: npm audit (blocking, high 이상)
         run: npm audit --audit-level=high
-        continue-on-error: true
 
       - name: Build (static export)
         run: npx next build
