@@ -64,7 +64,6 @@ class ProfileSummaryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(..., description="Profile unique ID")
-    account_id: UUID = Field(..., description="Connected account ID")
     name: str = Field(..., description="Profile name")
     relation_type: RelationType = Field(..., description="가족 관계")
     gender: Gender | None = Field(None, description="성별")
@@ -80,6 +79,5 @@ class ProfileResponse(BaseProfile):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(..., description="Profile unique ID")
-    account_id: UUID = Field(..., description="Connected account ID")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")

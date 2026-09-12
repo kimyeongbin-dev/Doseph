@@ -9,7 +9,8 @@ from app.dtos.challenge import ChallengeResponse
 from app.dtos.chat_session import ChatSessionResponse
 from app.dtos.medication import MedicationResponse
 from app.dtos.message import MessageResponse
-from app.dtos.profile import ProfileCreate, ProfileResponse
+from app.dtos.oauth import AuthMeResponse
+from app.dtos.profile import ProfileCreate, ProfileResponse, ProfileSummaryResponse
 
 
 class TestResponseHidesDeletedAt:
@@ -29,6 +30,27 @@ class TestResponseHidesDeletedAt:
 
     def test_message_response(self) -> None:
         assert "deleted_at" not in MessageResponse.model_fields
+
+
+class TestResponseHidesAccountId:
+    """응답 DTO 는 불필요한 내부 FK account_id 를 노출하지 않아야 한다.
+
+    호출자는 auth 컨텍스트로 이미 자기 계정이며, 계정 식별이 필요하면 /auth/me
+    (AuthMeResponse)에서 얻는다. 따라서 AuthMeResponse 만 account_id 를 유지한다.
+    """
+
+    def test_profile_response_no_account_id(self) -> None:
+        assert "account_id" not in ProfileResponse.model_fields
+
+    def test_profile_summary_response_no_account_id(self) -> None:
+        assert "account_id" not in ProfileSummaryResponse.model_fields
+
+    def test_chat_session_response_no_account_id(self) -> None:
+        assert "account_id" not in ChatSessionResponse.model_fields
+
+    def test_auth_me_keeps_account_id(self) -> None:
+        # /auth/me 의 존재 이유 = 로그인 계정 id 반환 → 유지되어야 한다.
+        assert "account_id" in AuthMeResponse.model_fields
 
 
 class TestRequestRejectsOwnerField:

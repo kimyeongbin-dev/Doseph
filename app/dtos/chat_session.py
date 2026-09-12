@@ -48,7 +48,6 @@ class ChatSessionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(..., description="Session unique ID")
-    account_id: UUID = Field(..., description="Connected account ID")
     profile_id: UUID = Field(..., description="Connected profile ID")
     title: str | None = Field(None, description="Session title")
     created_at: datetime = Field(..., description="Creation timestamp")
