@@ -339,7 +339,7 @@ function MyPageContent() {
         await updateProfile(selectedFamilyMember.id, payload)
         toast.success('가족 정보가 수정되었습니다.')
       } else {
-        await createProfile({ ...payload, account_id: userProfile.account_id })
+        await createProfile(payload)
         toast.success('가족이 추가되었습니다.')
       }
 
