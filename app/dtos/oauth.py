@@ -36,10 +36,15 @@ class OAuthCallbackRequest(BaseModel):
 class OAuthLoginResponse(BaseModel):
     """Social login success response model.
 
-    Note: access_token is delivered via HttpOnly cookie for security.
+    Web (cookie) mode: access/refresh tokens are delivered via HttpOnly cookies
+    and the token fields below stay None. App (``X-Client-Type: native``) mode:
+    tokens are returned in the body instead of cookies.
     """
 
     is_new_user: bool = Field(description="Whether user is newly registered")
+    access_token: str | None = Field(default=None, description="JWT access token (app/native mode only)")
+    refresh_token: str | None = Field(default=None, description="JWT refresh token (app/native mode only)")
+    token_type: str = Field(default="Bearer", description="Token type")
 
 
 class OAuthUserInfo(BaseModel):
@@ -71,6 +76,10 @@ class TokenRefreshResponse(BaseModel):
     """
 
     access_token: str = Field(description="New JWT Access Token")
+    refresh_token: str | None = Field(
+        default=None,
+        description="New rotated refresh token — returned only in app/Bearer mode; omitted (None) in web/cookie mode",
+    )
     token_type: str = Field(default="Bearer", description="Token type")
 
 

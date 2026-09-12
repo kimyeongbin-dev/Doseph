@@ -105,6 +105,26 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+# ── Bearer 토큰 추출 (하이브리드 인증: 앱 클라이언트용) ──────────────────
+# 흐름: Authorization 헤더에서 "Bearer <token>" 파싱 -> 없으면 None
+def _bearer_token(request: Request) -> str | None:
+    """Extract the token from an ``Authorization: Bearer <token>`` header.
+
+    Used for app/native clients that send the refresh token in the header
+    instead of a cookie (hybrid auth).
+
+    Args:
+        request: FastAPI request object.
+
+    Returns:
+        The bearer token string, or ``None`` if the header is absent/malformed.
+    """
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer "):
+        return header[len("Bearer ") :].strip() or None
+    return None
+
+
 def get_oauth_service(
     rate_limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
 ) -> OAuthService:
@@ -258,15 +278,25 @@ async def kakao_callback(
     # 서비스 JWT 토큰 발급 및 DB 저장
     tokens = await oauth_service.issue_tokens(account)
 
-    response = JSONResponse(
-        content={
-            "status": "success",
-            "message": "Login successful",
-            "is_new_user": is_new_user,
-            "show_survey": is_new_user,
-        },
-        status_code=status.HTTP_200_OK,
-    )
+    # ── 하이브리드 발급 분기 (웹=HttpOnly 쿠키 / 앱=body 토큰) ──────────────
+    # 흐름: X-Client-Type: native 면 body 로 access+refresh 반환(쿠키 X),
+    #       아니면 웹 기본 = HttpOnly 쿠키로 발급(토큰 body 노출 안 함)
+    content = {
+        "status": "success",
+        "message": "Login successful",
+        "is_new_user": is_new_user,
+        "show_survey": is_new_user,
+    }
+
+    # 앱(native) 모드: 쿠키를 못 쓰므로 body 로 토큰 반환, 쿠키 미설정
+    if request.headers.get("X-Client-Type") == "native":
+        content["access_token"] = str(tokens["access_token"])
+        content["refresh_token"] = str(tokens["refresh_token"])
+        content["token_type"] = "Bearer"
+        return JSONResponse(content=content, status_code=status.HTTP_200_OK)
+
+    # 웹 모드: HttpOnly 쿠키로 발급
+    response = JSONResponse(content=content, status_code=status.HTTP_200_OK)
 
     # Access Token (HttpOnly 쿠키)
     response.set_cookie(
@@ -332,8 +362,11 @@ async def refresh_token(
         HTTPException: 401 if refresh token missing/invalid,
             403 if reuse detected (account compromised, force re-login).
     """
-    # 쿠키에서 refresh token 추출
-    refresh_token_str = request.cookies.get("refresh_token")
+    # ── 하이브리드 refresh 토큰 추출 (쿠키=웹 / Bearer=앱) ──────────────────
+    # 흐름: 쿠키 refresh 우선 -> 없으면 Authorization Bearer -> 둘 다 없으면 401
+    cookie_token = request.cookies.get("refresh_token")
+    bearer = _bearer_token(request)
+    refresh_token_str = cookie_token or bearer
 
     if not refresh_token_str:
         raise HTTPException(
@@ -347,11 +380,21 @@ async def refresh_token(
     # RTR 적용 토큰 갱신
     tokens = await oauth_service.refresh_access_token(refresh_token_str)
 
-    # 응답 생성
+    # 앱(Bearer) 모드: 쿠키 없이 헤더로 온 경우 -> body 로 access+refresh 반환, 쿠키 미설정
+    if cookie_token is None and bearer is not None:
+        return JSONResponse(
+            content=TokenRefreshResponse(
+                access_token=tokens["access_token"],
+                refresh_token=tokens["refresh_token"],
+            ).model_dump(exclude_none=True),
+            status_code=status.HTTP_200_OK,
+        )
+
+    # 웹(쿠키) 모드: body access_token + Set-Cookie 회전(refresh_token 은 body 에 노출 안 함)
     response = JSONResponse(
         content=TokenRefreshResponse(
             access_token=tokens["access_token"],
-        ).model_dump(),
+        ).model_dump(exclude_none=True),
         status_code=status.HTTP_200_OK,
     )
 
@@ -472,25 +515,30 @@ async def logout(
     Returns:
         204 No Content with cookies cleared.
     """
-    # 쿠키에서 refresh token 추출
-    refresh_token = request.cookies.get("refresh_token")
+    # ── 하이브리드 로그아웃 (쿠키=웹 / Bearer=앱) ────────────────────────
+    # 흐름: 쿠키 refresh 우선 -> 없으면 Bearer -> DB 폐기. 웹 모드만 쿠키 삭제.
+    cookie_token = request.cookies.get("refresh_token")
+    bearer = _bearer_token(request)
+    refresh_token = cookie_token or bearer
 
     # DB에서 토큰 무효화
     if refresh_token:
         await oauth_service.revoke_refresh_token(refresh_token)
 
-    # 쿠키 삭제
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
-    response.delete_cookie(
-        key="access_token",
-        httponly=True,
-        secure=config.ENV == Env.PROD,
-        samesite="lax",
-    )
-    response.delete_cookie(
-        key="refresh_token",
-        httponly=True,
-        secure=config.ENV == Env.PROD,
-        samesite="lax",
-    )
+
+    # 앱(Bearer, 쿠키 없음) 모드가 아니면 쿠키 삭제
+    if not (cookie_token is None and bearer is not None):
+        response.delete_cookie(
+            key="access_token",
+            httponly=True,
+            secure=config.ENV == Env.PROD,
+            samesite="lax",
+        )
+        response.delete_cookie(
+            key="refresh_token",
+            httponly=True,
+            secure=config.ENV == Env.PROD,
+            samesite="lax",
+        )
     return response
