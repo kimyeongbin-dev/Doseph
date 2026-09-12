@@ -87,6 +87,9 @@ services:
       - ./ai_worker:/app/ai_worker
       - ./scripts:/app/scripts
       - ./tests:/app/tests
+      # pyproject 마운트: ruff/pytest 설정 변경이 즉시 반영되도록(의존성 변경만 재빌드).
+      # 미마운트 시 이미지 내장 stale 설정으로 로컬 ruff 가 거짓 양성을 냄.
+      - ./pyproject.toml:/app/pyproject.toml:ro
       - ./logs/fastapi:/app/logs
       - static_volume:/app/templates
     environment:
@@ -136,6 +139,8 @@ services:
       - ./app:/app/app
       - ./ai_worker:/app/ai_worker
       - ./scripts:/app/scripts
+      # pyproject 마운트: 로컬 설정 stale 방지(fastapi 서비스와 동일 이유).
+      - ./pyproject.toml:/app/pyproject.toml:ro
       - ./logs/ai-worker:/app/logs
     environment:
       LOG_DIR: /app/logs
