@@ -1,0 +1,48 @@
+# Dependabot — 의존성 자동 업데이트 (SCA · 로드맵 4 보안 게이트)
+# 흐름: 주간 스캔 -> minor/patch 는 그룹 PR 1건으로 묶음 -> major 는 개별 PR
+#       보안 취약점(GHSA)은 스케줄 무관 즉시 수정 PR (Dependabot alerts 기본 동작)
+# 목적: next transitive 취약점(postcss/sharp/next) 등 SCA 부채를 능동 수정.
+version: 2
+
+updates:
+  # ── Python (uv) — 루트 pyproject.toml + uv.lock ────────────────────
+  # uv 는 2025-03 부터 Dependabot 네이티브 지원(pip 아님).
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      python-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ── 프론트엔드 (npm) — medication-frontend ─────────────────────────
+  # next 16.2.2->16.3.x 등 취약점 수정 PR 진입 지점.
+  - package-ecosystem: "npm"
+    directory: "/medication-frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ── GitHub Actions — 워크플로우 액션 버전 ──────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
