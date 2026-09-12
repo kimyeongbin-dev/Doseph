@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 #       -> 미들웨어/라우터/예외핸들러 등록
 app = FastAPI(
     **docs_urls(config.ENV),
+    debug=False,  # 하드닝: 디버그 모드 명시적 비활성(예외 스택트레이스/내부정보 노출 차단, 실수로도 안 켜지게)
     redirect_slashes=False,  # 트레일링 슬래시 정규화는 엣지(Cloudflare)에서 처리
     lifespan=scheduler_lifespan,
 )
