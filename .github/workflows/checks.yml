@@ -50,6 +50,73 @@ jobs:
       - name: Run Bandit (fail on high severity)
         run: uv run bandit -c pyproject.toml -r app/ -ll
 
+  # ── BE 린트 게이트 (Ruff) ────────────────────────────────────────────
+  # 흐름: uv sync(dev) -> ruff check(정적 규칙) -> ruff format --check(포맷 검증)
+  # CLAUDE.md 의무 검사이나 그간 CI 미포함이던 갭을 게이트로 승격. 실패 시 RED.
+  lint:
+    name: Lint (Ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dev dependencies
+        run: uv sync --group dev --frozen
+
+      - name: Ruff check
+        run: uv run ruff check app/ ai_worker/
+
+      - name: Ruff format check
+        run: uv run ruff format --check app/ ai_worker/
+
+  # ── FE 게이트 (ESLint · npm audit · 정적 빌드) ───────────────────────
+  # 흐름: npm ci -> eslint(보안룰 react/no-danger 포함) -> npm audit(report-only)
+  #       -> next build(정적 export, out/ 산출)
+  # audit 는 continue-on-error(비차단) — 기존 next transitive 취약점은 Dependabot 이
+  # 수정 PR 로 처리하고, 정리되면 blocking 으로 승격 예정. (정적 export 라 런타임 노출 낮음)
+  frontend:
+    name: Frontend (ESLint · audit · build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: medication-frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: medication-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npx eslint .
+
+      - name: npm audit (report-only, high 이상)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Build (static export)
+        run: npx next build
+        env:
+          NEXT_PUBLIC_ENV: prod
+          NEXT_PUBLIC_API_BASE_URL: https://api.doseph.com
+
   test:
     runs-on: ubuntu-latest
     services:
