@@ -6,6 +6,7 @@ kebab-case 필드)와 2026 Reporting API(`[{"type": ..., "body": {...}}]`, camel
 전혀 맞지 않으면 400 을 준다. rate-limit 은 미들웨어(EXCLUDED 아님)가 자동 적용한다.
 """
 
+from collections.abc import Iterator
 import logging
 
 from httpx import AsyncClient
@@ -94,7 +95,7 @@ class TestCspReportService:
 
 
 @pytest.fixture
-def app_caplog(caplog: pytest.LogCaptureFixture) -> pytest.LogCaptureFixture:
+def app_caplog(caplog: pytest.LogCaptureFixture) -> Iterator[pytest.LogCaptureFixture]:
     """'app' 로거는 setup_logger 가 propagate=False(root 중복 전달 방지)로 설정한다.
 
     caplog 핸들러는 root 에 붙으므로 전파가 끊긴 'app' 계열 로그를 못 잡는다. 실제
