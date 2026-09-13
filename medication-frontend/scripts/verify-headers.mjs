@@ -11,8 +11,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const HEADERS_PATH = join(__dirname, '..', 'out', '_headers');
 
 // 산출물에 반드시 존재해야 하는 헤더 이름(대소문자 무시)
+// H4 enforce 승격(2026-09-13): Report-Only -> 강제(Content-Security-Policy).
 const REQUIRED_HEADERS = [
-  'Content-Security-Policy-Report-Only',
+  'Content-Security-Policy',
   'Reporting-Endpoints',
   'X-Content-Type-Options',
   'X-Frame-Options',
