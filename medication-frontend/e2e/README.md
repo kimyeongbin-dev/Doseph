@@ -17,13 +17,14 @@ cd medication-frontend
 npm install
 npx playwright install chromium
 
-# 2) 환경 전환 (루트에서) — .env 를 로컬 프로필로 재생성
+# 2) 환경변수 (루트에서, 최초 1회) — 환경 전환 스크립트는 폐지됨
 cd ..
-./env local        # PowerShell:  .\env local   (또는 .\scripts\switch-env.ps1 local)
+cp .env.example .env      # 이후 SECRET_KEY / DB_PASSWORD / KAKAO_* 를 실제 값으로 채움
 ```
 
-확인: 루트 `.env` 에 `ENV=local`, `NEXT_PUBLIC_ENV=local`, `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`
-(마지막 키는 P1 Step 3 에서 추가됨).
+확인: 루트 `.env` 에 `ENV=local`, `NEXT_PUBLIC_ENV=local`.
+`NEXT_PUBLIC_API_BASE_URL` 은 **로컬에서 설정하지 않는다** — 미설정 시 `src/config/env.js` 의
+기본값(local = `http://localhost:8000`)이 적용된다(설정하면 그 값이 기본값을 덮어써 드리프트 원인이 됨).
 
 ---
 
@@ -125,7 +126,10 @@ E2E_TARGET=dev npx playwright test e2e/p1-routing.spec.js --project=authed
 
 ## 5. 문제 해결
 
-- **개발자 로그인 버튼이 안 보임** → `NEXT_PUBLIC_ENV=local` 확인(`./env local` 재실행 후 재빌드).
+- ⚠️ **`auth.setup.js` 실패("개발자로 로그인" 버튼 없음)** → 정상이다. **개발자 로그인 백도어는
+  보안 하드닝으로 제거됐다**(FE·BE 모두). 이 setup 은 제거된 기능에 의존하는 **낡은 하네스**이며,
+  인증이 필요한 E2E 는 다른 인증 전략(예: 테스트에서 직접 세션 쿠키 주입)이 필요하다.
+  → 미해결 부채: `docs/tech-debt/e2e-auth-strategy.md`
 - **인증 테스트가 401/redirect** → 백엔드 미기동 또는 세션 만료. `docker compose ps` 확인 후 재실행.
 - **static 타겟에서 즉시 실패** → `out/` 미생성. `npm run build` 를 먼저 실행.
 - **네비게이션 테스트 skip** → 개발자 계정에 처방전 데이터 없음. 앱에서 처방전 1건 등록 후 재실행.
