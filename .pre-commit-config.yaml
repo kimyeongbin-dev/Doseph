@@ -35,10 +35,11 @@ repos:
         pass_filenames: true
         stages: [pre-commit, pre-push]
 
-      # Type checking with MyPy
+      # Type checking with MyPy (baseline 게이트 — 신규 타입오류만 차단)
+      # CI 와 동일 스크립트(scripts/mypy_gate.py) 호출 -> 로컬/CI 동작 일치(DRY).
       - id: mypy
-        name: 🔍 MyPy Type Check
-        entry: uv run mypy
+        name: 🔍 MyPy Type Check (baseline)
+        entry: uv run python scripts/mypy_gate.py
         language: system
         types: [python]
         require_serial: true

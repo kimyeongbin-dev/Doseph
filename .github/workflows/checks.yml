@@ -79,6 +79,11 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check app/ ai_worker/
 
+      # MyPy baseline 게이트: 기존 오류는 .mypy-baseline.txt 로 고정, 신규 타입오류만 차단.
+      # 로컬 pre-push 와 동일 스크립트 호출(DRY) -> 동작 일치.
+      - name: MyPy (baseline gate)
+        run: uv run python scripts/mypy_gate.py
+
   # ── FE 게이트 (ESLint · npm audit · 정적 빌드) ───────────────────────
   # 흐름: npm ci -> eslint(보안룰 react/no-danger 포함) -> npm audit(blocking)
   #       -> next build(정적 export, out/ 산출)
