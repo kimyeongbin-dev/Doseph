@@ -88,16 +88,22 @@ export default function SymptomLogForm({ profileId, initialSymptoms, initialNote
     },
   })
 
-  // 부모가 fetchTodaySymptoms 로 prop 을 갱신할 때마다 form 동기화 — 사용자가
-  // 같은 페이지에서 누적 기록 (저장 → 결과 카드 갱신 → 새 기록 추가) 흐름
-  // 유지. JSON.stringify dep 으로 ref 변경이 아닌 실제 값 변경에만 반응.
+  // ── prop -> 폼 재동기화 (외부 시스템 동기화) ──────────────────────────
+  // 흐름: 부모가 fetchTodaySymptoms 로 prop 갱신 -> 직렬화 키 변화 감지 -> reset()
+  // 목적: 같은 페이지 누적 기록(저장 -> 결과 카드 갱신 -> 새 기록 추가) 흐름 유지.
+  // react-hook-form 의 내부 스토어는 React 바깥 상태이므로 effect 동기화가 정당하다.
+  // 직렬화 키를 변수로 빼둔 이유: 부모가 매 렌더 새 배열을 넘겨도 "값이 실제로 바뀐
+  // 경우"에만 재동기화하고, 의존성을 정적으로 검사 가능하게 하기 위함.
+  const initialSymptomsKey = JSON.stringify(initialSymptoms || [])
+  const initialNoteValue = initialNote || ''
+
   useEffect(() => {
     reset({
       log_date: today,
-      symptoms: initialSymptoms || [],
-      note: initialNote || '',
+      symptoms: JSON.parse(initialSymptomsKey),
+      note: initialNoteValue,
     })
-  }, [JSON.stringify(initialSymptoms || []), initialNote || ''])
+  }, [reset, today, initialSymptomsKey, initialNoteValue])
 
   const onSubmit = async (values) => {
     if (!profileId) {
