@@ -1,6 +1,10 @@
 # Modern Python Pre-commit Configuration (2025-2026)
 # Ensures code quality and consistency before commits
 
+# `pre-commit install` 한 번에 두 스테이지 훅을 모두 설치한다. 이 선언이 없으면
+# 기본 pre-commit 훅만 깔려 pre-push 게이트(mypy·bandit)가 로컬에서 미발동한다(대장 D12).
+default_install_hook_types: [pre-commit, pre-push]
+
 repos:
   # Local hooks using project dependencies
   - repo: local
