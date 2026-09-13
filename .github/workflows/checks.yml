@@ -70,8 +70,10 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install dev dependencies
-        run: uv sync --group dev --frozen
+      # 전체 의존성 설치(app+ai+dev): mypy 가 app/ai 라이브러리 타입을 실제로 해석해야
+      # baseline 이 로컬(전체 deps)과 일치(dev 만이면 Any 처리로 오류 집합이 달라짐).
+      - name: Install dependencies
+        run: uv sync --all-groups --frozen
 
       - name: Ruff check
         run: uv run ruff check app/ ai_worker/
@@ -80,7 +82,7 @@ jobs:
         run: uv run ruff format --check app/ ai_worker/
 
       # MyPy baseline 게이트: 기존 오류는 .mypy-baseline.txt 로 고정, 신규 타입오류만 차단.
-      # 로컬 pre-push 와 동일 스크립트 호출(DRY) -> 동작 일치.
+      # 로컬 pre-push 와 동일 스크립트(--platform linux 고정) 호출(DRY) -> baseline 이식.
       - name: MyPy (baseline gate)
         run: uv run python scripts/mypy_gate.py
 

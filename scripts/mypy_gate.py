@@ -22,12 +22,17 @@ MYPY_TARGETS = ["app", "ai_worker"]
 # 박스문자) 출력이 UnicodeEncodeError 로 크래시하는 것 방지(CI/Linux 는 이미 UTF-8, 무영향).
 UTF8_ENV = {**os.environ, "PYTHONIOENCODING": "utf-8"}
 
-# mypy-baseline 파서가 요구하는 plain 출력 강제 플래그(사람용 pretty 설정을 override)
+# mypy-baseline 파서가 요구하는 plain 출력 + OS 결정론(baseline 이식성) 강제 플래그.
+# --platform linux: host(Windows/Linux)와 무관하게 Linux 로 분석 -> sys.platform 분기·
+#   플랫폼별 스텁이 로컬/CI 에서 동일 -> Windows 에서 만든 baseline 이 Linux CI 와 일치.
+# (전체 의존성 설치는 CI(uv sync --all-groups)·로컬 동일 전제 -> 타입 해석도 일치.)
 MYPY_PLAIN_FLAGS = [
     "--no-pretty",
     "--hide-error-context",
     "--no-color-output",
     "--no-error-summary",
+    "--platform",
+    "linux",
 ]
 
 # baseline 파일 경로(점 파일로 고정)·정렬(git diff 안정). sync/filter 공통.
