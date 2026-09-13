@@ -6,6 +6,8 @@ kebab-case 필드)와 2026 Reporting API(`[{"type": ..., "body": {...}}]`, camel
 전혀 맞지 않으면 400 을 준다. rate-limit 은 미들웨어(EXCLUDED 아님)가 자동 적용한다.
 """
 
+import logging
+
 from httpx import AsyncClient
 import pytest
 
@@ -89,6 +91,56 @@ class TestCspReportService:
         violation = service.parse_violations(payload)[0]
 
         assert violation["blocked_uri"] == "inline"
+
+
+@pytest.fixture
+def app_caplog(caplog: pytest.LogCaptureFixture) -> pytest.LogCaptureFixture:
+    """'app' 로거는 setup_logger 가 propagate=False(root 중복 전달 방지)로 설정한다.
+
+    caplog 핸들러는 root 에 붙으므로 전파가 끊긴 'app' 계열 로그를 못 잡는다. 실제
+    서비스 로거 동작을 검증하려면 caplog 핸들러를 'app' 로거에 직접 부착한다.
+    """
+    app_logger = logging.getLogger("app")
+    app_logger.addHandler(caplog.handler)
+    try:
+        yield caplog
+    finally:
+        app_logger.removeHandler(caplog.handler)
+
+
+class TestLogViolations:
+    """로깅 계약: 지시어 필드 폴백(violated → effective → '-')."""
+
+    def test_effective_directive_used_when_violated_absent(self, app_caplog: pytest.LogCaptureFixture) -> None:
+        """violated-directive 없이 effective-directive 만 온 위반도 지시어를 로그에 남긴다."""
+        service = CspReportService()
+        violations = [{"effective_directive": "script-src-elem", "blocked_uri": "inline"}]
+
+        with app_caplog.at_level(logging.WARNING, logger="app"):
+            service.log_violations(violations)
+
+        assert "script-src-elem" in app_caplog.text
+        assert "directive=-" not in app_caplog.text
+
+    def test_violated_directive_preferred_over_effective(self, app_caplog: pytest.LogCaptureFixture) -> None:
+        """둘 다 있으면 더 구체적인 violated-directive 를 우선한다(회귀 방지)."""
+        service = CspReportService()
+        violations = [{"violated_directive": "script-src", "effective_directive": "script-src-elem"}]
+
+        with app_caplog.at_level(logging.WARNING, logger="app"):
+            service.log_violations(violations)
+
+        assert "directive=script-src " in app_caplog.text  # 후행 공백으로 -elem 접미 배제
+
+    def test_dash_when_no_directive_field(self, app_caplog: pytest.LogCaptureFixture) -> None:
+        """지시어 필드가 전혀 없으면 '-' 로 안전 수렴한다."""
+        service = CspReportService()
+        violations = [{"blocked_uri": "inline"}]
+
+        with app_caplog.at_level(logging.WARNING, logger="app"):
+            service.log_violations(violations)
+
+        assert "directive=-" in app_caplog.text
 
 
 class TestCspReportEndpoint:

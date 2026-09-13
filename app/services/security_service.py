@@ -74,9 +74,12 @@ class CspReportService:
             violations: Normalized violation dicts from parse_violations.
         """
         for violation in violations:
+            # 지시어 폴백: violated-directive(레거시)가 없으면 effective-directive
+            # (2026 Reporting API 표준, 최신 브라우저는 이것만 보냄)로 물러난다.
+            directive = violation.get("violated_directive") or violation.get("effective_directive") or "-"
             logger.warning(
                 "CSP violation: directive=%s blocked=%s document=%s",
-                violation.get("violated_directive", "-"),
+                directive,
                 violation.get("blocked_uri", "-"),
                 violation.get("document_uri", "-"),
             )
