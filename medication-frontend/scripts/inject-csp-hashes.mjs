@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 // _headers 커밋본 script-src 에 심어 둘 치환 대상 토큰
+// 주의: replaceAll 로 치환하므로 파일 내 유일해야 함 - 주석에 이 리터럴을 적지 말 것.
 export const HASH_PLACEHOLDER = '__INLINE_SCRIPT_HASHES__';
 
 // src 속성이 없는 <script>...</script> 매칭(외부 스크립트 제외)

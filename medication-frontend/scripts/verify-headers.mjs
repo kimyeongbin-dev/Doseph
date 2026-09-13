@@ -21,10 +21,12 @@ const REQUIRED_HEADERS = [
   'Permissions-Policy',
 ];
 
-// CSP-Report-Only 값에 반드시 포함돼야 하는 토큰(정책 골격 + 리포팅 경로)
+// CSP 값에 반드시 포함돼야 하는 토큰(정책 골격 + 리포팅 경로)
+// H6 enforce(2026-09-13): script-src 는 'unsafe-inline' 대신 인라인 해시(sha256) 사용.
 const REQUIRED_CSP_TOKENS = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  // 인라인 해시 승격: inject-csp-hashes 가 주입한 sha256 이 존재해야 함
+  "script-src 'self' 'sha256-",
   // Cloudflare Web Analytics 비콘(H4 실측 위반) 허용
   'https://static.cloudflareinsights.com',
   // OCR 업로드 미리보기 blob: URL(ocr/page.jsx createObjectURL) 허용
@@ -67,6 +69,20 @@ function verify(content) {
     if (!content.includes(token)) {
       failures.push(`CSP 지시어/토큰 누락: ${token}`);
     }
+  }
+
+  // H6: 해시 미주입(플레이스홀더 잔존) 채 배포되는 사고 방지
+  if (content.includes('__INLINE_SCRIPT_HASHES__')) {
+    failures.push('해시 미주입: __INLINE_SCRIPT_HASHES__ 잔존 (inject-csp-hashes 미실행)');
+  }
+
+  // H6: enforce CSP 헤더 라인의 script-src 만 검사(주석/다른 지시어 오탐 방지)
+  const cspLine = content
+    .split('\n')
+    .find((l) => l.trim().toLowerCase().startsWith('content-security-policy:'));
+  const scriptSrc = cspLine && cspLine.match(/script-src[^;]*/);
+  if (scriptSrc && scriptSrc[0].includes("'unsafe-inline'")) {
+    failures.push("script-src 에 'unsafe-inline' 잔존 (해시 승격 무력화)");
   }
 
   return failures;
