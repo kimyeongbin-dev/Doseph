@@ -55,6 +55,18 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
+      # Frontend ESLint (CI 와 동일 명령: npm run lint = eslint .)
+      # medication-frontend 의 js/jsx/mjs 변경 시에만 발동. 에러만 차단, 경고는 통과(CI 기준 동일).
+      # --prefix 로 cwd 를 FE 로 이동(bash 비의존 -> CI(Linux)/로컬(Windows) 일관).
+      - id: eslint-frontend
+        name: 🟦 ESLint (Frontend)
+        entry: npm --prefix medication-frontend run lint
+        language: system
+        files: ^medication-frontend/.*\.(jsx?|mjs)$
+        require_serial: true
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+
   # External hooks for additional checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
