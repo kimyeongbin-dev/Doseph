@@ -33,21 +33,16 @@ export default function MedicineNameAutocomplete({
   const inputRef = useRef(null)
   const abortRef = useRef(null)
   const debounceRef = useRef(null)
-  const skipFetchRef = useRef(false)
-  const userTypedRef = useRef(false)
 
-  // ── debounced fetch (입력 변경 시) ────────────────────────────────────
-  // 흐름: 사용자 typing 여부 확인 -> 최소 길이 검사 -> debounce -> API 호출
-  //       -> dropdown open. mount 시 prefilled value (OCR 결과 등) 는 fetch 스킵.
-  useEffect(() => {
-    if (skipFetchRef.current) {
-      skipFetchRef.current = false
-      return
-    }
-    if (!userTypedRef.current) {
-      return
-    }
-    const trimmed = (value || '').trim()
+  // ── 약품명 제안 조회 (입력 이벤트에서 시작) ───────────────────────────
+  // 흐름: 입력 이벤트 -> 최소 길이 검사 -> debounce(250ms) -> API 조회
+  //       -> dropdown open. 진행 중 요청은 AbortController 로 취소.
+  // 렌더 반응(effect)이 아니라 "사용자가 타이핑했다"는 이벤트에 반응한다. 그래서
+  // prefilled value(OCR 결과 등)나 부모의 프로그래매틱 값 변경은 조회를 유발하지 않는다.
+  const scheduleSuggest = (nextValue) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    const trimmed = (nextValue || '').trim()
     if (trimmed.length < MIN_QUERY_LENGTH) {
       setSuggestions([])
       setIsOpen(false)
@@ -56,7 +51,6 @@ export default function MedicineNameAutocomplete({
       return
     }
 
-    if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
       if (abortRef.current) abortRef.current.abort()
       const controller = new AbortController()
@@ -79,11 +73,15 @@ export default function MedicineNameAutocomplete({
         setIsLoading(false)
       }
     }, DEBOUNCE_MS)
+  }
 
+  // 언마운트 시 예약된 debounce·진행 중 요청 정리 (정리 전용 — setState 없음)
+  useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
+      if (abortRef.current) abortRef.current.abort()
     }
-  }, [value])
+  }, [])
 
   // ── 외부 클릭 감지 — dropdown 닫기 ────────────────────────────────────
   useEffect(() => {
@@ -99,7 +97,6 @@ export default function MedicineNameAutocomplete({
 
   // ── 항목 선택 ────────────────────────────────────────────────────────
   const handleSelect = (item) => {
-    skipFetchRef.current = true
     onChange?.(item.medicine_name)
     onSelectSuggestion?.(item)
     setIsOpen(false)
@@ -136,10 +133,10 @@ export default function MedicineNameAutocomplete({
         type="text"
         value={value || ''}
         onChange={(e) => {
-          userTypedRef.current = true
           onChange?.(e.target.value)
+          scheduleSuggest(e.target.value)
         }}
-        onFocus={() => userTypedRef.current && suggestions.length > 0 && setIsOpen(true)}
+        onFocus={() => suggestions.length > 0 && setIsOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
