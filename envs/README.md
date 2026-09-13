@@ -1,195 +1,75 @@
 # 환경 변수 가이드
 
+> 2026-09-14 갱신. 환경 전환 스크립트(`./env local` 등)와 환경별 config 묶음은 **폐지**됐다.
+> 환경 구분은 `.env` 안의 **`ENV` 한 줄**로 한다.
+
 ## 파일 구조
 
 ```
-envs/
-├── .local.env          # 로컬용 실제 값 (gitignore)
-├── .prod.env           # prod용 실제 값 (gitignore)
-├── example.local.env   # 로컬 템플릿 (git 추적)
-└── example.prod.env    # prod 템플릿 (git 추적)
+.env.example              # 로컬 템플릿 (git 추적) — 이것만 보면 필요한 키를 알 수 있다
+.env                      # 로컬 실값 (git 미추적)
+envs/example.gcp-login.env  # 프로덕션(GCP) 키 목록 참고용 (git 추적, 실값 아님)
 ```
 
----
-
-## 환경 비교
-
-| 항목 | local | dev | prod |
-|------|-------|-----|------|
-| Backend | 로컬 Docker | 로컬 Docker | Oracle ARM Docker (self-host) |
-| Frontend | localhost:3000 | localhost:3000 | Vercel |
-| DB | 로컬 Docker | 로컬 Docker | Oracle ARM Docker (self-host) |
-| Redis | 로컬 Docker | 로컬 Docker | Oracle ARM Docker (self-host) |
-| Dev 로그인 버튼 | O | X | X |
-| Docker Compose | docker-compose.yml | docker-compose.yml | docker-compose.prod.yml |
+프로덕션 실값은 **저장소에 두지 않는다**. VM 위의 `.env`(서버측)와 GitHub Actions secrets 가 공급원이다.
 
 ---
 
 ## 로컬 개발 시작
 
 ```bash
-# 1. 환경변수 복사
-cp envs/.local.env .env
+# 1) 환경변수 준비 (최초 1회)
+cp .env.example .env
+#    이후 .env 안의 SECRET_KEY / DB_PASSWORD / KAKAO_* 를 실제 값으로 채운다
 
-# 2. Docker 실행
+# 2) 백엔드 스택 기동 (postgres / redis / fastapi / ai-worker)
 docker compose up -d
-
-# 3. 프론트엔드 실행
-cd medication-frontend && npm run dev
-
-# 4. 접속
-# Frontend: http://localhost:3000
-# Backend:  http://localhost:8000
-# DB:       localhost:5432
-```
-
----
-
-## 환경 전환 (자동)
-
-### Windows
-
-```powershell
-.\env local    # 로컬 개발 (Dev 로그인 버튼 O)
-.\env dev      # 카카오 테스트 (Dev 로그인 버튼 X)
-.\env prod     # prod 환경 테스트
-```
-
-### Mac / Linux
-
-```bash
-./env.sh local    # 로컬 개발 (Dev 로그인 버튼 O)
-./env.sh dev      # 카카오 테스트 (Dev 로그인 버튼 X)
-./env.sh prod     # prod 환경 테스트
-```
-
-### 환경별 차이
-
-| 환경 | ENV | Dev 로그인 버튼 | 용도 |
-|------|-----|----------------|------|
-| local | local | O | 빠른 개발 (카카오 로그인 없이) |
-| dev | dev | X | 카카오 로그인 테스트 |
-| prod | prod | X | 프로덕션 설정 테스트 |
-
-### 동작 원리
-
-스크립트가 `.env` 파일을 `envs/.{환경}.env`로 심볼릭 링크합니다.
-
-```
-.env -> envs/.local.env   (local/dev 환경)
-.env -> envs/.prod.env    (prod 환경)
-```
-
----
-
-## Oracle ARM 배포
-
-### 최초 설정
-
-```bash
-# Oracle ARM 접속 (Reserve Public IP)
-ssh ubuntu@<oracle-arm-public-ip>
-
-# 프로젝트 클론 (fork 본인 namespace)
-git clone https://github.com/kimyeongbin-dev/Doseph.git
-cd Doseph
-
-# 환경변수 설정
-cp envs/example.prod.env envs/.prod.env
-vi envs/.prod.env  # 실제 값 입력 (SECRET_KEY, DB_PASSWORD, KAKAO_*, DOMAIN 등)
-
-# .env로 복사 (docker-compose 가 .env 로 읽음)
-cp envs/.prod.env .env
-
-# Docker 실행 (prod용)
-docker compose -f docker-compose.prod.yml up -d
-```
-
-### 이후 배포
-
-```bash
-ssh ubuntu@<oracle-arm-public-ip>
-cd Doseph
-git pull
-docker compose -f docker-compose.prod.yml up -d --build
-```
-
-> 자동 배포는 `main` push 시 GitHub Actions (`.github/workflows/deploy.yml`)가 SSH로 처리. 수동 배포는 위 명령만 사용.
-
----
-
-## Vercel 배포
-
-Vercel Dashboard에서 환경변수 설정:
-
-```
-Settings > Environment Variables
-
-NEXT_PUBLIC_ENV = prod                              (Production)
-NEXT_PUBLIC_API_BASE_URL = https://doseph.duckdns.org  (Production & Preview)
-NEXT_PUBLIC_KAKAO_CLIENT_ID = <카카오 REST API 키>    (All)
-```
-
----
-
-## CI/CD 파이프라인
-
-### GitHub Secrets 설정
-
-```
-Repository > Settings > Secrets and variables > Actions
-
-필수:
-- SECRET_KEY
-- DB_PASSWORD
-- KAKAO_CLIENT_ID
-- KAKAO_CLIENT_SECRET
-
-선택 (AI Worker):
-- CLOVA_OCR_SECRET_KEY
-- CLOVA_OCR_INVOKE_URL
-- OPENAI_API_KEY
-```
-
-### Oracle ARM에 필요한 파일
-
-```
-Oracle ARM:/home/ubuntu/Doseph/
-├── .env                      # envs/.prod.env 복사본
-├── docker-compose.prod.yml   # prod용 Docker Compose
-├── logs/                     # 호스트 볼륨 마운트 (fastapi/ai-worker 로그)
-└── (나머지 소스코드)
-```
-
----
-
-## Docker Compose 비교
-
-| 항목 | docker-compose.yml | docker-compose.prod.yml |
-|------|-------------------|------------------------|
-| 용도 | 로컬 개발 | Oracle ARM 배포 |
-| 리소스 | 넉넉함 | Oracle ARM Ampere A1 (4 OCPU + 24GB) 기준 |
-| 포트 노출 | 5432, 6379, 8000, 80 | 80, 443 |
-| Nginx 설정 | default.conf | prod_https.conf (v2.0 PR-5 에서 Caddy 로 교체 예정) |
-| SSL | X | Let's Encrypt (DuckDNS) |
-| 재시작 정책 | 없음 | unless-stopped |
-
----
-
-## 문제 해결
-
-### Docker 컨테이너 상태 확인
-```bash
 docker compose ps
-docker compose logs fastapi --tail=50
+curl -i http://localhost:8000/api/v1/health   # 200 이면 정상
+
+# 3) 프론트엔드
+cd medication-frontend && npm run dev          # http://localhost:3000
 ```
 
-### DB 연결 테스트
-```bash
-docker exec -it postgres psql -U doseph_admin -d doseph_db
-```
+로컬에는 **nginx 가 없다**. 프론트(:3000)가 백엔드(:8000)를 **직접(cross-origin)** 호출하며,
+백엔드가 `http://localhost:3000` 을 CORS(allow_credentials)로 허용한다. 이는 프로덕션의
+"독립 API" 토폴로지와 같은 구조다(dev/prod 패리티).
 
-### 환경변수 확인
-```bash
-docker exec fastapi env | grep ENV
-```
+---
+
+## 환경 구분 — `ENV` 한 줄
+
+| ENV | 용도 | 개발자 로그인 |
+|---|---|---|
+| `local` | 로컬 Docker | (백도어 제거됨 — 아래 주의) |
+| `dev` | 로컬 Docker, 카카오 로그인 실테스트 | — |
+| `prod` | 배포 환경 | — |
+
+`.env` 의 `ENV` 와 `NEXT_PUBLIC_ENV` 를 같은 값으로 맞춘다.
+
+`ENV` 에 따라 백엔드(`app/core/config.py`)가 아래를 자동 적용한다:
+
+- `local`/`dev`: `API_BASE_URL=http://localhost:8000`, `FRONTEND_URL=http://localhost:3000`,
+  `KAKAO_REDIRECT_URI=http://localhost:3000/auth/kakao/callback`, `COOKIE_DOMAIN=localhost`
+- `prod`: **하드코딩 폴백 없음**(플랫폼 중립·12-factor). `API_BASE_URL`·`FRONTEND_URL` 을
+  `.env` 로 반드시 주입해야 하며 누락 시 기동 단계에서 차단된다.
+
+> ⚠️ **개발자 로그인 백도어는 제거됐다**(보안 하드닝). `ENV=local` 이어도 로그인 화면에
+> "개발자로 로그인" 버튼은 없다. 인증이 필요한 E2E 는 별도 전략이 필요하다.
+
+### `NEXT_PUBLIC_API_BASE_URL` 주의
+로컬에서는 **설정하지 말 것.** 미설정 시 프론트가 `medication-frontend/src/config/env.js` 의
+환경별 기본값(local/dev = `http://localhost:8000`)을 쓴다. 여기에 값을 적으면 그 값이 기본값을
+덮어쓰므로 토폴로지가 바뀌었을 때 그 줄만 낡아 조용히 깨진다(실제로 `http://localhost`(:80)를
+가리켜 로컬 API 호출이 전부 실패한 이력이 있다). 프로덕션에서는 CI/배포가 주입한다.
+
+---
+
+## 프로덕션
+
+- 구성: **Cloudflare Pages(프론트)** + **GCP VM 위 Docker(백엔드)** + **Neon(PostgreSQL)** +
+  **Cloudflare Tunnel**. compose 파일은 `docker-compose.gcp-login.yml`.
+- 배포: `main` push → GitHub Actions(`.github/workflows/deploy.yml`) → 이미지 빌드(ghcr) →
+  WIF(keyless)+IAP SSH 로 VM 에서 pull & up → health check. **VM 에서 빌드하지 않는다.**
+- 환경변수: VM 위의 `.env`(서버측에서 관리). 필요한 키 목록은 `envs/example.gcp-login.env` 참고.
+- 상세(아키텍처·배포 절차·보안 태세)는 `docs-private/` 의 배포 문서를 따른다.

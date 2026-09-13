@@ -254,7 +254,7 @@ Before starting any implementation, the agent MUST verify the following:
 - [ ] Check official documentation (2024-2025 latest version, year required)
 - [ ] Research external Best Examples (official repos, production cases, source + year required)
 - [ ] Confirm similar implementation patterns within the project (`app/services/`, `app/repositories/`)
-- [ ] Check if new environment variables are needed (based on `envs/example.local.env`)
+- [ ] Check if new environment variables are needed (based on `.env.example`)
 - [ ] Identify related models (`app/models/` related tables)
 - [ ] Check related P0/P1 issues in `QA_AUDIT_PLAN.md` (conflict check)
 

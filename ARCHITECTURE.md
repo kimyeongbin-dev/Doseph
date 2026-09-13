@@ -373,9 +373,11 @@ uv run uvicorn app.main:app --reload
 ```
 
 ### Environment Variable Management
-- `envs/.local.env`: Local development
-- `envs/.prod.env`: Production (EC2)
-- GitHub Secrets: Sensitive information (API keys, DB passwords)
+- `.env.example` (tracked): the single local template. Copy to `.env` and fill in real values.
+- `.env` (untracked): local real values. Environment is selected by the `ENV` line, not by
+  per-environment config bundles (the old `envs/` switch script was removed).
+- Production: values live on the deploy target (VM-side `.env`) and in GitHub Actions secrets —
+  never in the repository. Key reference: `envs/example.gcp-login.env`.
 
 ---
 
