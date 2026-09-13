@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "dotenv -e ../.env -- next dev --turbopack",
-    "build": "dotenv -e ../.env -- next build",
-    "build:local": "dotenv -e ../.env -- next build",
+    "build": "dotenv -e ../.env -- next build && node scripts/inject-csp-hashes.mjs",
+    "build:local": "dotenv -e ../.env -- next build && node scripts/inject-csp-hashes.mjs",
     "start": "next start",
     "verify:headers": "node scripts/verify-headers.mjs",
+    "test:headers": "node --test \"scripts/*.test.mjs\"",
     "lint": "eslint",
     "serve:static": "serve out -l 3000 --no-port-switching",
     "test:e2e": "dotenv -e ../.env -- playwright test",

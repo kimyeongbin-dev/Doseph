@@ -5,6 +5,12 @@
 # 보안헤더 4종은 BE SecurityMiddleware.SECURITY_HEADERS 와 값 일치(문서/API 정합).
 # H4 튜닝: script-src 에 Cloudflare Web Analytics 비콘(실측 위반),
 #   img-src 에 blob:(OCR 업로드 미리보기 createObjectURL) 허용.
+#
+# H6 커밋 A(2026-09-13): script-src 를 'unsafe-inline' -> 인라인 해시로 승격하기 위한
+#   관측 단계. 아래 enforce 헤더는 그대로 두고, hash 기반 정책을 Report-Only 로 병행.
+#   __INLINE_SCRIPT_HASHES__ 는 post-build 로 scripts/inject-csp-hashes.mjs 가
+#   out/**/*.html 인라인 스크립트 SHA-256 목록으로 치환(빌드마다 변동 -> 하드코딩 불가).
+#   공개배포 후 Report-Only 위반 0 + 실제 해시 주입을 확인하면 커밋 B 에서 enforce 로 플립.
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -13,3 +19,4 @@
   Permissions-Policy: geolocation=(), microphone=(), camera=()
   Reporting-Endpoints: csp-endpoint="https://api.doseph.com/api/v1/security/csp-report"
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.doseph.com; img-src 'self' data: blob: https://k.kakaocdn.net; frame-ancestors 'none'; base-uri 'none'; report-uri https://api.doseph.com/api/v1/security/csp-report; report-to csp-endpoint
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' __INLINE_SCRIPT_HASHES__ https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.doseph.com; img-src 'self' data: blob: https://k.kakaocdn.net; frame-ancestors 'none'; base-uri 'none'; report-uri https://api.doseph.com/api/v1/security/csp-report; report-to csp-endpoint
