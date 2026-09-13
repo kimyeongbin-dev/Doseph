@@ -1,0 +1,12 @@
+# Cloudflare Pages 정적 응답헤더 (로드맵5 H3)
+# next build(output:'export') 시 out/_headers 로 복사되어 CF Pages 가 응답에 주입.
+# CSP 는 Report-Only 로 먼저 관측(H4 실측 -> 오탐 0 튜닝 후 enforce 승격).
+# 보안헤더 4종은 BE SecurityMiddleware.SECURITY_HEADERS 와 값 일치(문서/API 정합).
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Reporting-Endpoints: csp-endpoint="https://api.doseph.com/api/v1/security/csp-report"
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.doseph.com; img-src 'self' data: https://k.kakaocdn.net; frame-ancestors 'none'; base-uri 'none'; report-uri https://api.doseph.com/api/v1/security/csp-report; report-to csp-endpoint
