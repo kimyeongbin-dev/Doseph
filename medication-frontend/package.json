@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "dotenv -e ../.env -- next dev --turbopack",
-    "build": "dotenv -e ../.env -- next build && node scripts/inject-csp-hashes.mjs",
-    "build:local": "dotenv -e ../.env -- next build && node scripts/inject-csp-hashes.mjs",
+    "build": "dotenv -e ../.env -- npm run build:pages",
+    "build:pages": "next build && node scripts/inject-csp-hashes.mjs",
     "start": "next start",
     "verify:headers": "node scripts/verify-headers.mjs",
     "test:headers": "node --test \"scripts/*.test.mjs\"",
