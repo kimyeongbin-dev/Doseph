@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import api from '@/lib/api'
 import { useMedication } from '@/contexts/MedicationContext'
 
@@ -22,15 +22,20 @@ function normalizeTime(t) {
 //       → MedicationContext 갱신 (홈 화면 즉시 반영)
 export default function TimeSlotPicker({ medication }) {
   const { refetchMedications } = useMedication()
-  const [currentTimes, setCurrentTimes] = useState(
+  const [currentTimes, setCurrentTimes] = useState(() =>
     (medication.intake_times || []).map(normalizeTime),
   )
   const [saving, setSaving] = useState(false)
 
-  // ── [추가] 다른 약 선택 시 시간대 초기화 ──
-useEffect(() => {
-  setCurrentTimes((medication.intake_times || []).map(normalizeTime))
-}, [medication.id])
+  // ── 다른 약 선택 시 시간대 재동기화 ───────────────────────────────────
+  // 흐름: medication.id 변화 감지 -> 그 약의 intake_times 로 로컬 상태 재설정
+  // effect 가 아니라 React 공식 "prop 변화에 맞춰 렌더 중 state 조정" 패턴.
+  // 추가 커밋/재렌더 왕복 없이 같은 렌더에서 즉시 반영된다.
+  const [syncedMedicationId, setSyncedMedicationId] = useState(medication.id)
+  if (medication.id !== syncedMedicationId) {
+    setSyncedMedicationId(medication.id)
+    setCurrentTimes((medication.intake_times || []).map(normalizeTime))
+  }
 
   const isActive = (slotTime) => currentTimes.includes(slotTime)
 
