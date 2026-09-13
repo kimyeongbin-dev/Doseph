@@ -352,9 +352,13 @@ Client          FastAPI         Kakao OAuth      PostgreSQL
    - Nginx proxy status verification
 ```
 
-### Deployment Automation Scripts
-- `scripts/deployment.sh`: Docker image build & push & EC2 deployment
-- `scripts/certbot.sh`: Let's Encrypt SSL certificate automatic renewal
+### Deployment Automation
+- `.github/workflows/deploy.yml` (CD): on `main` push — test gate → build & push image to ghcr
+  (`:latest` + `:sha`) → keyless auth (WIF) + IAP SSH → VM pulls and restarts via compose →
+  health check. The VM never builds images.
+- `.github/workflows/checks.yml` (CI): Ruff / MyPy baseline gate / Bandit / pytest /
+  frontend (ESLint · Vitest · npm audit · static build).
+- TLS is terminated by Cloudflare (Tunnel) — there is no certbot/Let's Encrypt renewal step.
 
 ---
 
