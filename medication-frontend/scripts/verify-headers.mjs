@@ -24,6 +24,10 @@ const REQUIRED_HEADERS = [
 const REQUIRED_CSP_TOKENS = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
+  // Cloudflare Web Analytics 비콘(H4 실측 위반) 허용
+  'https://static.cloudflareinsights.com',
+  // OCR 업로드 미리보기 blob: URL(ocr/page.jsx createObjectURL) 허용
+  "img-src 'self' data: blob:",
   "connect-src 'self' https://api.doseph.com",
   "frame-ancestors 'none'",
   "base-uri 'none'",
