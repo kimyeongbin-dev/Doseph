@@ -135,7 +135,7 @@ jobs:
             --zone=us-west1-b \
             --tunnel-through-iap \
             --quiet \
-            --command="sudo bash -c 'cd /opt/Doseph && git pull --ff-only && docker compose -f docker-compose.gcp-login.yml pull fastapi migrate && docker compose -f docker-compose.gcp-login.yml up -d --no-build'"
+            --command="sudo bash -c 'cd /opt/Doseph && git pull --ff-only && DOSEPH_IMAGE_TAG=${{ github.sha }} docker compose -f docker-compose.gcp-login.yml pull fastapi migrate && DOSEPH_IMAGE_TAG=${{ github.sha }} docker compose -f docker-compose.gcp-login.yml up -d --no-build'"
 
   # ── ④ 헬스체크 (공개 엔드포인트, 재시도) ──────────────────────────
   # 흐름: api.doseph.com/api/v1/health 를 최대 5회(15s 간격) 폴링.
