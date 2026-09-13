@@ -372,7 +372,9 @@ namespace_packages = true
 explicit_package_bases = true
 
 # Platform configuration
-python_executable = "python"
+# python_executable 미지정: mypy 가 실행 런타임(uv venv)의 python 을 사용 -> 로컬/CI 에서
+# 설치된 패키지(pydantic·fastapi 등) 타입을 정상 해석. bare "python" 은 Windows 에서 venv 가
+# 아닌 다른 python 을 가리켜 import-not-found 를 유발(baseline 이 CI 와 불일치)했음.
 
 # Cache configuration
 cache_dir = ".mypy_cache"
