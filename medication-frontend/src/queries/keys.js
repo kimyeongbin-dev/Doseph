@@ -45,6 +45,11 @@ export const qk = {
     all: () => ['daily-logs'],
     list: (profileId) => ['daily-logs', 'list', profileId],
   },
+  // 복약 체크 기록(intake-logs). 날짜별로 다른 목록이라 key 에 날짜 포함.
+  intakeLogs: {
+    all: () => ['intake-logs'],
+    byDate: (profileId, date) => ['intake-logs', 'by-date', profileId, date],
+  },
 }
 
 // 도메인별 staleTime — 변동 빈도 기반 차등.
@@ -58,4 +63,5 @@ export const STALE = {
   ocrDraft: 10 * 1000, // 10초 — TTL 짧음
   chatSessions: 30 * 1000,
   dailyLogs: 60 * 1000,
+  intakeLogs: 30 * 1000, // 30초 — 체크/해제 mutation 후 invalidate 로 즉시 갱신
 }

@@ -1,8 +1,10 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sunrise, Sun, Sunset, Moon, Clock, CheckCircle2, Circle, XCircle, Pill } from 'lucide-react'
 import api from '@/lib/api'
+import { qk, STALE } from '@/queries/keys'
 
 // ── 시간대 블록 정의 ─────────────────────────────────────────────────────────
 const TIME_BLOCKS = [
@@ -47,23 +49,34 @@ function classifyMedications(medications) {
 
 export default function TodaySchedule({ medications, profileId }) {
   const router = useRouter()
-  const [todayLogs, setTodayLogs] = useState([])
+  const qc = useQueryClient()
   const [takingKeys, setTakingKeys] = useState(new Set())
   const currentBlock = getCurrentBlockKey()
+  const today = new Date().toISOString().split('T')[0]
 
-  // 1. 모든 Hook(useCallback, useEffect)은 최상단에 위치해야 합니다.
-  const fetchTodayLogs = useCallback(async () => {
-    if (!profileId) return
-    try {
-      const today = new Date().toISOString().split('T')[0]
+  // ── 오늘 복약 기록 조회 (서버 상태) ──────────────────────────────────
+  // 흐름: useQuery 가 마운트·profileId 변경 시 조회 -> 캐시 보관
+  //       -> 체크/해제 mutation 후 invalidate 로 갱신
+  // effect + setState 대신 TanStack Query 사용(레포 표준, 서버 상태는 쿼리 계층이 담당).
+  const logsQuery = useQuery({
+    queryKey: qk.intakeLogs.byDate(profileId, today),
+    enabled: !!profileId,
+    staleTime: STALE.intakeLogs,
+    queryFn: async () => {
       const res = await api.get('/api/v1/intake-logs', {
         params: { profile_id: profileId, target_date: today },
       })
-      setTodayLogs(res.data || [])
-    } catch { /* silent */ }
-  }, [profileId])
+      return res.data || []
+    },
+  })
+  // `|| []` 를 그대로 두면 매 렌더 새 배열이 만들어져 아래 useCallback 의존성이 흔들린다.
+  const todayLogs = useMemo(() => logsQuery.data || [], [logsQuery.data])
 
-  useEffect(() => { fetchTodayLogs() }, [fetchTodayLogs])
+  // 체크/해제 후 최신 기록을 다시 받아오기 위한 무효화 헬퍼.
+  const refetchTodayLogs = useCallback(
+    () => qc.invalidateQueries({ queryKey: qk.intakeLogs.byDate(profileId, today) }),
+    [qc, profileId, today],
+  )
 
   const isTaken = useCallback(
     (medId, time) =>
@@ -95,7 +108,7 @@ export default function TodaySchedule({ medications, profileId }) {
       setTakingKeys((prev) => new Set([...prev, key]))
       try {
         await api.delete(`/api/v1/intake-logs/${logId}`)
-        await fetchTodayLogs()
+        await refetchTodayLogs()
       } catch { /* silent */ } finally {
         setTakingKeys((prev) => {
           const s = new Set(prev)
@@ -104,7 +117,7 @@ export default function TodaySchedule({ medications, profileId }) {
         })
       }
     },
-    [getLogId, fetchTodayLogs],
+    [getLogId, refetchTodayLogs],
   )
 
   const handleCheck = useCallback(
@@ -113,7 +126,6 @@ export default function TodaySchedule({ medications, profileId }) {
       if (takingKeys.has(key) || isTaken(med.id, time)) return
       setTakingKeys((prev) => new Set([...prev, key]))
       try {
-        const today = new Date().toISOString().split('T')[0]
         const scheduledTime = time.split(':').length === 2 ? `${time}:00` : time
         const logRes = await api.post('/api/v1/intake-logs', {
           medication_id: med.id,
@@ -122,7 +134,7 @@ export default function TodaySchedule({ medications, profileId }) {
           scheduled_time: scheduledTime,
         })
         await api.post(`/api/v1/intake-logs/${logRes.data.id}/take`)
-        await fetchTodayLogs()
+        await refetchTodayLogs()
       } catch { /* silent */ } finally {
         setTakingKeys((prev) => {
           const s = new Set(prev)
@@ -131,7 +143,7 @@ export default function TodaySchedule({ medications, profileId }) {
         })
       }
     },
-    [takingKeys, isTaken, profileId, fetchTodayLogs],
+    [takingKeys, isTaken, profileId, today, refetchTodayLogs],
   )
 
   const handleCheckAll = useCallback(
@@ -141,7 +153,6 @@ export default function TodaySchedule({ medications, profileId }) {
       const keys = pending.map(({ med, time }) => `${med.id}__${time}`)
       setTakingKeys((prev) => new Set([...prev, ...keys]))
       try {
-        const today = new Date().toISOString().split('T')[0]
         await Promise.all(
           pending.map(async ({ med, time }) => {
             const scheduledTime = time.split(':').length === 2 ? `${time}:00` : time
@@ -154,7 +165,7 @@ export default function TodaySchedule({ medications, profileId }) {
             await api.post(`/api/v1/intake-logs/${logRes.data.id}/take`)
           }),
         )
-        await fetchTodayLogs()
+        await refetchTodayLogs()
       } catch { /* silent */ } finally {
         setTakingKeys((prev) => {
           const s = new Set(prev)
@@ -163,7 +174,7 @@ export default function TodaySchedule({ medications, profileId }) {
         })
       }
     },
-    [isTaken, profileId, fetchTodayLogs],
+    [isTaken, profileId, today, refetchTodayLogs],
   )
 
   // 2. 데이터 분류 (useMemo를 사용하여 안전하게 처리)

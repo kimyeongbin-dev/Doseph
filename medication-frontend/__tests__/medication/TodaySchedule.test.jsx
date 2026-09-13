@@ -6,6 +6,7 @@
 //   (3) medications 비면 빈 상태 안내
 // api / useRouter 는 mock 으로 격리.
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 
 import TodaySchedule from '@/components/medication/TodaySchedule'
@@ -22,6 +23,16 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
+// 서버 상태를 TanStack Query 로 관리하므로 Provider 로 감싸 렌더한다(단언은 동일).
+function renderSchedule(props) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={qc}>
+      <TodaySchedule {...props} />
+    </QueryClientProvider>,
+  )
+}
+
 describe('TodaySchedule 특성화', () => {
   it('마운트 시 오늘 복약 로그를 조회하고 TAKEN 을 완료로 반영한다', async () => {
     api.get.mockResolvedValueOnce({
@@ -29,12 +40,10 @@ describe('TodaySchedule 특성화', () => {
         { id: 'log1', medication_id: 'med-1', intake_status: 'TAKEN', scheduled_time: '08:00:00' },
       ],
     })
-    render(
-      <TodaySchedule
-        profileId="prof-1"
-        medications={[{ id: 'med-1', medicine_name: '타이레놀', intake_times: ['08:00'] }]}
-      />,
-    )
+    renderSchedule({
+      profileId: 'prof-1',
+      medications: [{ id: 'med-1', medicine_name: '타이레놀', intake_times: ['08:00'] }],
+    })
 
     // 로그 조회 발생
     expect(api.get).toHaveBeenCalledWith('/api/v1/intake-logs', {
@@ -45,19 +54,17 @@ describe('TodaySchedule 특성화', () => {
   })
 
   it('시간 미설정 약은 "복약 시간 미설정" 섹션에 표시한다', async () => {
-    render(
-      <TodaySchedule
-        profileId="prof-1"
-        medications={[{ id: 'med-2', medicine_name: '무설정약', intake_times: [] }]}
-      />,
-    )
+    renderSchedule({
+      profileId: 'prof-1',
+      medications: [{ id: 'med-2', medicine_name: '무설정약', intake_times: [] }],
+    })
 
     expect(await screen.findByText('복약 시간 미설정')).toBeInTheDocument()
     expect(screen.getByText('무설정약')).toBeInTheDocument()
   })
 
   it('medications 가 비면 빈 상태를 안내한다', () => {
-    render(<TodaySchedule profileId="prof-1" medications={[]} />)
+    renderSchedule({ profileId: 'prof-1', medications: [] })
     expect(screen.getByText('오늘 등록된 복약 정보가 없습니다.')).toBeInTheDocument()
   })
 })
