@@ -4,6 +4,11 @@
 //
 // 외부 API: sessions, activeSessionId, setActiveSessionId, isLoading,
 // createSession, renameSession, deleteSession, refetchSessions.
+//
+// ⚠️ refetchSessions 는 **참조가 안정하고(매 렌더 안 바뀜) 최신 목록을 반환**한다.
+//    호출자의 effect 의존성에 그대로 넣어도 안전하고, 반환값을 바로 쓰면
+//    "재조회 -> 그 결과로 판단"을 한 흐름에서 끝낼 수 있다(ChatModal 초기화).
+//    단, 쿼리가 실패해도 reject 하지 않는다 — 에러 분기는 별도로 확인해야 한다.
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'

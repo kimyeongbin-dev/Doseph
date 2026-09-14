@@ -3,9 +3,14 @@
 /**
  * PrescriptionGroupContext — TanStack Query adapter.
  *
- * 외부 API: 기존 그대로 (groups, groupsById, isLoading, sort/search/statusFilter,
+ * 외부 API(usePrescriptionGroup): groups, groupsById, isLoading, sort/search/statusFilter,
  * setSort/setSearch/setStatusFilter, fetchGroupDetail, updateGroup,
- * markGroupCompleted, deleteGroup, refetchGroups + 정렬/탭 enums).
+ * markGroupCompleted, deleteGroup, refetchGroups + 정렬/탭 enums.
+ *
+ * 별도 export: **usePrescriptionGroupDetail(groupId)** — 상세 조회 전용 query hook.
+ * 호출 페이지가 로딩/에러를 useState + useEffect 로 흉내 내지 않도록 쿼리 상태를
+ * 그대로 넘긴다. detail 캐시를 읽는 관찰자들과 **같은 queryFn 을 공유**한다
+ * (같은 queryKey 에 다른 fn 이 붙으면 등록 순서에 동작이 좌우되기 때문).
  *
  * 내부 변경:
  * - list/detail GET 을 useQuery 로 교체 — dedupe + staleTime 캐시.
