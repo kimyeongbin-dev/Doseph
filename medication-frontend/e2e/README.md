@@ -132,6 +132,7 @@ E2E_TARGET=dev npx playwright test e2e/p1-routing.spec.js --project=authed
 | `hooks-lifestyle-flow.spec.js` | 생활가이드 탭·챌린지(A1·A3·A6) — LLM 은 `page.route()` 고정 | 시드 |
 | `hooks-chat-flow.spec.js` | 챗 세션 생성·전환·삭제·발신자 구분(G1~G3) — LLM 고정 | 무 |
 | `hooks-challenge-card.spec.js` | main 활성 챌린지 카드의 구조적 계약(B2) | 시드 챌린지 |
+| `hooks-mypage-stats.spec.js` | 마이페이지 통계 3종 렌더 + 진행 챌린지 수 일치(E1·E2) | 시드 챌린지 |
 
 > `navigation.spec.js` 는 `data-testid="prescription-card"`, `data-testid="medication-item"` 를
 > 선택자로 사용한다(테스트가 먼저 참조하는 인터페이스).
