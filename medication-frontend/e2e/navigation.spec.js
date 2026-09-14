@@ -2,10 +2,11 @@
 // 흐름: 실제 클릭 상호작용이 "전환 후 쿼리 라우트"로 이동하는지 검증한다.
 //       처방전 카드 클릭 -> /medication/group?group_id=  (구: /medication/groups/{id})
 //       약품 항목 클릭   -> /medication/detail?id=        (구: /medication/{id})
-// 전제: docker fastapi(:8000) 기동 + seed.setup 이 처방전 1건 이상을 보장한다.
-//       ⚠️ networkidle 만 기다리고 count() 를 세면 쿼리 -> 렌더 경합으로 0 이 잡혀
-//       실행마다 무음 skip 되는 구멍이 생긴다(실측: 매 실행 1~2건 skip).
-//       → 카드가 보일 때까지 먼저 기다린 뒤 판정한다. skip 은 시드 부재 시의 최후 수단.
+// 전제: docker fastapi(:8000) 기동 + seed.setup(authed 프로젝트의 선행 의존)이
+//       처방전 1건 이상을 보장한다 -> 데이터 존재는 단언 대상이지 skip 조건이 아니다.
+//       ⚠️ 과거엔 networkidle 직후 count() 로 판정 + waitFor 타임아웃을 삼켜서,
+//       전체 스위트 부하 시 무음 skip 이 발생했다(실측: 매 실행 1~2건).
+//       skip 은 '조용히 통과'라 회귀를 덮는다 -> 전부 단언으로 바꿨다.
 // 선택자: Step 3 구현에서 아래 data-testid 를 부여한다(테스트가 먼저 참조하는 인터페이스).
 //   - 처방전 카드:  data-testid="prescription-card"
 //   - 약품 항목:    data-testid="medication-item"
@@ -18,9 +19,10 @@ test.describe('처방전 카드 -> 그룹 상세 쿼리 라우트', () => {
     await page.waitForLoadState('networkidle')
 
     const cards = page.getByTestId('prescription-card')
-    await cards.first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {})
-    const count = await cards.count()
-    test.skip(count === 0, '처방전 데이터가 없어 네비게이션 계약을 검증할 수 없음(seed.setup 확인 필요)')
+    await expect(
+      cards.first(),
+      '시드 처방전 카드가 렌더돼야 한다(안 보이면 목록 조회 회귀 또는 seed.setup 실패)',
+    ).toBeVisible({ timeout: 15_000 })
 
     await cards.first().click()
     await page.waitForURL(/\/medication\/group\?group_id=/, { timeout: 10_000 })
@@ -36,8 +38,7 @@ test.describe('약품 항목 -> 약품 상세 쿼리 라우트 (모바일 뷰포
     await page.goto('/medication')
     await page.waitForLoadState('networkidle')
     const cards = page.getByTestId('prescription-card')
-    await cards.first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {})
-    test.skip((await cards.count()) === 0, '처방전 데이터가 없어 약품 상세 이동을 검증할 수 없음')
+    await expect(cards.first(), '시드 처방전 카드가 렌더돼야 한다').toBeVisible({ timeout: 15_000 })
 
     await cards.first().click()
     await page.waitForURL(/\/medication\/group\?group_id=/, { timeout: 10_000 })
