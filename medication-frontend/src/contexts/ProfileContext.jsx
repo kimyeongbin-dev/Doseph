@@ -7,6 +7,13 @@
 //   updateProfile, createProfile, deleteProfile,
 //   setSelectedProfileId, refetchProfiles, RELATION_LABELS, RELATION_GENDER_DEFAULT.
 //
+// ⚠️ 선택 프로필의 계약 (2026-09-14 구조 변경):
+//   `selectedProfileId` 는 **state 가 아니라 렌더 중 파생값**이다.
+//   사용자가 고른 id(`pickedProfileId`) 를 목록과 대조해 유효하면 쓰고, 아니면
+//   저장값 -> SELF -> 첫 프로필 순으로 물러난다(고른 프로필이 삭제돼도 되돌리지 않고 무시).
+//   localStorage 반영은 **파생값을 보는 effect 한 곳이 단독 담당**한다 —
+//   `setSelectedProfileId` 는 상태만 바꾼다(여기서 또 저장하면 이중 쓰기가 된다).
+//
 // 변경 핵심:
 // - list GET 을 useQuery 로 교체 (staleTime 5분 — 거의 안 바뀜).
 // - mutation 은 useMutation, onSuccess 에서 list cache 직접 patch.
