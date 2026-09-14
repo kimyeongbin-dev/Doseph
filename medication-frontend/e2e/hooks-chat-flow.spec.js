@@ -131,6 +131,48 @@ test.describe('챗 모달 — 세션 초기화 / 메시지 로드', () => {
     await expect(page.getByText('첫 번째 세션 메시지')).toBeHidden()
   })
 
+  // G4 — 세션을 바꾸면 GPS 토글이 초기 상태(숨김·OFF)로 돌아가야 한다.
+  // 관측 방법: /messages/ask 가 202 + action=request_geolocation 을 주면 토글이 등장한다.
+  // (실제 위치 권한은 쓰지 않는다 — 토글 등장까지만 필요하고 navigator.geolocation 은
+  //  토글을 ON 할 때서야 호출되므로 이 스펙은 브라우저 권한과 무관하다)
+  test('세션을 전환하면 GPS 토글이 초기 상태로 리셋된다 (G4)', async ({ page }) => {
+    const SECOND_ID = '55555555-5555-4555-8555-555555555555'
+    await stubChatApis(page, {
+      sessions: [
+        { id: SESSION_ID, title: '첫 번째 세션', created_at: '2026-09-14T00:00:00Z' },
+        { id: SECOND_ID, title: '두 번째 세션', created_at: '2026-09-13T00:00:00Z' },
+      ],
+      messages: [],
+    })
+    await page.route(`${API}/messages/ask`, async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback()
+      await route.fulfill({
+        status: 202,
+        contentType: 'application/json',
+        body: JSON.stringify({ action: 'request_geolocation', turn_id: 'turn-1' }),
+      })
+    })
+
+    await openChat(page)
+    await expect(page.getByPlaceholder('메시지를 입력하세요')).toBeEnabled({ timeout: 15_000 })
+
+    await page.getByPlaceholder('메시지를 입력하세요').fill('근처 약국 알려줘')
+    await page.keyboard.press('Enter')
+
+    // 토글 등장 + 기본 OFF
+    await expect(
+      page.getByText('위치 정보 사용 꺼짐'),
+      '위치 기반 응답이 오면 GPS 토글이 OFF 상태로 등장해야 한다',
+    ).toBeVisible({ timeout: 15_000 })
+
+    await page.getByText('두 번째 세션', { exact: true }).click()
+
+    await expect(
+      page.getByText(/위치 정보 사용/),
+      '세션을 바꾸면 GPS 토글은 다시 숨겨져야 한다(이전 세션의 pending 이 새 세션으로 새지 않게)',
+    ).toHaveCount(0)
+  })
+
   test('메시지 조회가 실패해도 모달이 크래시하지 않는다', async ({ page }) => {
     const pageErrors = []
     page.on('pageerror', (err) => pageErrors.push(err.message))
