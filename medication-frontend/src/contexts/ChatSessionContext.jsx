@@ -8,7 +8,10 @@
 // ⚠️ refetchSessions 는 **참조가 안정하고(매 렌더 안 바뀜) 최신 목록을 반환**한다.
 //    호출자의 effect 의존성에 그대로 넣어도 안전하고, 반환값을 바로 쓰면
 //    "재조회 -> 그 결과로 판단"을 한 흐름에서 끝낼 수 있다(ChatModal 초기화).
-//    단, 쿼리가 실패해도 reject 하지 않는다 — 에러 분기는 별도로 확인해야 한다.
+//    **조회 완료까지 기다리고, 실패하면 reject 한다** — 호출자의 catch 분기가
+//    실제로 도달한다. (2026-09-14 이전에는 실패해도 resolve 했고, 관찰자가 붙기 전
+//    호출이면 아무것도 기다리지 않아서 ChatModal 의 재시도 UI 가 렌더될 수 없는
+//    죽은 코드였다. 후속 큐 1-e.)
 
 import { createContext, useCallback, useContext, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -18,6 +21,18 @@ import { useProfile } from '@/contexts/ProfileContext'
 import { qk, STALE } from '@/queries/keys'
 
 const ChatSessionContext = createContext(null)
+
+// ── 세션 목록 조회 fn (queryKey 공유자 전원이 같이 쓴다) ──────────────
+// 흐름: profileId -> GET /chat-sessions -> 세션 배열
+// Provider 의 useQuery 와 강제 동기화(refetchSessions)가 **같은 fn** 을 쓴다.
+// 같은 queryKey 에 다른 fn 이 붙으면 나중에 등록된 쪽이 쓰여 동작이 등록 순서에
+// 좌우된다(처방전 상세에서 실제로 겪은 함정).
+async function fetchChatSessionsRequest(profileId) {
+  const res = await api.get('/api/v1/chat-sessions', {
+    params: { profile_id: profileId },
+  })
+  return res.data || []
+}
 
 export function ChatSessionProvider({ children }) {
   const { selectedProfileId } = useProfile()
@@ -29,12 +44,7 @@ export function ChatSessionProvider({ children }) {
     queryKey: qk.chatSessions.list(selectedProfileId),
     enabled: !!selectedProfileId,
     staleTime: STALE.chatSessions,
-    queryFn: async () => {
-      const res = await api.get('/api/v1/chat-sessions', {
-        params: { profile_id: selectedProfileId },
-      })
-      return res.data || []
-    },
+    queryFn: () => fetchChatSessionsRequest(selectedProfileId),
   })
   const sessions = listQuery.data || []
   const isLoading = listQuery.isLoading
@@ -102,14 +112,26 @@ export function ChatSessionProvider({ children }) {
   const deleteSession = useCallback((id) => deleteMutation.mutateAsync(id), [deleteMutation])
 
   // ── 세션 목록 강제 동기화 ─────────────────────────────────────────
-  // 흐름: 서버 재조회 -> 최신 목록을 반환(호출자가 바로 쓸 수 있게)
+  // 흐름: fetchQuery 로 조회 완료까지 대기 -> 성공이면 최신 목록 반환 / 실패면 throw
   // `listQuery.refetch()` 는 매 렌더 새로 만들어지는 query 객체에 묶여 있어
   // 호출자의 effect 의존성을 흔든다. queryClient + key 로만 묶어 참조를 고정한다.
-  const refetchSessions = useCallback(async () => {
-    const key = qk.chatSessions.list(selectedProfileId)
-    await qc.refetchQueries({ queryKey: key })
-    return qc.getQueryData(key) ?? []
-  }, [qc, selectedProfileId])
+  //
+  // ⚠️ 여기서 `refetchQueries` 를 쓰면 안 된다. 두 가지가 겹쳐 실패가 사라진다:
+  //   (1) 쿼리가 실패해도 **resolve** 한다(throwOnError 를 켜야 throw).
+  //   (2) 호출 시점에 **관찰자가 아직 붙지 않았으면 아무 일도 하지 않고** 즉시 resolve 한다.
+  //       모달의 초기화 effect 는 자식이라 부모(Provider)의 쿼리 구독보다 **먼저** 돈다.
+  //       그 결과 상태가 pending 인 채 `?? []` 로 흡수돼 "세션 0건"이 된다.
+  // `fetchQuery` 는 조회가 끝날 때까지 기다리고(진행 중이면 dedupe) **실패 시 throw** 한다.
+  const refetchSessions = useCallback(
+    () =>
+      qc.fetchQuery({
+        queryKey: qk.chatSessions.list(selectedProfileId),
+        queryFn: () => fetchChatSessionsRequest(selectedProfileId),
+        // 강제 동기화가 목적이라 캐시가 신선해도 항상 다시 받는다.
+        staleTime: 0,
+      }),
+    [qc, selectedProfileId],
+  )
 
   return (
     <ChatSessionContext.Provider
