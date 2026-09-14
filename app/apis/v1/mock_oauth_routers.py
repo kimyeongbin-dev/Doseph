@@ -8,12 +8,34 @@ import json
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Form, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Form, Header, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
 
 from app.core import config
+from app.core.config import Env
 
-mock_router = APIRouter(prefix="/mock/kakao", tags=["mock"])
+
+# ── mock IdP 접근 차단 가드 (fail-closed) ─────────────────────────────
+# 흐름: 요청 진입 -> ENV 확인 -> local 이 아니면 404
+# 이 라우터는 카카오를 대신해 "이 사용자는 정상"이라고 우리 서버가 선언하는 테스트 대역이다.
+# 노출되면 인증 우회로 직결되므로, 등록 단계 게이팅(app/apis/v1/__init__.py)에 더해
+# 핸들러 단에서도 스스로 막는다. 등록 로직이 바뀌거나 실수로 포함돼도 서비스되지 않는다.
+# 존재 자체를 알리지 않도록 403 이 아닌 404 를 반환한다.
+def _local_only() -> None:
+    """Reject any request when the app is not running in the local environment.
+
+    Raises:
+        HTTPException: 404 if the current environment is not local.
+    """
+    if config.ENV != Env.LOCAL:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+
+
+mock_router = APIRouter(
+    prefix="/mock/kakao",
+    tags=["mock"],
+    dependencies=[Depends(_local_only)],
+)
 MOCK_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "tests" / "mock_data"
 
 
