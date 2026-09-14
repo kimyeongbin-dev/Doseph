@@ -132,7 +132,13 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:15-alpine
+        # 로컬 docker-compose 와 **같은 이미지**를 쓴다. 전에는 postgres:15-alpine 이라
+        # pgvector 확장이 없어, RAG 벡터 경로(medicine_chunk halfvec)를 CI 에서
+        # 구조적으로 검증할 수 없었다(환경 동일성 — 대장 D11 의 DB 축).
+        # ⚠️ 현재 BE 테스트는 DB 에 연결하지 않으므로(init_models 는 모델 등록일 뿐,
+        #    in_transaction 은 더미로 패치됨) 이 서비스는 아직 쓰이지 않는다.
+        #    DB 접속 테스트를 붙이는 시점(로드맵 §8 C12-b / 후속 큐 1-b)을 위한 선행 정리.
+        image: pgvector/pgvector:pg15
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: pw1234
