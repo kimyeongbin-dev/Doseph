@@ -653,7 +653,12 @@ function LifestyleGuideContent() {
                 <div className="mt-5 space-y-4">
 
                   {/* 오늘의 증상 요약 카드 */}
-                  <div className="bg-orange-50/40 border border-orange-100 rounded-2xl p-4">
+                  {/* data-testid: 아래 입력 폼의 프리셋 칩과 같은 텍스트가 나오므로,
+                      테스트가 "조회된 기록"만 골라 단언할 수 있게 경계를 노출한다. */}
+                  <div
+                    data-testid="today-symptom-summary"
+                    className="bg-orange-50/40 border border-orange-100 rounded-2xl p-4"
+                  >
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-7 h-7 bg-orange-50 rounded-lg flex items-center justify-center text-orange-500">
                         <Stethoscope size={14} />
