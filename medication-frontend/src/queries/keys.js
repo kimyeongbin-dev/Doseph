@@ -49,6 +49,7 @@ export const qk = {
   intakeLogs: {
     all: () => ['intake-logs'],
     byDate: (profileId, date) => ['intake-logs', 'by-date', profileId, date],
+    streak: (profileId) => ['intake-logs', 'streak', profileId],
   },
 }
 

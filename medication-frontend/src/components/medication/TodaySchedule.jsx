@@ -1,10 +1,13 @@
 'use client'
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sunrise, Sun, Sunset, Moon, Clock, CheckCircle2, Circle, XCircle, Pill } from 'lucide-react'
 import api from '@/lib/api'
-import { qk, STALE } from '@/queries/keys'
+import {
+  getTodayKey,
+  useInvalidateTodayIntakeLogs,
+  useTodayIntakeLogs,
+} from '@/queries/intakeLogs'
 
 // ── 시간대 블록 정의 ─────────────────────────────────────────────────────────
 const TIME_BLOCKS = [
@@ -49,34 +52,21 @@ function classifyMedications(medications) {
 
 export default function TodaySchedule({ medications, profileId }) {
   const router = useRouter()
-  const qc = useQueryClient()
   const [takingKeys, setTakingKeys] = useState(new Set())
   const currentBlock = getCurrentBlockKey()
-  const today = new Date().toISOString().split('T')[0]
+  const today = getTodayKey()
 
   // ── 오늘 복약 기록 조회 (서버 상태) ──────────────────────────────────
-  // 흐름: useQuery 가 마운트·profileId 변경 시 조회 -> 캐시 보관
-  //       -> 체크/해제 mutation 후 invalidate 로 갱신
-  // effect + setState 대신 TanStack Query 사용(레포 표준, 서버 상태는 쿼리 계층이 담당).
-  const logsQuery = useQuery({
-    queryKey: qk.intakeLogs.byDate(profileId, today),
-    enabled: !!profileId,
-    staleTime: STALE.intakeLogs,
-    queryFn: async () => {
-      const res = await api.get('/api/v1/intake-logs', {
-        params: { profile_id: profileId, target_date: today },
-      })
-      return res.data || []
-    },
-  })
+  // 흐름: 공유 훅이 마운트·profileId 변경 시 조회 -> 캐시 보관
+  //       -> 체크/해제 후 invalidate 로 갱신
+  // 같은 키를 마이페이지 통계도 관찰하므로 queryFn 은 `@/queries/intakeLogs` 한 곳에서만
+  // 정의한다(키는 같은데 fn 이 다르면 마지막 등록자의 fn 이 쓰여 동작이 렌더 순서에 좌우된다).
+  const logsQuery = useTodayIntakeLogs(profileId)
   // `|| []` 를 그대로 두면 매 렌더 새 배열이 만들어져 아래 useCallback 의존성이 흔들린다.
   const todayLogs = useMemo(() => logsQuery.data || [], [logsQuery.data])
 
   // 체크/해제 후 최신 기록을 다시 받아오기 위한 무효화 헬퍼.
-  const refetchTodayLogs = useCallback(
-    () => qc.invalidateQueries({ queryKey: qk.intakeLogs.byDate(profileId, today) }),
-    [qc, profileId, today],
-  )
+  const refetchTodayLogs = useInvalidateTodayIntakeLogs(profileId)
 
   const isTaken = useCallback(
     (medId, time) =>
