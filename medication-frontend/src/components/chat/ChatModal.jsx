@@ -128,6 +128,19 @@ export default function ChatModal({ onClose, profileId }) {
   const effectiveSessionId =
     sessions.find(s => s.id === activeSessionId)?.id ?? sessions[0]?.id ?? null
 
+  // ── 세션 전환 시 GPS 토글 리셋 (렌더 중 조정) ───────────────────────
+  // 흐름: 직전 세션 id 와 비교 -> 달라졌으면 숨김 + OFF + pending 폐기
+  // 새 세션의 첫 GPS 검색에서 토글이 다시 등장하게 하고, 이전 세션의 pending turn 이
+  // 새 세션으로 새지 않게 한다. effect 로 하면 새 세션 화면이 이전 토글 상태로 한 번
+  // 그려진 뒤에야 지워진다.
+  const [gpsSessionId, setGpsSessionId] = useState(effectiveSessionId)
+  if (gpsSessionId !== effectiveSessionId) {
+    setGpsSessionId(effectiveSessionId)
+    setGpsToggleVisible(false)
+    setGpsToggleOn(false)
+    setPendingGpsTurnId(null)
+  }
+
   // 화면에 실제로 그릴 메시지. 프로필 없음/세션 없음은 상태로 들고 있지 않고 파생한다.
   const displayMessages = !hasProfile
     ? [NO_PROFILE_MESSAGE]
@@ -194,14 +207,6 @@ export default function ChatModal({ onClose, profileId }) {
     // 파생값(displayMessages)이 아니라 실제 대화 state 를 따른다 — 파생 분기는
     // 한 줄짜리 안내 메시지라 스크롤 대상이 아니고, 매 렌더 새 배열이라 deps 를 흔든다.
   }, [messages, isLoading])
-
-  // 세션이 바뀌면 GPS 토글 상태를 새 세션 기준으로 reset
-  // (새 세션의 첫 GPS 검색에서 다시 등장하도록 hidden + OFF)
-  useEffect(() => {
-    setGpsToggleVisible(false)
-    setGpsToggleOn(false)
-    setPendingGpsTurnId(null)
-  }, [effectiveSessionId])
 
   // 편집 모드 진입 시 입력창에 포커스
   useEffect(() => {

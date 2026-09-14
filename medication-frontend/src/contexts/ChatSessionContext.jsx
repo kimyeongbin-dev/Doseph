@@ -10,7 +10,7 @@
 //    "재조회 -> 그 결과로 판단"을 한 흐름에서 끝낼 수 있다(ChatModal 초기화).
 //    단, 쿼리가 실패해도 reject 하지 않는다 — 에러 분기는 별도로 확인해야 한다.
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import api from '@/lib/api'
@@ -39,10 +39,15 @@ export function ChatSessionProvider({ children }) {
   const sessions = listQuery.data || []
   const isLoading = listQuery.isLoading
 
-  // profile 전환 시 active reset.
-  useEffect(() => {
+  // ── 프로필 전환 시 활성 세션 reset (렌더 중 조정) ──────────────────
+  // 흐름: 직전 프로필 id 와 비교 -> 달라졌으면 활성 세션 해제
+  // effect 로 하면 새 프로필 화면이 이전 프로필의 세션 id 로 한 번 그려진 뒤에야
+  // 지워진다(그 한 번의 렌더에서 남의 세션 메시지를 조회할 수 있다).
+  const [lastProfileId, setLastProfileId] = useState(selectedProfileId)
+  if (lastProfileId !== selectedProfileId) {
+    setLastProfileId(selectedProfileId)
     setActiveSessionId(null)
-  }, [selectedProfileId])
+  }
 
   // ── 2) mutations ──────────────────────────────────────────────────
   const createMutation = useMutation({
