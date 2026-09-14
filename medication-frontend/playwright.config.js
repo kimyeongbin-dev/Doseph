@@ -50,14 +50,17 @@ export default defineConfig({
   },
 
   projects: [
-    // 1) dev 로그인으로 세션 쿠키를 확보해 storageState 로 저장
+    // 1) mock IdP 로그인으로 세션 쿠키를 확보해 storageState 로 저장
     { name: 'setup', testMatch: /auth\.setup\.js/ },
 
-    // 2) 로그인 상태로 도는 인증 페이지·상호작용 테스트
+    // 2) 데이터 의존 스펙이 skip 되지 않도록 시드 생성(멱등) — 세션이 있어야 하므로 setup 이후
+    { name: 'seed', testMatch: /seed\.setup\.js/, dependencies: ['setup'] },
+
+    // 3) 로그인 상태로 도는 인증 페이지·상호작용 테스트
     {
       name: 'authed',
       testMatch: /.*\.spec\.js/,
-      dependencies: ['setup'],
+      dependencies: ['seed'],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'e2e/.auth/user.json',
