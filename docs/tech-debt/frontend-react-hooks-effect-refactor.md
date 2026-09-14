@@ -1,7 +1,7 @@
 # [TECH DEBT] 프론트엔드 react-hooks effect 리팩터
 
 > 🗓️ 등록: 2026-08-14 (Phase 1 정적 export 작업 중 발견) · 갱신: 2026-09-14
-> 📌 상태: **진행 중** — 32건 중 **12건 해소**, **20건 잔여**
+> 📌 상태: **진행 중** — 32건 중 **15건 해소**, **17건 잔여**
 > 🎯 최종 목표: 경고 0 + 강등한 규칙을 **error 로 복구**(해소 → 안정화 → 승격)
 
 ---
@@ -40,7 +40,7 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 
 ## 진행 현황 (2026-09-14)
 
-### ✅ 해소 12건
+### ✅ 해소 15건
 
 | 대상 | 규칙 | 처리 방식 | 커밋 |
 |---|---|---|---|
@@ -52,15 +52,24 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 | `components/AuthGuard.jsx` | set-state | **public 분기를 렌더 중 파생**으로 이동. 부수 개선: public 방문이 인증 결과를 `ok` 로 오염시켜 보호 경로를 미검증 렌더하던 문제 제거 | `955f450` |
 | `app/medication/page.jsx` | set-state | **초깃값 + 이벤트 핸들러로 해소**. 확정 검색어를 버퍼 `useState` 초깃값으로 잡고, `applySearch` 가 두 값을 함께 갱신 | `ae90cec` |
 | `app/medication/group/page.jsx` | set-state ×2 | **쿼리 계층 이관 + 렌더 중 파생**. 로딩/에러 복제 state 제거(`usePrescriptionGroupDetail` 신설), 선택 약품 보정은 `validSelectedId` 파생으로 | `12fa883` |
+| `components/chat/ChatModal.jsx` | set-state ×3 | **effect 3개 -> 1개**. 초기화는 비동기 콜백에서만 setState(재시도는 이벤트 핸들러), 활성 세션 보정·안내 메시지는 렌더 중 파생, 메시지 로드는 같은 비동기 흐름에 병합. 부수=전송 중 낙관적 메시지를 덮어쓰던 경쟁 제거 | `1849f55` |
 
 **판단 기준(억지 제거 금지)**: "React 바깥과 동기화하는가"
 → 파생·이벤트 반응이면 제거 / 서버 상태면 쿼리 계층 / 외부 스토어면 effect 유지하고 deps 만 정정.
+
+> 🔎 **리팩터 중 발견(동작 보존 — 고치지 않음)**: `ChatModal` 의 초기화 실패 UI
+> (`initError` + 재시도 버튼)는 **도달 불가능한 죽은 분기**다. `refetch()`/`refetchQueries()`
+> 는 쿼리가 실패해도 **reject 하지 않고 resolve** 하므로 `catch` 가 돌지 않는다.
+> 실증: `/chat-sessions` GET 을 500 으로 스텁하면 재시도 UI 가 뜨지 않으며,
+> **리팩터 전 커밋으로 되돌려 빌드해도 동일하게 실패**한다(사전 존재 결함 확정).
+> 동작 변경이라 이 리팩터에 섞지 않고 후속 큐로 넘겼다(로드맵 1-d 와 같은 결 —
+> "실패가 사용자에게 실패로 보이지 않는다").
 
 > 💡 **함정 기록**: TanStack Query 이관 시 `query.data || []` 가 매 렌더 새 배열을 만들어
 > `useCallback` 의존성을 흔들어 **경고가 오히려 2건 늘었다** → `useMemo` 로 해결.
 > **같은 패턴이 남은 컨텍스트들에도 있다**(`listQuery.data || []`).
 
-### ⬜ 잔여 20건
+### ⬜ 잔여 17건
 
 **공유 컨텍스트 5건** — 컨텍스트 자체 계약은 테스트로 잠겼으나 **페이지와의 통합 동작은 미잠금**
 (blast radius 가 커서 페이지 레벨 E2E 확보 후 착수).
@@ -72,14 +81,14 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 | `contexts/LifestyleGuideContext.jsx` | deps |
 | `contexts/PrescriptionGroupContext.jsx` | deps |
 
-**페이지/흐름 15건** — 페이지/흐름 E2E 안전망 확보 완료(`a68484e`·`6c3c06d`·`698355d`), 저위험순 착수 중.
+**페이지/흐름 12건** — 페이지/흐름 E2E 안전망 확보 완료(`a68484e`·`6c3c06d`·`698355d`), 저위험순 착수 중.
 
 | 파일 | 건수 | 패턴 힌트 |
 |---|---|---|
 | `app/lifestyle-guide/page.jsx` | 6 | 증상 조회, 가이드 전환 시 챌린지 페이지 리셋 |
 | `app/main/page.jsx` | 2 | `?showSurvey` 모달, 활성 챌린지 랜덤 선택 |
 | `app/mypage/page.jsx` | 3 | `?tab=family` 탭 활성, fetchData 클로저(immutability) |
-| `components/chat/ChatModal.jsx` | 4 | 세션 초기화·보정, 메시지 로드, GPS/스크롤 |
+| `components/chat/ChatModal.jsx` | 1 | 세션 변경 시 GPS 토글 리셋(G4) — 관측 까다로워 후순위 |
 
 > 라인 번호는 편집으로 이동하므로 착수 시 `npm run lint` 로 최신 위치를 재확인할 것.
 
