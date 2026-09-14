@@ -1,8 +1,9 @@
 # [TECH DEBT] 프론트엔드 react-hooks effect 리팩터
 
 > 🗓️ 등록: 2026-08-14 (Phase 1 정적 export 작업 중 발견) · 갱신: 2026-09-14
-> 📌 상태: **진행 중** — 32건 중 **29건 해소**, **3건 잔여**
-> 🎯 최종 목표: 경고 0 + 강등한 규칙을 **error 로 복구**(해소 → 안정화 → 승격)
+> ✅ 상태: **완료 (2026-09-14)** — 32건 **전건 해소**, 3규칙 **error 승격 완료**(`3854331`).
+> 이 문서는 이력 보존용이며 더 이상 추적할 잔여가 없다.
+> 🎯 목표였던 것: 경고 0 + 강등한 규칙을 **error 로 복구**(해소 → 안정화 → 승격) — **달성**
 
 ---
 
@@ -25,14 +26,14 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 
 1. **별도 커밋/작업 단위** — 기능 변경과 절대 섞지 않는다(refactor/feature 분리).
 2. **안전망 우선** — 대상 파일의 현재 동작을 특성화 테스트로 못 박은 뒤에만 손댄다.
-3. 완료 후 `eslint.config.mjs` 의 강등 override 제거 → **3규칙을 error 로 복구**하고 경고 0 유지.
+3. ✅ 완료 후 `eslint.config.mjs` 의 강등 override 제거 → **3규칙을 error 로 복구**하고 경고 0 유지.
 
 ## 안전망 현황
 
 > 📐 **규칙 정본 = `docs/TESTING_SAFETY_NET_RULES.md`** — 무엇을 단언하고 무엇을 단언하지 않는지,
 > 층을 어떻게 나누는지. 아래는 그 규칙에 따라 현재 확보된 자산의 현황이다.
 
-- ✅ **컴포넌트/컨텍스트 층**: `medication-frontend/__tests__/` — Vitest + RTL 특성화 테스트 27개.
+- ✅ **컴포넌트/컨텍스트 층**: `medication-frontend/__tests__/` — Vitest + RTL 특성화 테스트 29개.
   백엔드 불필요(mock)하여 결정적.
 - ✅ **페이지/흐름 층**: Playwright 55개 통과·skip 0. `auth.setup.js` 는 **mock IdP + 진짜 콜백**으로
   재작성(제거된 개발자 백도어 의존 해소) → `docs/tech-debt/e2e-auth-strategy.md`,
@@ -44,7 +45,7 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 
 ## 진행 현황 (2026-09-14)
 
-### ✅ 해소 29건
+### ✅ 해소 32건 (전건)
 
 | 대상 | 규칙 | 처리 방식 | 커밋 |
 |---|---|---|---|
@@ -63,6 +64,9 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 
 | `contexts/PrescriptionGroupContext.jsx` | deps | **`data || []` 를 useMemo 로 고정**. 실측: 데이터가 있을 때는 TanStack 이 쥔 같은 배열이라 이미 안정적이고, 매 렌더 새 배열이 생기는 구간은 data 가 undefined 일 때(로딩·에러)뿐 — 테스트도 그 상태로 세워야 Red 가 된다 | `4bf6957` |
 | `contexts/ChatSessionContext.jsx` + `components/chat/ChatModal.jsx` | set-state ×2 | **"X 가 바뀌면 리셋" 을 렌더 중 조정으로**(prev 비교). 프로필 전환 시 활성 세션 해제(M1) · 세션 전환 시 GPS 토글 리셋(G4). 새 화면이 이전 상태로 한 번 그려지는 창을 없앤다 | `ad5c8c7` |
+
+| `contexts/LifestyleGuideContext.jsx` | deps | **`data || []` 를 useMemo 로 고정**. data 가 undefined 인 구간에서 컨텍스트 value 의 useMemo 가 깨져 모든 소비자가 리렌더되던 문제 | `3c9ed16` |
+| `contexts/ProfileContext.jsx` | deps + set-state | **보정은 렌더 중 파생 / localStorage 반영만 effect**. 한 effect 가 겸하던 두 역할을 분리했고, 고른 프로필이 삭제돼도 state 를 되돌리지 않고 파생에서 무시한다. 공개 setter 는 상태만 바꾸도록 축소 | `d57946a` |
 
 **판단 기준(억지 제거 금지)**: "React 바깥과 동기화하는가"
 → 파생·이벤트 반응이면 제거 / 서버 상태면 쿼리 계층 / 외부 스토어면 effect 유지하고 deps 만 정정.
@@ -85,18 +89,10 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 > `useCallback` 의존성을 흔들어 **경고가 오히려 2건 늘었다** → `useMemo` 로 해결.
 > **같은 패턴이 남은 컨텍스트들에도 있다**(`listQuery.data || []`).
 
-### ⬜ 잔여 3건
+### ⬜ 잔여 0건
 
-**공유 컨텍스트 3건**
-
-| 파일 | 규칙 |
-|---|---|
-| `contexts/ProfileContext.jsx` | deps + set-state |
-| `contexts/LifestyleGuideContext.jsx` | deps |
-
-페이지/흐름 잔여: **0건** (G4 해소로 전부 정리됨).
-
-> 라인 번호는 편집으로 이동하므로 착수 시 `npm run lint` 로 최신 위치를 재확인할 것.
+전건 해소. `eslint.config.mjs` 의 강등 override 를 제거하고 3규칙을 error 로 승격했다(`3854331`).
+최종 실측: `npm run lint` **0 error · 0 warning** / Playwright **55 passed · 0 skipped** / Vitest **29 passed**.
 
 > 🧭 **"관측이 까다롭다"는 대개 층이나 대역 지점을 잘못 고른 것이다**
 > - **B2**(챌린지 재추첨): 그 화면에 프로바이더를 리렌더시키는 사용자 조작이 없어
@@ -108,13 +104,13 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 > 순서 = ①E2E 는 구조적 계약만 ②관측이 안 되면 층 또는 대역 지점을 다시 고른다
 > ③Red 로 고정 ④리팩터. 규칙 정본: `docs/TESTING_SAFETY_NET_RULES.md` §2·§5.
 
-## 남은 순서
+## 종료 기록
 
-1. ✅ **E2E 인증 전략 확립**(mock IdP) → 페이지/흐름 안전망 구축 완료
-2. ✅ 페이지/흐름 **전건 해소** (ChatModal → main → mypage → lifestyle-guide → G4)
-3. 공유 컨텍스트 잔여 3건 — `PrescriptionGroupContext`·`ChatSessionContext` 는 해소,
-   남은 건 `ProfileContext`(deps + set-state) · `LifestyleGuideContext`(deps).
-   ⚠️ `ProfileContext` 는 모든 도메인 컨텍스트의 상위라 blast radius 가 가장 크다 — 마지막에.
-4. **안정화 확인 후 3규칙 error 승격** + 이 문서 종료
+1. ✅ E2E 인증 전략 확립(mock IdP) → 페이지/흐름 안전망 구축
+2. ✅ 리프 컴포넌트 → 페이지/흐름 → 공유 컨텍스트 순 전건 리팩터
+3. ✅ 3규칙(`set-state-in-effect` · `immutability` · `exhaustive-deps`) **error 승격**
+4. ⬜ 후속 큐(별도 작업): **조회 실패 표면화** — mypage 통계 0 무음 렌더 ·
+   ChatModal 초기화 실패 UI 죽은 분기 · 로드맵 1-d 를 한 건으로 묶어 처리
 
+중간 기록: `docs-private/2026-09-14_fe-hooks-effect-6C-B-record.md`
 계획 정본: `docs-private/PLAN_FE_HOOKS_EFFECT.md`
