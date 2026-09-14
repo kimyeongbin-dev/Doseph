@@ -26,6 +26,7 @@ from app.db.databases import TORTOISE_ORM
 from app.models.accounts import Account, AuthProvider
 from app.models.challenge import Challenge
 from app.models.chat_sessions import ChatSession
+from app.models.lifestyle_guide import LifestyleGuide
 from app.models.medication import Medication
 from app.models.prescription_group import PrescriptionGroup
 from app.models.profiles import Profile, RelationType
@@ -278,6 +279,25 @@ async def create_challenge(profile: Profile, **overrides: Any) -> Challenge:
         "started_date": date(2026, 9, 1),
     }
     return await Challenge.create(**(defaults | overrides))
+
+
+async def create_lifestyle_guide(profile: Profile, **overrides: Any) -> LifestyleGuide:
+    """Create a lifestyle guide for ``profile``.
+
+    Args:
+        profile: Owning profile.
+        **overrides: Field values overriding the defaults.
+
+    Returns:
+        The persisted lifestyle guide.
+    """
+    defaults: dict[str, Any] = {
+        "profile": profile,
+        "content": {},
+        "medication_snapshot": [],
+        "input_fingerprint": uuid4().hex,
+    }
+    return await LifestyleGuide.create(**(defaults | overrides))
 
 
 async def create_chat_session(account: Account, profile: Profile, **overrides: Any) -> ChatSession:
