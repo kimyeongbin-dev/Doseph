@@ -7,87 +7,120 @@
 │                                AI Healthcare System                                 │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────────────────────────┐
-│   User Browser  │────│  Vercel (CDN)   │────│        ai-02-06.duckdns.org        │
-│                 │    │   Next.js 15    │    │         + Let's Encrypt SSL         │
-└─────────────────┘    │   React 19      │    └─────────────────────────────────────┘
-                       │   TypeScript    │                        │
-                       └─────────────────┘                        │
-                                                                  │
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                            AWS EC2 (t3.medium)                                     │
-│  ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│  │                          Docker Network                                    │   │
-│  │                                                                             │   │
-│  │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                    │   │
-│  │  │    Nginx    │────│   FastAPI   │────│ PostgreSQL  │                    │   │
-│  │  │ :80, :443   │    │    :8000    │    │    :5432    │                    │   │
-│  │  │ Reverse     │    │ Python 3.13 │    │ Primary DB  │                    │   │
-│  │  │ Proxy       │    │ Uvicorn     │    │ Tortoise    │                    │   │
-│  │  │ HTTPS       │    │ ASGI        │    │ ORM         │                    │   │
-│  │  └─────────────┘    └─────────────┘    └─────────────┘                    │   │
-│  │                              │                                             │   │
-│  │                              │         ┌─────────────┐                    │   │
-│  │                              └─────────│    Redis    │                    │   │
-│  │                                        │    :6379    │                    │   │
-│  │                                        │ Message     │                    │   │
-│  │                                        │ Broker      │                    │   │
-│  │                                        │ Cache       │                    │   │
-│  │                                        └─────────────┘                    │   │
-│  │                                                │                           │   │
-│  │                                        ┌─────────────┐                    │   │
-│  │                                        │ AI Worker   │                    │   │
-│  │                                        │ OCR + RAG   │                    │   │
-│  │                                        │ Pipeline    │                    │   │
-│  │                                        │ Background  │                    │   │
-│  │                                        │ Jobs        │                    │   │
-│  │                                        └─────────────┘                    │   │
-│  └─────────────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-                                        │
-                    ┌───────────────────┼───────────────────┐
-                    │                   │                   │
-          ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-          │ NAVER CLOVA OCR │  │  OpenAI GPT-4o  │  │ Kakao OAuth 2.0 │
-          │ Prescription    │  │ Medication      │  │   Social        │
-          │ Text Extraction │  │ Guide Generator │  │   Authentication│
-          └─────────────────┘  └─────────────────┘  └─────────────────┘
+                         ┌─────────────────────────┐
+                         │      User Browser       │
+                         └───────────┬─────────────┘
+                                     │
+                   ┌─────────────────┴──────────────────┐
+                   │            Cloudflare              │  TLS terminates here
+                   │  doseph.com          api.doseph.com│
+                   │  (Pages: static)     (Tunnel)      │
+                   └───────┬────────────────────┬───────┘
+                           │                    │
+              ┌────────────┴──────────┐         │ outbound tunnel
+              │  Next.js 16 / React19 │         │ (no inbound ports)
+              │  JavaScript (JSX)     │         │
+              │  output: 'export'     │         │
+              │  -> static assets     │         │
+              └───────────────────────┘         │
+                                                │
+        ┌───────────────────────────────────────┴─────────────────────────┐
+        │                 GCP Compute Engine e2-micro (us-west1-b)        │
+        │  ┌───────────────────────────────────────────────────────────┐  │
+        │  │                 Docker network "web"                      │  │
+        │  │   ┌──────────────┐        ┌──────────────────────────┐    │  │
+        │  │   │ cloudflared  │───────▶│  FastAPI :8000           │    │  │
+        │  │   │ (tunnel)     │        │  Python 3.13 / Uvicorn   │    │  │
+        │  │   └──────────────┘        │  Tortoise ORM            │    │  │
+        │  │                           └────────────┬─────────────┘    │  │
+        │  │   ┌──────────────┐                     │                  │  │
+        │  │   │ migrate      │  one-shot           │                  │  │
+        │  │   │ aerich upgrade│  (before API)      │                  │  │
+        │  │   └──────────────┘                     │                  │  │
+        │  └────────────────────────────────────────┼──────────────────┘  │
+        └───────────────────────────────────────────┼─────────────────────┘
+                                                    │ TLS
+                                       ┌────────────┴──────────────┐
+                                       │  Neon PostgreSQL          │
+                                       │  (managed, pgvector)      │
+                                       │  us-west-2                │
+                                       └───────────────────────────┘
+
+   External services (called by the backend):
+   ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+   │ NAVER CLOVA OCR │  │     OpenAI      │  │ Kakao OAuth 2.0 │
+   │ Prescription    │  │ Guide / RAG     │  │ Identity        │
+   │ Text Extraction │  │ Generation      │  │ Provider (IdP)  │
+   └─────────────────┘  └─────────────────┘  └─────────────────┘
+
+   Note: redis + ai-worker (OCR/RAG background jobs) run in the **local** stack.
+   The deployed "login path" stack omits them — see Docker Container Configuration.
 ```
 
 ---
 
 ## Deployment Environment Configuration
 
-### Frontend (Vercel)
-- **Platform**: Vercel (Next.js optimized)
-- **Framework**: Next.js 15 + React 19 + TypeScript
-- **Deployment**: Automatic deployment on Git push
-- **Domain**: Vercel-provided domain + custom domain integration
+### Frontend (Cloudflare Pages)
+- **Platform**: Cloudflare Pages (static hosting + CDN)
+- **Framework**: Next.js 16 + React 19, **JavaScript (JSX)** — no TypeScript
+- **Build**: `output: 'export'` static export (no Node server, no `rewrites` proxy)
+- **Domain**: `doseph.com`
+- **Deployment**: Git-connected — the `production` branch publishes the public site
+  (`main` is used for backend CD and admin previews, so an FE-only change pushes `production`
+  and avoids a backend redeploy)
 
-### Backend (AWS EC2)
-- **Instance**: t3.medium (2 vCPU, 4GB RAM, 30GB EBS)
-- **OS**: Ubuntu 22.04 LTS
-- **Domain**: `ai-02-06.duckdns.org` (DuckDNS free domain)
-- **SSL**: Let's Encrypt automatic renewal
-- **Deployment**: GitHub Actions CI/CD
+### Backend (GCP Compute Engine)
+- **Instance**: e2-micro, `us-west1-b` (Always Free tier)
+- **Runtime**: Docker Compose (`docker-compose.gcp-login.yml`)
+- **Domain**: `api.doseph.com`
+- **Ingress**: **Cloudflare Tunnel** (`cloudflared`) — TLS terminates at Cloudflare.
+  The VM has **zero inbound ports**; the tunnel is an outbound connection.
+  There is no nginx and no certbot/Let's Encrypt renewal step.
+- **Deployment**: GitHub Actions — build image in CI, push to ghcr, then pull on the VM
+  (the VM never builds). Auth is keyless via WIF; the SSH hop goes through IAP.
+
+### Database (Neon)
+- **Managed PostgreSQL** with `pgvector`, region `us-west-2` (co-located with the VM region
+  to keep VM↔DB latency low)
+- TLS required (`DB_SSL=true`); schema is applied by a one-shot `migrate` service
+  (`aerich upgrade`) that runs before the API starts.
 
 ---
 
 ## Docker Container Configuration
 
-### Production Stack (`docker-compose.prod.yml`)
+### Production Stack (`docker-compose.gcp-login.yml`)
 
-| Service | Image | Port | Role | Resource Limit |
-|---------|-------|------|------|----------------|
-| **nginx** | nginx:alpine | 80, 443 | Reverse proxy, HTTPS termination | 64MB |
-| **fastapi** | custom | 8000 | REST API server | 300MB |
-| **ai-worker** | custom | - | AI inference background processing | 300MB |
-| **postgres** | postgres:15-alpine | 5432 | Primary database | 256MB |
-| **redis** | redis:alpine | 6379 | Message broker, cache | 128MB |
+Minimal "login path" stack sized for an e2-micro (1GB RAM) free instance.
+
+| Service | Image | Port | Role |
+|---------|-------|------|------|
+| **fastapi** | `ghcr.io/kimyeongbin-dev/doseph-fastapi:${DOSEPH_IMAGE_TAG}` | 8000 (internal only) | REST API. Single uvicorn worker — two workers OOM-crashloop on 1GB |
+| **migrate** | same image | - | One-shot `aerich upgrade` before the API starts (prevents schema drift) |
+| **cloudflared** | `cloudflare/cloudflared` | - | Outbound tunnel to Cloudflare; TLS termination |
+
+Not deployed in this stack: **postgres** (Neon is managed), **redis** and **ai-worker**
+(the login path needs neither — APScheduler runs in-process), **nginx** (Cloudflare + tunnel
+replace it).
+
+### Local Stack (`docker-compose.yml`)
+
+| Service | Port | Role |
+|---------|------|------|
+| **postgres** | 5432 | pgvector-enabled database |
+| **redis** | 6379 | RQ broker, cache |
+| **fastapi** | 8000 | REST API |
+| **ai-worker** | - | OCR / RAG background jobs |
+
+**No nginx locally.** The frontend (`:3000`) calls the API (`:8000`) **directly, cross-origin**,
+which mirrors the production "independent API" topology (dev/prod parity). The backend allows
+the local origin with credentials via CORS.
 
 ### Network Configuration
-- **frontend**: nginx ↔ fastapi, ai-worker (external API access)
-- **backend**: fastapi ↔ postgres, redis ↔ ai-worker (internal communication)
+- **Production**: one `web` bridge network — `cloudflared` → `fastapi`. No inbound ports.
+- **Local**: `frontend` (outbound external APIs: OAuth/OpenAI) and `backend`
+  (fastapi ↔ postgres/redis ↔ ai-worker).
 
 ---
 
@@ -128,7 +161,9 @@ app/
 ```
 Client Request
     ↓
-Nginx (HTTPS, Rate Limiting)
+Cloudflare edge (TLS termination, WAF managed ruleset)
+    ↓
+cloudflared tunnel  → the VM exposes no inbound port
     ↓
 FastAPI Middlewares
     ├── SecurityMiddleware (Attack pattern detection)
@@ -204,8 +239,8 @@ RAGPipeline.ask
 | `fetch_sample.py` | Local/CI sample loader. `--limit N` (default 50) caps the fetch, generates `medicine_chunk` rows, embeds with SentenceTransformer. `--skip-embed` keeps DB structure only. |
 | `dump_medicine_data.sh` | DB dump helper for backup/share. |
 
-Operational rule: `fetch_sample.py` is **local/CI only** and MUST NOT run on
-production EC2. Production data is populated via `sync_medicine_data.py`.
+Operational rule: `fetch_sample.py` is **local/CI only** and MUST NOT run against the
+production database. Production data is populated via `sync_medicine_data.py`.
 
 ### Model/Dimension Swap Procedure
 
@@ -317,7 +352,8 @@ Client          FastAPI         Kakao OAuth      PostgreSQL
 ```
 
 ### Security Layers
-1. **Nginx**: HTTPS enforcement, request size limiting (10MB)
+1. **Cloudflare edge**: TLS termination, managed WAF ruleset, DDoS protection.
+   The origin has no inbound ports (tunnel-only), so it cannot be reached directly.
 2. **SecurityMiddleware**:
    - Path Traversal attack prevention
    - XSS pattern detection and logging
@@ -333,23 +369,30 @@ Client          FastAPI         Kakao OAuth      PostgreSQL
 ## CI/CD Pipeline
 
 ### GitHub Actions Workflow
-```yaml
-# .github/workflows/deploy.yml
-1. Test Phase:
-   - Python 3.13 + PostgreSQL 15 environment
-   - Dependency installation with uv
-   - pytest test execution
+```
+# .github/workflows/deploy.yml  (CD, on push to main)
+1. Test gate:
+   - Python 3.13 + PostgreSQL 15 service
+   - uv sync --frozen, pytest  (ENV=local injected; ENV has no default)
+   - failure here blocks every later job
 
-2. Deploy Phase:
-   - EC2 SSH connection
-   - Git pull (latest main)
-   - Docker Compose rebuild
-   - Automatic migration execution
-   - Health check verification
+2. Build & push:
+   - buildx -> ghcr.io/.../doseph-fastapi:latest AND :<sha>
+   - the VM never builds (e2-micro cannot afford it)
 
-3. Health Check Phase:
-   - API endpoint status verification
-   - Nginx proxy status verification
+3. Deploy:
+   - keyless auth via Workload Identity Federation (no long-lived key)
+   - SSH through IAP tunnel
+   - on the VM: compose pull + up -d --no-build, pinned to the tested :<sha>
+   - one-shot `migrate` (aerich upgrade) runs before the API
+
+4. Health check:
+   - public endpoint must return 200; rollback target is the previous :<sha>
+
+Path filter: commits touching only medication-frontend/, docs/, *.md,
+.github/, envs/ or .env.example do NOT trigger a redeploy
+(deny-list — an unknown new path deploys by default, because a silent
+under-deploy is the more dangerous failure direction).
 ```
 
 ### Deployment Automation
@@ -366,15 +409,26 @@ Client          FastAPI         Kakao OAuth      PostgreSQL
 
 ### Local Development
 ```bash
-# Install dependencies
-uv sync
+# 1) Environment (first time only) — there is no switch script
+cp .env.example .env      # then fill SECRET_KEY / DB_PASSWORD / KAKAO_*
+                          # ENV is required: the app refuses to start without it
 
-# Run local stack
-docker-compose up -d
+# 2) Backend stack (postgres / redis / fastapi / ai-worker)
+docker compose up -d
+curl -i http://localhost:8000/api/v1/health
 
-# Run development server
-uv run uvicorn app.main:app --reload
+# 3) Frontend (separate origin, :3000 -> :8000 cross-origin)
+cd medication-frontend && npm run dev
 ```
+
+Tests run **inside the container** so that configuration and dependencies match the real runtime:
+
+```bash
+docker exec fastapi uv run --no-sync pytest app/tests -q
+```
+
+Kakao login works locally against a **mock IdP** (`/api/v1/mock/kakao/*`). That router is
+registered only when `ENV=local` and additionally refuses to serve in any other environment.
 
 ### Environment Variable Management
 - `.env.example` (tracked): the single local template. Copy to `.env` and fill in real values.
@@ -394,26 +448,33 @@ uv run uvicorn app.main:app --reload
 - **Docker Logs**: Size limitations (50MB, 5 files)
 
 ### Health Checks
-- **API**: `/api/v1/health` (includes DB connection status)
-- **Nginx**: `/health` (proxy status)
-- **Docker**: Health check configuration for each container
+- **API**: `/api/v1/health` (includes DB connection status) — also the CD gate after deploy
+- **Docker**: per-container healthcheck configuration
+- **CSP reports**: `POST /csp-report` collects browser violation reports
 
 ---
 
 ## Scalability Considerations
 
-### Current Constraints (t3.medium)
-- **CPU**: 2 vCPU (burstable)
-- **Memory**: 4GB (container-level limits configured)
-- **Storage**: 30GB EBS
+### Current Constraints (e2-micro, Always Free)
+- **CPU**: 2 shared vCPU (burstable)
+- **Memory**: 1GB — the binding constraint. Two uvicorn workers OOM-crashloop,
+  so the API runs a **single async worker**; that is sufficient for the current login-path traffic.
+- **Disk**: small boot disk; images are pulled, never built on the VM.
+
+### Known Trade-offs
+- **Region**: VM (`us-west1`) and Neon (`us-west-2`) are co-located, which fixed VM↔DB latency.
+  Users and Kakao are in Korea, so the remaining user-perceived latency is dominated by routing,
+  not by the app. Moving to an Asia region is an open option.
+- **Deploy downtime**: replacing the container causes roughly 40s of 502 during a real redeploy.
+  Unnecessary redeploys were eliminated with the CD path filter, but zero-downtime deployment
+  (blue-green / rolling / a managed runtime) is still the open item.
 
 ### Scaling Strategies
-1. **Vertical Scaling**: Larger EC2 instance types
-2. **Horizontal Scaling**:
-   - Application Load Balancer + multiple EC2 instances
-   - RDS PostgreSQL (managed DB)
-   - ElastiCache Redis (managed cache)
-3. **Microservices**: Separate AI Worker as independent service
+1. **Vertical**: larger instance (leaves the free tier)
+2. **Horizontal**: multiple API instances behind Cloudflare, managed DB already in place (Neon)
+3. **Workload split**: run AI Worker (OCR/RAG) as a separate deployable — it is intentionally
+   not part of the deployed login-path stack today
 
 ---
 
@@ -421,26 +482,32 @@ uv run uvicorn app.main:app --reload
 
 | Layer | Technology | Version | Role |
 |-------|------------|---------|------|
-| **Frontend** | Next.js | 15 | React-based SPA |
-| **Backend** | FastAPI | 0.128+ | Python async API server |
-| **Database** | PostgreSQL | 15 | Relational database |
-| **Cache/Queue** | Redis | Alpine | Message broker, cache |
+| **Frontend** | Next.js + React (JavaScript/JSX) | 16 / 19 | Static export (`output: 'export'`) |
+| **FE hosting** | Cloudflare Pages | - | Static hosting + CDN (`doseph.com`) |
+| **Backend** | FastAPI | 0.128+ | Python 3.13 async API server |
+| **Database** | Neon PostgreSQL (+pgvector) | 15 | Managed relational + vector store |
+| **Cache/Queue** | Redis | Alpine | RQ broker, cache (**local stack only**) |
 | **ORM** | Tortoise ORM | 0.25+ | Async Python ORM |
-| **Web Server** | Nginx | Alpine | Reverse proxy, HTTPS |
-| **Container** | Docker | - | Containerization |
-| **Orchestration** | Docker Compose | - | Multi-container management |
-| **CI/CD** | GitHub Actions | - | Automated deployment |
-| **Monitoring** | Docker Logs | - | Log collection |
-| **SSL** | Let's Encrypt | - | Free SSL certificates |
-| **DNS** | DuckDNS | - | Free dynamic DNS |
+| **Migrations** | aerich | 0.9+ | Applied by a one-shot `migrate` service |
+| **Ingress / TLS** | Cloudflare Tunnel (`cloudflared`) | - | Outbound tunnel; zero inbound ports |
+| **Edge security** | Cloudflare WAF + CSP | - | Managed ruleset, CSP with hashed inline scripts |
+| **Compute** | GCP Compute Engine e2-micro | - | Always Free tier (`us-west1-b`) |
+| **Container** | Docker / Docker Compose | - | Containerization & orchestration |
+| **Registry** | GitHub Container Registry (ghcr) | - | Images built in CI, pulled by the VM |
+| **CI/CD** | GitHub Actions (+ WIF, IAP) | - | Keyless auth; build-once, promote by `:sha` |
+| **FE tests** | Vitest + RTL / Playwright | - | Component tests / browser E2E |
+| **Quality gates** | Ruff · MyPy baseline · Bandit · ESLint · npm audit | - | Enforced in CI and pre-commit |
 
 ---
 
 ## Additional Documentation
 
 - [README.md](./README.md): Project overview and execution guide
-- [SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN_KR.md): Technical design specifications
-- [docs/01_DB_MIGRATION_GUIDE.md](./docs/01_DB_MIGRATION_GUIDE.md): Database migration guide
-- [docs/02_ENV_AND_CICD_GUIDE.md](./docs/02_ENV_AND_CICD_GUIDE.md): Environment setup and CI/CD
-- [docs/OCR_FLOW.md](docs/OCR_FLOW.md): OCR processing flow
-- [PLAN.md](./PLAN.md): Development planning and architecture design
+- [SYSTEM_DESIGN.md](./SYSTEM_DESIGN.md): Technical design specifications
+- [ROADMAP.md](./ROADMAP.md): Roadmap
+- [envs/README.md](./envs/README.md): Environment variables, local setup, deployment topology
+- [docs/migration설명.md](./docs/migration설명.md): Database migration guide
+- [docs/OCR_FLOW.md](./docs/OCR_FLOW.md): OCR processing flow
+- [docs/RAG_FLOW.md](./docs/RAG_FLOW.md): RAG pipeline flow
+- [docs/frontend/component-roles.md](./docs/frontend/component-roles.md): Frontend component/context roles
+- [docs/tech-debt/](./docs/tech-debt/): Tracked technical debt (E2E auth strategy, react-hooks effect refactor)

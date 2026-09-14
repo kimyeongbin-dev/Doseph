@@ -93,57 +93,51 @@ import Header from '@/components/layout/Header'
 ```javascript
 const ENV = process.env.NEXT_PUBLIC_ENV || 'local'
 
+// Static export has no same-origin rewrites proxy, so API_BASE_URL must be a FULL backend URL.
+// Priority: NEXT_PUBLIC_API_BASE_URL (injected at build time) > the per-env default below.
 const ENV_CONFIG = {
   local: {
-    API_BASE_URL: '',
+    API_BASE_URL: 'http://localhost:8000',
     KAKAO_REDIRECT_URI: 'http://localhost:3000/auth/kakao/callback',
   },
   dev: {
-    API_BASE_URL: '',
+    API_BASE_URL: 'http://localhost:8000',
     KAKAO_REDIRECT_URI: 'http://localhost:3000/auth/kakao/callback',
   },
   prod: {
+    // Injected by CI/deploy (e.g. https://api.doseph.com). No platform URL is hardcoded.
     API_BASE_URL: '',
-    KAKAO_REDIRECT_URI: 'https://ai-02-06.vercel.app/auth/kakao/callback',
+    KAKAO_REDIRECT_URI: '',
   },
 }
 
 export const config = {
   ENV,
-  API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? ENV_CONFIG[ENV].API_BASE_URL,
+  API_BASE_URL: cleanApiUrl(process.env.NEXT_PUBLIC_API_BASE_URL ?? currentConfig.API_BASE_URL),
   KAKAO_CLIENT_ID: process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID || '',
-  KAKAO_REDIRECT_URI: process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI || ENV_CONFIG[ENV].KAKAO_REDIRECT_URI,
-
-  // Security settings
-  ENABLE_DEV_LOGIN: ENV !== 'prod' && process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === 'true'
+  KAKAO_REDIRECT_URI: process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI || currentConfig.KAKAO_REDIRECT_URI || '',
 }
 ```
 
-### 2. Environment-specific Developer Login Control
+> **Do not set `NEXT_PUBLIC_API_BASE_URL` locally.** Leaving it unset lets the per-env default
+> apply. Setting it overrides that default, so the line goes stale whenever the topology changes
+> — which has already caused a real outage (it pointed at a dead `:80` after nginx was removed).
 
-```javascript
-// Developer login component example
-const DeveloperLogin = () => {
-  // SECURITY: Completely hidden in prod environment (both EC2 and Vercel)
-  if (!config.ENABLE_DEV_LOGIN) {
-    return null
-  }
+### 2. Authentication in Development
 
-  return (
-    <div className="border-2 border-red-500 p-4 rounded-lg bg-red-50">
-      <p className="text-red-600 text-sm mb-2">
-        WARNING: Developer-only login (ENV: {config.ENV})
-      </p>
-      <button
-        onClick={handleDevLogin}
-        className="bg-red-500 text-white px-4 py-2 rounded"
-      >
-        Developer Login
-      </button>
-    </div>
-  )
-}
-```
+**There is no developer-login backdoor.** It was removed during security hardening, so no
+environment renders a "developer login" button. Local development signs in through the normal
+Kakao flow, with only the **identity provider** replaced by a mock:
+
+- `ENV=local` -> the backend serves a mock IdP at `/api/v1/mock/kakao/*` and
+  `GET /auth/kakao/config` returns that mock as `authorize_url`.
+- Everything after the redirect is the **real** code path: callback, code exchange, userinfo
+  mapping, account lookup/creation, session issuance, and cookie attributes.
+- The mock router is registered only when `ENV=local` **and** refuses to serve otherwise
+  (defense in depth) — `ENV` itself is a required setting with no default.
+
+E2E tests drive this same flow; see `e2e/auth.setup.js` and
+`docs/tech-debt/e2e-auth-strategy.md`.
 
 ### 3. Security Utilities
 
