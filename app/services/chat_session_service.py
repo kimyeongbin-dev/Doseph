@@ -18,7 +18,7 @@ from app.repositories.profile_repository import ProfileRepository
 class ChatSessionService:
     """Chat session business logic service for conversation management."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.repository = ChatSessionRepository()
         self.profile_repository = ProfileRepository()
         self.message_repository = MessageRepository()

@@ -19,7 +19,7 @@ from app.repositories.profile_repository import ProfileRepository
 class ChallengeService:
     """Challenge business logic service for health challenge management."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.repository = ChallengeRepository()
         self.profile_repository = ProfileRepository()
 
