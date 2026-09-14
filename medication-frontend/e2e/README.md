@@ -3,6 +3,10 @@
 Doseph 프론트엔드의 Playwright E2E 테스트와, **로컬 서버 기동부터** 정적 export 전환(P1)을
 직접 눈으로 확인하는 절차를 정리한다.
 
+> 📐 **테스트를 쓰기 전에 `docs/TESTING_SAFETY_NET_RULES.md` 를 먼저 읽을 것.**
+> 무엇을 단언하고 무엇을 단언하지 않는지, 층을 어떻게 나누는지의 **규칙 정본**이다.
+> 이 문서는 그 규칙을 전제로 한 **실행 절차**만 다룬다.
+
 > 핵심 전제(로컬): 백엔드는 `localhost:3000` 을 **CORS(allow_credentials) 허용**한다.
 > 그래서 정적 산출물 `out/` 을 **:3000** 으로 서빙하면 rewrites 없이도 로그인·데이터·상호작용까지
 > 로컬에서 정상 동작한다. (배포 cross-site CORS 는 P2 범위.)
@@ -32,7 +36,8 @@ cp .env.example .env      # 이후 SECRET_KEY / DB_PASSWORD / KAKAO_* 를 실제
 
 ```bash
 # 루트에서
-docker compose up -d          # postgres:5432 / redis:6379 / fastapi:8000 / nginx:80
+docker compose up -d          # postgres:5432 / redis:6379 / fastapi:8000 / ai-worker
+                              # (nginx 는 로컬 독립 API 전환으로 제거됨)
 
 # 상태 확인
 docker compose ps
@@ -112,24 +117,35 @@ E2E_TARGET=dev npx playwright test e2e/p1-routing.spec.js --project=authed
 
 ## 4. 테스트 구성
 
-| 파일 | 역할 | 데이터 의존 | P1 성격 |
-|---|---|---|---|
-| `auth.setup.js` | dev 로그인 → 세션(storageState) 저장 | 백엔드 필요 | 공통 setup |
-| `p1-routing.spec.js` | 신규 쿼리 라우트 200 / 구 동적 라우트 404 / 딥링크 파라미터 | 무 | **Red-first 핵심** |
-| `navigation.spec.js` | 카드→group, 약품→detail 클릭 이동 계약 | 처방전 1건+ | Red-first (데이터 시 검증) |
-| `smoke.spec.js` | 전 페이지 렌더 · 미처리 예외 0 · 404 아님 | 백엔드 필요 | 회귀 방지 그물 |
+프로젝트 실행 순서: `setup`(세션) → `seed`(데이터) → `authed`(본 스펙).
 
-> `navigation.spec.js` 는 Step 3 에서 부여할 `data-testid="prescription-card"`,
-> `data-testid="medication-item"` 를 선택자로 사용한다(테스트가 먼저 참조하는 인터페이스).
+| 파일 | 역할 | 데이터 의존 |
+|---|---|---|
+| `auth.setup.js` | **mock IdP + 진짜 콜백**으로 로그인 → 세션(storageState) 저장 | 백엔드 필요 |
+| `seed.setup.js` | 복약 2종 · 활성 챌린지 2건을 앱의 실제 API 로 **멱등** 시드 | 백엔드 필요 |
+| `p1-routing.spec.js` | 신규 쿼리 라우트 200 / 구 동적 라우트 404 / 딥링크 파라미터 | 무 |
+| `navigation.spec.js` | 카드→group, 약품→detail 클릭 이동 계약 | 시드 복약 |
+| `smoke.spec.js` | 전 페이지 렌더 · 미처리 예외 0 · 404 아님 | 백엔드 필요 |
+| `hooks-url-params.spec.js` | `?showSurvey=true`(B1) · `?tab=family`(E3) 진입 계약 | 무 |
+| `hooks-auth-gate.spec.js` | 미인증 보호 경로 차단(F1) | 무 |
+| `hooks-medication-flow.spec.js` | 복약 목록·상세·검색 버퍼 흐름(C1·C2·D1) | 시드 복약 |
+| `hooks-lifestyle-flow.spec.js` | 생활가이드 탭·챌린지(A1·A3·A6) — LLM 은 `page.route()` 고정 | 시드 |
+| `hooks-chat-flow.spec.js` | 챗 세션 생성·전환·삭제·발신자 구분(G1~G3) — LLM 고정 | 무 |
+| `hooks-challenge-card.spec.js` | main 활성 챌린지 카드의 구조적 계약(B2) | 시드 챌린지 |
+
+> `navigation.spec.js` 는 `data-testid="prescription-card"`, `data-testid="medication-item"` 를
+> 선택자로 사용한다(테스트가 먼저 참조하는 인터페이스).
 
 ---
 
 ## 5. 문제 해결
 
-- ⚠️ **`auth.setup.js` 실패("개발자로 로그인" 버튼 없음)** → 정상이다. **개발자 로그인 백도어는
-  보안 하드닝으로 제거됐다**(FE·BE 모두). 이 setup 은 제거된 기능에 의존하는 **낡은 하네스**이며,
-  인증이 필요한 E2E 는 다른 인증 전략(예: 테스트에서 직접 세션 쿠키 주입)이 필요하다.
-  → 미해결 부채: `docs/tech-debt/e2e-auth-strategy.md`
+- ⚠️ **`auth.setup.js` 실패** → mock IdP 는 **`ENV=local` 에서만 등록**된다. 루트 `.env` 의 `ENV`
+  확인 후 `docker compose up -d` 재기동. 전략 배경: `docs/tech-debt/e2e-auth-strategy.md`
 - **인증 테스트가 401/redirect** → 백엔드 미기동 또는 세션 만료. `docker compose ps` 확인 후 재실행.
-- **static 타겟에서 즉시 실패** → `out/` 미생성. `npm run build` 를 먼저 실행.
-- **네비게이션 테스트 skip** → 개발자 계정에 처방전 데이터 없음. 앱에서 처방전 1건 등록 후 재실행.
+- **static 타겟에서 즉시 실패** → `out/` 미생성, 또는 **소스 수정 후 빌드를 건너뜀**(옛 코드 검증).
+  `npm run build` 를 먼저 실행.
+- **데이터 의존 스펙 실패** → `seed.setup.js` 가 먼저 돌았는지 확인. 시드는 멱등이므로 재실행해도 안전하다.
+  ⚠️ **skip 으로 넘기지 말 것** — 전제는 단언으로 지킨다(`docs/TESTING_SAFETY_NET_RULES.md` R1).
+- **전체 스위트에서만 실패(단독 실행은 통과)** → 레이트 리밋(429) 의심.
+  `docker compose logs fastapi --tail=50` 으로 확인. 로컬 compose 만 한도가 완화돼 있다.

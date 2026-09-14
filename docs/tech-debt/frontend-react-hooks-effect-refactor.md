@@ -29,6 +29,9 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 
 ## 안전망 현황
 
+> 📐 **규칙 정본 = `docs/TESTING_SAFETY_NET_RULES.md`** — 무엇을 단언하고 무엇을 단언하지 않는지,
+> 층을 어떻게 나누는지. 아래는 그 규칙에 따라 현재 확보된 자산의 현황이다.
+
 - ✅ **컴포넌트/컨텍스트 층**: `medication-frontend/__tests__/` — Vitest + RTL 특성화 테스트 24개.
   백엔드 불필요(mock)하여 결정적.
 - ✅ **페이지/흐름 층**: Playwright 45개 통과·skip 0. `auth.setup.js` 는 **mock IdP + 진짜 콜백**으로
