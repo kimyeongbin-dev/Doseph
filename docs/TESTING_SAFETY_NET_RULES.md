@@ -124,3 +124,5 @@ E2E 로 관측 불가능하다는 사실 자체가 **"컴포넌트 층으로 내
 - `medication-frontend/e2e/README.md` — 실행 절차·테스트 구성
 - `docs/tech-debt/frontend-react-hooks-effect-refactor.md` — 안전망을 토대로 진행 중인 리팩터
 - `docs/tech-debt/e2e-auth-strategy.md` — 인증 대역 전략
+- `docs/tech-debt/vacuous-green-audit.md` — **헛된 초록 전수 원장(미착수)**. R3 를 어긴
+  기존 테스트 목록과 교정 처방. 커밋 전 자문: *"이 스텁/시드를 비우면 빨개지는가?"*
