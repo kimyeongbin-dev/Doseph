@@ -18,17 +18,30 @@
 여기서는 행을 실제로 만들고 지운 뒤 **남았는가/사라졌는가**를 본다.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from uuid import uuid4
 
+from fastapi import HTTPException
 import pytest
+from tortoise.models import Model
 
+from app.models.accounts import Account
 from app.models.challenge import Challenge
+from app.models.chat_sessions import ChatSession
 from app.models.lifestyle_guide import LifestyleGuide
 from app.models.medication import Medication
+from app.models.messages import ChatMessage, SenderType
+from app.models.profiles import Profile, RelationType
+from app.models.refresh_tokens import RefreshToken
+from app.services.chat_session_service import ChatSessionService
 from app.services.medication_service import MedicationService
+from app.services.oauth import OAuthService
+from app.services.profile_service import ProfileService
 from app.tests.db.conftest import (
     create_account,
     create_challenge,
+    create_chat_session,
     create_lifestyle_guide,
     create_medication,
     create_prescription_group,
@@ -148,3 +161,109 @@ async def test_cascade_does_not_touch_another_profile(db: None) -> None:
     survivors = await Challenge.filter(id=other_challenge.id).values("deleted_at")
     assert len(survivors) == 1, "다른 프로필의 챌린지가 사라졌다 — cascade 범위가 너무 넓다"
     assert survivors[0]["deleted_at"] is None, "다른 프로필의 챌린지가 삭제 표시됐다"
+
+
+# ── 프로필 삭제 -> 자식 전부 ──────────────────────────────────────────
+# 흐름: 가족 프로필에 약/챌린지/세션을 매달고 삭제 -> 전부 정리됐는지
+# SELF 프로필은 계정 탈퇴로만 지울 수 있으므로 가족 프로필로 검증한다.
+async def test_deleting_profile_cascades_to_children(db: None) -> None:
+    """Deleting a profile must clean up its medications, challenges and sessions."""
+    account = await create_account()
+    await create_profile(account)  # SELF — 삭제 대상이 아님
+    family = await create_profile(account, relation_type=RelationType.MOTHER, name="가족")
+
+    group = await create_prescription_group(family)
+    medication = await create_medication(family, group)
+    challenge = await create_challenge(family)
+    session = await create_chat_session(account, family)
+
+    await ProfileService().delete_profile_with_owner_check(family.id, account.id)
+
+    assert await _deleted_at_of(Medication, medication.id) is not None, "프로필을 지웠는데 약이 남아 있다"
+    assert await _deleted_at_of(Challenge, challenge.id) is not None, "프로필을 지웠는데 챌린지가 남아 있다"
+    assert await _deleted_at_of(ChatSession, session.id) is not None, "프로필을 지웠는데 세션이 남아 있다"
+
+    profile_rows = await Profile.filter(id=family.id).values("deleted_at")
+    assert profile_rows[0]["deleted_at"] is not None, "프로필 자신이 삭제 표시되지 않았다"
+
+
+# ── SELF 프로필은 일반 삭제로 지워지지 않는다 ────────────────────────
+# 흐름: SELF 는 계정과 묶여 있어 탈퇴 흐름으로만 제거돼야 한다
+async def test_self_profile_cannot_be_deleted_directly(db: None) -> None:
+    """The SELF profile must be refused by the normal delete path."""
+    account = await create_account()
+    self_profile = await create_profile(account)
+
+    with pytest.raises(HTTPException) as raised:
+        await ProfileService().delete_profile_with_owner_check(self_profile.id, account.id)
+
+    assert raised.value.status_code == 403
+
+
+# ── 세션 삭제 -> 메시지 ───────────────────────────────────────────────
+async def test_deleting_chat_session_cascades_to_messages(db: None) -> None:
+    """Deleting a chat session must soft-delete its messages."""
+    account = await create_account()
+    profile = await create_profile(account)
+    session = await create_chat_session(account, profile)
+    message = await ChatMessage.create(session=session, sender_type=SenderType.USER, content="안녕")
+
+    await ChatSessionService().delete_session_with_owner_check(session.id, account.id)
+
+    assert await _deleted_at_of(ChatMessage, message.id) is not None, "세션을 지웠는데 메시지가 남아 있다"
+
+
+# ── 계정 탈퇴 -> 전부 ─────────────────────────────────────────────────
+# 흐름: refresh token hard delete + 모든 프로필(SELF 포함) cascade + 계정 비활성화
+# 탈퇴는 되돌릴 수 없는 경로라 "무엇이 남는가"를 행으로 확인하는 값이 가장 크다.
+async def test_account_withdrawal_cascades_everything(db: None) -> None:
+    """Account withdrawal must revoke tokens, cascade profiles and deactivate."""
+    account = await create_account()
+    self_profile = await create_profile(account)
+    group = await create_prescription_group(self_profile)
+    medication = await create_medication(self_profile, group)
+    await RefreshToken.create(
+        account=account,
+        token_hash=uuid4().hex,
+        expires_at=datetime.now(UTC) + timedelta(days=7),
+        is_revoked=False,
+    )
+    # 계정 직속 세션 — 프로필 cascade 가 아니라 탈퇴 흐름이 따로 처리하는 경로
+    session = await create_chat_session(account, self_profile)
+    message = await ChatMessage.create(session=session, sender_type=SenderType.USER, content="탈퇴 전 대화")
+
+    await OAuthService().delete_account(account)
+
+    # ⚠️ 코드 주석은 "refresh_tokens hard-delete (보안 우선)" 이라고 적혀 있지만,
+    #    `revoke_all_for_account` 는 is_revoked=True 로 **soft revoke** 할 뿐이다
+    #    (2026-09-15 발견, 후속 큐 1-j). 사용 불가라는 점에서 기능은 충족하나,
+    #    탈퇴한 계정의 token_hash 행이 그대로 남는다 — 보존 정책 관점의 판단이 필요하다.
+    #    여기서는 실제 계약("쓸 수 있는 토큰이 남지 않는다")을 잠근다.
+    assert await RefreshToken.filter(account_id=account.id, is_revoked=False).count() == 0, (
+        "탈퇴했는데 사용 가능한 refresh token 이 남아 있다"
+    )
+    assert await _deleted_at_of(Profile, self_profile.id) is not None, "SELF 프로필이 남아 있다"
+    assert await _deleted_at_of(Medication, medication.id) is not None, "약이 남아 있다"
+
+    assert await _deleted_at_of(ChatSession, session.id) is not None, "계정 직속 세션이 남아 있다"
+    assert await _deleted_at_of(ChatMessage, message.id) is not None, "세션 메시지가 남아 있다"
+
+    account_rows = await Account.filter(id=account.id).values("is_active", "deleted_at")
+    assert account_rows[0]["is_active"] is False, "탈퇴한 계정이 아직 활성이다"
+    assert account_rows[0]["deleted_at"] is not None, "탈퇴한 계정에 deleted_at 이 없다"
+
+
+async def _deleted_at_of(model: type[Model], row_id: Any) -> Any:
+    """Read a row's ``deleted_at`` straight from the database.
+
+    ORM 객체 속성 대신 행 값을 읽는다 — 디스크립터 타입 추론에 기대지 않기 위해.
+
+    Args:
+        model: Tortoise model class.
+        row_id: Primary key of the row.
+
+    Returns:
+        The stored ``deleted_at`` value, or ``None`` when the row is gone.
+    """
+    rows = await model.filter(id=row_id).values("deleted_at")
+    return rows[0]["deleted_at"] if rows else None
