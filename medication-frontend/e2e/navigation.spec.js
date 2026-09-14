@@ -2,8 +2,10 @@
 // 흐름: 실제 클릭 상호작용이 "전환 후 쿼리 라우트"로 이동하는지 검증한다.
 //       처방전 카드 클릭 -> /medication/group?group_id=  (구: /medication/groups/{id})
 //       약품 항목 클릭   -> /medication/detail?id=        (구: /medication/{id})
-// 전제: docker fastapi(:8000) 기동 + 개발자 계정에 처방전 1건 이상.
-//       데이터가 없으면 단언 대신 skip(사유 명시)한다.
+// 전제: docker fastapi(:8000) 기동 + seed.setup 이 처방전 1건 이상을 보장한다.
+//       ⚠️ networkidle 만 기다리고 count() 를 세면 쿼리 -> 렌더 경합으로 0 이 잡혀
+//       실행마다 무음 skip 되는 구멍이 생긴다(실측: 매 실행 1~2건 skip).
+//       → 카드가 보일 때까지 먼저 기다린 뒤 판정한다. skip 은 시드 부재 시의 최후 수단.
 // 선택자: Step 3 구현에서 아래 data-testid 를 부여한다(테스트가 먼저 참조하는 인터페이스).
 //   - 처방전 카드:  data-testid="prescription-card"
 //   - 약품 항목:    data-testid="medication-item"
@@ -16,8 +18,9 @@ test.describe('처방전 카드 -> 그룹 상세 쿼리 라우트', () => {
     await page.waitForLoadState('networkidle')
 
     const cards = page.getByTestId('prescription-card')
+    await cards.first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {})
     const count = await cards.count()
-    test.skip(count === 0, '처방전 데이터가 없어 네비게이션 계약을 검증할 수 없음(개발자 계정에 처방전 등록 필요)')
+    test.skip(count === 0, '처방전 데이터가 없어 네비게이션 계약을 검증할 수 없음(seed.setup 확인 필요)')
 
     await cards.first().click()
     await page.waitForURL(/\/medication\/group\?group_id=/, { timeout: 10_000 })
@@ -33,16 +36,19 @@ test.describe('약품 항목 -> 약품 상세 쿼리 라우트 (모바일 뷰포
     await page.goto('/medication')
     await page.waitForLoadState('networkidle')
     const cards = page.getByTestId('prescription-card')
+    await cards.first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {})
     test.skip((await cards.count()) === 0, '처방전 데이터가 없어 약품 상세 이동을 검증할 수 없음')
 
     await cards.first().click()
     await page.waitForURL(/\/medication\/group\?group_id=/, { timeout: 10_000 })
 
-    // 그룹 상세 fetch 가 끝나 약품 목록이 렌더될 때까지 대기 후 판정
-    await page.waitForLoadState('networkidle')
+    // 시드 처방전에는 약품이 반드시 있으므로 skip 이 아니라 단언한다.
+    // (예전엔 8초 대기 후 skip 이라, 전체 스위트 부하 시 타임아웃이 무음 skip 으로 둔갑했다.)
     const medItems = page.getByTestId('medication-item')
-    await medItems.first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {})
-    test.skip((await medItems.count()) === 0, '이 처방전에 클릭 가능한 약품 항목이 없어 검증 skip')
+    await expect(
+      medItems.first(),
+      '시드 처방전의 약품 항목이 렌더돼야 한다(안 보이면 상세 조회 회귀)',
+    ).toBeVisible({ timeout: 15_000 })
 
     await medItems.first().click()
     await page.waitForURL(/\/medication\/detail\?id=/, { timeout: 10_000 })

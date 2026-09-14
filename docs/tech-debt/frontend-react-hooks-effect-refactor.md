@@ -1,7 +1,7 @@
 # [TECH DEBT] 프론트엔드 react-hooks effect 리팩터
 
 > 🗓️ 등록: 2026-08-14 (Phase 1 정적 export 작업 중 발견) · 갱신: 2026-09-14
-> 📌 상태: **진행 중** — 32건 중 **8건 해소(리프 컴포넌트)**, **24건 잔여**
+> 📌 상태: **진행 중** — 32건 중 **10건 해소(리프 컴포넌트 8 + 페이지/게이트 2)**, **22건 잔여**
 > 🎯 최종 목표: 경고 0 + 강등한 규칙을 **error 로 복구**(해소 → 안정화 → 승격)
 
 ---
@@ -36,7 +36,7 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 
 ## 진행 현황 (2026-09-14)
 
-### ✅ 해소 8건 — 리프 컴포넌트 (안전망 확보 구간)
+### ✅ 해소 10건
 
 | 대상 | 규칙 | 처리 방식 | 커밋 |
 |---|---|---|---|
@@ -45,6 +45,8 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 | `components/medication/MedicineNameAutocomplete.jsx` | set-state | **이벤트 기반 전환**(onChange 에서 debounce 시작). `userTypedRef`·`skipFetchRef` 제거 | `5e3ca01` |
 | `components/medication/TimeSlotPicker.jsx` | set-state + deps | **렌더 중 state 조정**(prevId 비교). 부모 `key` 리셋 대신 택해 안전망 범위 유지 | `9819516` |
 | `components/lifestyle/SymptomLogForm.jsx` | deps ×3 | **effect 유지 + 의존성 정정**(RHF 내부 스토어 = 정당한 외부 동기화) | `5c620d5` |
+| `components/AuthGuard.jsx` | set-state | **public 분기를 렌더 중 파생**으로 이동. 부수 개선: public 방문이 인증 결과를 `ok` 로 오염시켜 보호 경로를 미검증 렌더하던 문제 제거 | `955f450` |
+| `app/medication/page.jsx` | set-state | **초깃값 + 이벤트 핸들러로 해소**. 확정 검색어를 버퍼 `useState` 초깃값으로 잡고, `applySearch` 가 두 값을 함께 갱신 | `ae90cec` |
 
 **판단 기준(억지 제거 금지)**: "React 바깥과 동기화하는가"
 → 파생·이벤트 반응이면 제거 / 서버 상태면 쿼리 계층 / 외부 스토어면 effect 유지하고 deps 만 정정.
@@ -53,7 +55,7 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 > `useCallback` 의존성을 흔들어 **경고가 오히려 2건 늘었다** → `useMemo` 로 해결.
 > **같은 패턴이 남은 컨텍스트들에도 있다**(`listQuery.data || []`).
 
-### ⬜ 잔여 24건
+### ⬜ 잔여 22건
 
 **공유 컨텍스트 5건** — 컨텍스트 자체 계약은 테스트로 잠겼으나 **페이지와의 통합 동작은 미잠금**
 (blast radius 가 커서 페이지 레벨 E2E 확보 후 착수).
@@ -65,16 +67,14 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 | `contexts/LifestyleGuideContext.jsx` | deps |
 | `contexts/PrescriptionGroupContext.jsx` | deps |
 
-**페이지/흐름 19건** — 안전망 없음(E2E 인증 전략 선결).
+**페이지/흐름 17건** — 페이지/흐름 E2E 안전망 확보 완료(`a68484e`·`6c3c06d`·`698355d`), 저위험순 착수 중.
 
 | 파일 | 건수 | 패턴 힌트 |
 |---|---|---|
 | `app/lifestyle-guide/page.jsx` | 6 | 증상 조회, 가이드 전환 시 챌린지 페이지 리셋 |
 | `app/main/page.jsx` | 2 | `?showSurvey` 모달, 활성 챌린지 랜덤 선택 |
 | `app/medication/group/page.jsx` | 2 | groupId 변경 시 로딩/에러 + 상세 fetch |
-| `app/medication/page.jsx` | 1 | 진입 시 refetch |
 | `app/mypage/page.jsx` | 3 | `?tab=family` 탭 활성, fetchData 클로저(immutability) |
-| `components/AuthGuard.jsx` | 1 | 인증 게이트 초기화 |
 | `components/chat/ChatModal.jsx` | 4 | 세션 초기화·보정, 메시지 로드, GPS/스크롤 |
 
 > 라인 번호는 편집으로 이동하므로 착수 시 `npm run lint` 로 최신 위치를 재확인할 것.
