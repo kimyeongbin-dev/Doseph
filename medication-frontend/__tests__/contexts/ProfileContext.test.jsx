@@ -81,4 +81,19 @@ describe('ProfileContext selectedProfileId 정합', () => {
     expect(screen.getByTestId('selected')).toHaveTextContent('p2') // SELF 폴백
     expect(localStorage.getItem(STORAGE_KEY)).toBe('p2')
   })
+
+  it('프로필이 하나도 없으면 선택이 해제된 상태로 남는다', async () => {
+    localStorage.setItem(STORAGE_KEY, 'p1')
+    api.get.mockResolvedValue({ data: [] })
+    renderProvider()
+
+    expect(await screen.findByText('0')).toBeInTheDocument()
+    expect(
+      screen.getByTestId('selected'),
+      '선택할 프로필이 없으면 어떤 id 도 고르면 안 된다',
+    ).toHaveTextContent('none')
+    // ⚠️ 이때 저장값이 남는지 여부는 의도적으로 단언하지 않는다 —
+    //    현재 구현은 "선택이 있었다가 사라진" 전이에서만 지우고, 처음부터 빈 목록이면
+    //    남겨둔다. 그 정리 여부는 이 리팩터의 계약이 아니다.
+  })
 })

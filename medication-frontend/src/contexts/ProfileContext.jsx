@@ -13,7 +13,7 @@
 // - profile 삭제 시 그 profile 의 prescription-groups / lifestyle-guides /
 //   challenges 캐시 invalidate (BE cascade 와 동기화).
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
@@ -54,7 +54,9 @@ export function ProfileProvider({ children }) {
   const isPublic = PUBLIC_PATHS.includes(pathname) || pathname.startsWith('/auth/')
   const qc = useQueryClient()
 
-  const [selectedProfileId, setSelectedProfileIdState] = useState(null)
+  // 사용자가 직접 고른 id. 실제로 쓰이는 선택값은 아래에서 목록과 대조해 파생한다
+  // (고른 프로필이 삭제돼도 이 값을 effect 로 되돌리지 않고 파생 단계에서 무시한다).
+  const [pickedProfileId, setPickedProfileId] = useState(null)
 
   // ── 1) list query ─────────────────────────────────────────────────
   // public path 에서는 enabled=false → fetch 0회 (인증 없는 라우트에서 401 노이즈 방지).
@@ -67,29 +69,37 @@ export function ProfileProvider({ children }) {
       return data || []
     },
   })
-  const profiles = listQuery.data || []
+  // `data || []` 를 그대로 쓰면 data 가 undefined 인 구간(로딩·public path)에서 매 렌더
+  // 새 배열이 만들어져 아래 파생·effect 의존성을 흔든다.
+  const profiles = useMemo(() => listQuery.data || [], [listQuery.data])
   // 첫 로드 + public path 모두에서 일관된 isLoading.
   const isLoading = isPublic ? false : listQuery.isLoading
 
-  // ── selectedProfileId 정합성 자동 검증 ────────────────────────────
+  // ── 선택 프로필 파생 (렌더 중) ─────────────────────────────────────
+  // 흐름: 목록 없음 -> null / 고른 값이 목록에 있음 -> 그 값
+  //       -> 저장값이 목록에 있음 -> 복원 -> 그 외 SELF(없으면 첫 번째)
+  // localStorage 읽기는 목록이 비어 있지 않을 때만 결과에 반영된다. 하이드레이션 시점에는
+  // 목록이 아직 비어 있어 서버 스냅샷(null)과 같은 값이 나오므로 불일치가 생기지 않는다.
+  const savedProfileId = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+  const selectedProfileId = useMemo(() => {
+    if (profiles.length === 0) return null
+    if (pickedProfileId && profiles.some((p) => p.id === pickedProfileId)) return pickedProfileId
+    if (savedProfileId && profiles.some((p) => p.id === savedProfileId)) return savedProfileId
+    return (profiles.find((p) => p.relation_type === 'SELF') || profiles[0]).id
+  }, [profiles, pickedProfileId, savedProfileId])
+
+  // ── 선택값을 localStorage 에 반영 ──────────────────────────────────
+  // 흐름: 파생된 선택값이 바뀌면 저장 / 선택이 사라졌으면(있다가 없어진 경우만) 제거
+  // localStorage 는 React 바깥의 저장소라 effect 가 맞는 자리다. 여기서 state 는 건드리지 않는다.
   useEffect(() => {
-    if (profiles.length === 0) {
-      if (selectedProfileId !== null) {
-        setSelectedProfileIdState(null)
-        if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY)
-      }
+    if (typeof window === 'undefined') return
+    if (selectedProfileId) {
+      localStorage.setItem(STORAGE_KEY, selectedProfileId)
       return
     }
-    if (selectedProfileId && profiles.find((p) => p.id === selectedProfileId)) return
-    const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
-    if (saved && profiles.find((p) => p.id === saved)) {
-      setSelectedProfileIdState(saved)
-      return
-    }
-    const fallback = profiles.find((p) => p.relation_type === 'SELF') || profiles[0]
-    setSelectedProfileIdState(fallback.id)
-    if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, fallback.id)
-  }, [profiles, selectedProfileId])
+    // 처음부터 목록이 비어 있던 경우까지 지우지는 않는다(기존 동작 유지).
+    if (pickedProfileId) localStorage.removeItem(STORAGE_KEY)
+  }, [selectedProfileId, pickedProfileId])
 
   // ── 2) mutations — 응답으로 cache 직접 patch ──────────────────────
   const updateMutation = useMutation({
@@ -147,10 +157,8 @@ export function ProfileProvider({ children }) {
   const deleteProfile = useCallback((id) => deleteMutation.mutateAsync(id), [deleteMutation])
   const refetchProfiles = useCallback(() => listQuery.refetch(), [listQuery])
 
-  const setSelectedProfileId = useCallback((id) => {
-    setSelectedProfileIdState(id)
-    if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, id)
-  }, [])
+  // 사용자 선택 — 저장은 위 effect 가 파생값 기준으로 처리하므로 여기선 상태만 바꾼다.
+  const setSelectedProfileId = useCallback((id) => setPickedProfileId(id), [])
 
   // ── computed ───────────────────────────────────────────────
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId) || null
