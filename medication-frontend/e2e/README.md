@@ -129,7 +129,7 @@ E2E_TARGET=dev npx playwright test e2e/p1-routing.spec.js --project=authed
 | `hooks-url-params.spec.js` | `?showSurvey=true`(B1) · `?tab=family`(E3) 진입 계약 | 무 |
 | `hooks-auth-gate.spec.js` | 미인증 보호 경로 차단(F1) | 무 |
 | `hooks-medication-flow.spec.js` | 복약 목록·상세·검색 버퍼 흐름(C1·C2·D1) | 시드 복약 |
-| `hooks-lifestyle-flow.spec.js` | 생활가이드 탭·챌린지(A1·A3·A6) — LLM 은 `page.route()` 고정 | 시드 |
+| `hooks-lifestyle-flow.spec.js` | 생활가이드 선택·탭·증상 갱신·챌린지 페이지(A1~A6) — LLM 은 `page.route()` 고정 | 시드 |
 | `hooks-chat-flow.spec.js` | 챗 세션 생성·전환·삭제·발신자 구분(G1~G3) — LLM 고정 | 무 |
 | `hooks-challenge-card.spec.js` | main 활성 챌린지 카드의 구조적 계약(B2) | 시드 챌린지 |
 | `hooks-mypage-stats.spec.js` | 마이페이지 통계 3종 렌더 + 진행 챌린지 수 일치(E1·E2) | 시드 챌린지 |
