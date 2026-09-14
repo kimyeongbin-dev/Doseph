@@ -14,10 +14,16 @@ on:
     # deny-list(paths-ignore) 채택 — 목록에 없는 새 경로는 기본 배포(안전 방향).
     # allow-list 였다면 새 BE 파일 누락 시 조용히 under-deploy(prod 드리프트 위험).
     # 혼합 커밋(BE+docs)은 정상 배포. FE 공개는 CF Pages(production 브랜치)가 담당.
+    # 아래 경로만 바뀐 커밋은 BE 재배포를 트리거하지 않는다. 판정 기준 =
+    # "이 경로가 BE 런타임 이미지의 내용이나 동작을 바꿀 수 있는가?"
+    # (.dockerignore 가 .github/·envs/·docs/ 를 이미 제외하므로 이미지 자체가 동일하다)
     paths-ignore:
-      - 'medication-frontend/**'
-      - 'docs/**'
+      - 'medication-frontend/**' # 공개 FE 는 Cloudflare Pages(production 브랜치) 담당
+      - 'docs/**' # .dockerignore 제외 대상
       - '**/*.md'
+      - '.github/**' # .dockerignore 제외 대상. 워크플로 변경은 다음 실행부터 적용됨
+      - 'envs/**' # .dockerignore 제외 대상. prod env 는 VM 자체 .env 가 공급
+      - '.env.example' # 템플릿일 뿐 앱은 .env 를 읽는다(런타임 무영향)
   workflow_dispatch:
 
 # 동일 ref 배포 직렬화 (동시 배포로 인한 경쟁 방지)
