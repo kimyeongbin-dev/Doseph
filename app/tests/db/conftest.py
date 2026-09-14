@@ -12,7 +12,9 @@ Everything else under ``app/tests`` runs without a database.
 """
 
 from collections.abc import AsyncGenerator
+from datetime import date
 from typing import Any
+from uuid import uuid4
 
 from aerich import Command
 import asyncpg
@@ -21,6 +23,12 @@ from tortoise import Tortoise, connections
 from tortoise.transactions import in_transaction
 
 from app.db.databases import TORTOISE_ORM
+from app.models.accounts import Account, AuthProvider
+from app.models.challenge import Challenge
+from app.models.chat_sessions import ChatSession
+from app.models.medication import Medication
+from app.models.prescription_group import PrescriptionGroup
+from app.models.profiles import Profile, RelationType
 
 # 마이그레이션 위치는 pyproject 의 [tool.aerich] 와 같은 값이어야 한다.
 MIGRATIONS_LOCATION = "./app/db/migrations"
@@ -164,3 +172,128 @@ async def db(migrated_database: str) -> AsyncGenerator[None]:
             raise _RollbackError  # noqa: TRY301
     except _RollbackError:
         pass
+
+
+# ── 테스트 데이터 팩토리 ──────────────────────────────────────────────
+# 흐름: 계정 -> 프로필 -> 처방전 그룹 -> 약 / 챌린지 / 세션
+# 최소 필수 필드만 채운다. 테스트가 신경 쓰는 값만 인자로 받고 나머지는 기본값이라
+# "이 테스트가 무엇을 보는가"가 호출부에서 바로 읽힌다.
+# 고유값(provider_account_id 등)은 uuid 로 만든다 — 복합 유니크 제약에 걸리지 않도록.
+async def create_account(**overrides: Any) -> Account:
+    """Create an account row with sane defaults.
+
+    Args:
+        **overrides: Field values overriding the defaults.
+
+    Returns:
+        The persisted account.
+    """
+    defaults: dict[str, Any] = {
+        "auth_provider": AuthProvider.KAKAO,
+        "provider_account_id": f"test-{uuid4().hex[:16]}",
+        "nickname": "테스트계정",
+        "is_active": True,
+    }
+    return await Account.create(**(defaults | overrides))
+
+
+async def create_profile(account: Account, **overrides: Any) -> Profile:
+    """Create a profile owned by ``account``.
+
+    Args:
+        account: Owning account.
+        **overrides: Field values overriding the defaults.
+
+    Returns:
+        The persisted profile.
+    """
+    defaults: dict[str, Any] = {
+        "account": account,
+        "relation_type": RelationType.SELF,
+        "name": "본인",
+    }
+    return await Profile.create(**(defaults | overrides))
+
+
+async def create_prescription_group(profile: Profile, **overrides: Any) -> PrescriptionGroup:
+    """Create a prescription group for ``profile``.
+
+    Args:
+        profile: Owning profile.
+        **overrides: Field values overriding the defaults.
+
+    Returns:
+        The persisted prescription group.
+    """
+    defaults: dict[str, Any] = {
+        "profile": profile,
+        "hospital_name": "테스트의원",
+        "dispensed_date": date(2026, 9, 1),
+    }
+    return await PrescriptionGroup.create(**(defaults | overrides))
+
+
+async def create_medication(
+    profile: Profile,
+    prescription_group: PrescriptionGroup | None = None,
+    **overrides: Any,
+) -> Medication:
+    """Create a medication row for ``profile``.
+
+    Args:
+        profile: Owning profile.
+        prescription_group: Owning prescription group, when any.
+        **overrides: Field values overriding the defaults.
+
+    Returns:
+        The persisted medication.
+    """
+    defaults: dict[str, Any] = {
+        "profile": profile,
+        "prescription_group": prescription_group,
+        "medicine_name": "테스트정500mg",
+        "intake_times": ["08:00"],
+        "total_intake_count": 7,
+        "remaining_intake_count": 7,
+        "start_date": date(2026, 9, 1),
+        "is_active": True,
+    }
+    return await Medication.create(**(defaults | overrides))
+
+
+async def create_challenge(profile: Profile, **overrides: Any) -> Challenge:
+    """Create a challenge for ``profile``.
+
+    Args:
+        profile: Owning profile.
+        **overrides: Field values overriding the defaults.
+
+    Returns:
+        The persisted challenge.
+    """
+    defaults: dict[str, Any] = {
+        "profile": profile,
+        "title": "물 8잔 마시기",
+        "target_days": 7,
+        "started_date": date(2026, 9, 1),
+    }
+    return await Challenge.create(**(defaults | overrides))
+
+
+async def create_chat_session(account: Account, profile: Profile, **overrides: Any) -> ChatSession:
+    """Create a chat session for ``account``/``profile``.
+
+    Args:
+        account: Owning account.
+        profile: Owning profile.
+        **overrides: Field values overriding the defaults.
+
+    Returns:
+        The persisted chat session.
+    """
+    defaults: dict[str, Any] = {
+        "account": account,
+        "profile": profile,
+        "title": "테스트 대화",
+    }
+    return await ChatSession.create(**(defaults | overrides))
