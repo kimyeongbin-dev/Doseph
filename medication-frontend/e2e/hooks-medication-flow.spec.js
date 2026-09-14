@@ -73,13 +73,41 @@ test.describe('복약 목록 -> 그룹 상세', () => {
     ).toBeVisible({ timeout: 15_000 })
   })
 
-  test('존재하지 않는 group_id 로 진입해도 앱이 크래시하지 않는다 (C1 에러 경로)', async ({ page }) => {
+  // 데스크탑(lg+)에선 약품 클릭이 페이지 이동이 아니라 우측 패널 선택이다.
+  // 선택 state 의 유효성 보정(C2)이 걸린 지점이라 선택 전/후를 함께 잠근다.
+  test('데스크탑에선 약품 선택이 우측 패널에 반영된다 (C2)', async ({ page }) => {
+    await page.goto('/medication')
+    const cards = page.getByTestId('prescription-card')
+    await expect(cards.first()).toBeVisible()
+    await cards.first().click()
+    await page.waitForURL(/\/medication\/group\?group_id=/, { timeout: 15_000 })
+
+    const items = page.getByTestId('medication-item')
+    await expect(items.first()).toBeVisible({ timeout: 15_000 })
+
+    // 선택 전 — 패널은 안내 문구
+    await expect(page.getByText('약을 선택하면 상세 정보가 표시됩니다.')).toBeVisible()
+
+    await items.first().click()
+
+    // 모바일과 달리 라우트 이동 없이 패널만 바뀐다
+    await expect(page).toHaveURL(/\/medication\/group\?group_id=/)
+    await expect(
+      page.getByRole('button', { name: '약품 정보 수정' }),
+      '선택한 약품의 상세가 우측 패널에 렌더돼야 한다',
+    ).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('약을 선택하면 상세 정보가 표시됩니다.')).toBeHidden()
+  })
+
+  test('존재하지 않는 group_id 로 진입하면 에러 문구를 보여준다 (C1 에러 경로)', async ({ page }) => {
     const pageErrors = []
     page.on('pageerror', (err) => pageErrors.push(err.message))
 
     await page.goto('/medication/group?group_id=00000000-0000-0000-0000-000000000000')
 
     await expect(page.locator('body')).toBeVisible()
+    // 404 는 전용 문구로 구분한다(일반 실패 문구와 다름)
+    await expect(page.getByText('처방전을 찾을 수 없어요.')).toBeVisible({ timeout: 15_000 })
     expect(pageErrors, `미처리 예외 발생: ${pageErrors.join(' | ')}`).toEqual([])
   })
 })
