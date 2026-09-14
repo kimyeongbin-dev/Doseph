@@ -90,7 +90,16 @@ export function ChatSessionProvider({ children }) {
     [renameMutation],
   )
   const deleteSession = useCallback((id) => deleteMutation.mutateAsync(id), [deleteMutation])
-  const refetchSessions = useCallback(() => listQuery.refetch(), [listQuery])
+
+  // ── 세션 목록 강제 동기화 ─────────────────────────────────────────
+  // 흐름: 서버 재조회 -> 최신 목록을 반환(호출자가 바로 쓸 수 있게)
+  // `listQuery.refetch()` 는 매 렌더 새로 만들어지는 query 객체에 묶여 있어
+  // 호출자의 effect 의존성을 흔든다. queryClient + key 로만 묶어 참조를 고정한다.
+  const refetchSessions = useCallback(async () => {
+    const key = qk.chatSessions.list(selectedProfileId)
+    await qc.refetchQueries({ queryKey: key })
+    return qc.getQueryData(key) ?? []
+  }, [qc, selectedProfileId])
 
   return (
     <ChatSessionContext.Provider

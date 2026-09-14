@@ -41,6 +41,15 @@ const MARKDOWN_COMPONENTS = {
   ),
 }
 
+// 빈 세션/새 세션에서 보여줄 인사말. 5곳에 같은 문자열이 흩어져 있어 상수로 모은다
+// (문구를 고칠 때 한 곳만 바뀌어 세션마다 다른 인사말이 나오는 것을 막는다).
+const WELCOME_MESSAGE = { role: 'assistant', content: '안녕하세요! 복약 관련 궁금한 것을 물어보세요.' }
+const NO_PROFILE_MESSAGE = { role: 'assistant', content: '프로필 정보를 불러올 수 없습니다.' }
+const INIT_FAILED_MESSAGE = {
+  role: 'assistant',
+  content: '채팅 연결에 실패했습니다. 아래 버튼을 눌러 다시 시도해주세요.',
+}
+
 /**
  * 기본 세션 제목 포맷: "새 채팅 MM/DD HH:mm"
  */
@@ -70,8 +79,15 @@ export default function ChatModal({ onClose, profileId }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [isInitializing, setIsInitializing] = useState(true)
+  // 세션 목록 동기화 진행 여부. 초깃값이 이미 '동기화 중'이라 effect 본문에서
+  // 다시 세팅할 필요가 없다 — 되돌리는 건 재시도 버튼(이벤트)의 몫이다.
+  const [isSyncingSessions, setIsSyncingSessions] = useState(true)
   const [initError, setInitError] = useState(false)
+  // 재시도 트리거. 값이 바뀌면 아래 동기화 effect 가 다시 돈다.
+  const [initAttempt, setInitAttempt] = useState(0)
+  // 모달을 연 시점의 세션. Context 의 activeSessionId 는 모달 unmount 후에도
+  // 보존되므로, 다시 열면 그 세션으로 복귀시키기 위해 마운트 값만 고정해 둔다.
+  const [sessionIdAtOpen] = useState(activeSessionId)
 
   // 사이드바 인라인 편집/삭제 상태
   const [editingSessionId, setEditingSessionId] = useState(null)
@@ -99,65 +115,84 @@ export default function ChatModal({ onClose, profileId }) {
         content: m.content,
       })))
     } else {
-      setMessages([{ role: 'assistant', content: '안녕하세요! 복약 관련 궁금한 것을 물어보세요.' }])
+      setMessages([WELCOME_MESSAGE])
     }
   }, [])
 
-  // 세션 초기화: Context 가 이미 list 보유 → 가장 최근 세션 활성화 (또는 빈 상태)
-  const initSession = useCallback(async () => {
-    if (!profileId) {
-      setMessages([{ role: 'assistant', content: '프로필 정보를 불러올 수 없습니다.' }])
-      setIsInitializing(false)
-      return
+  // profileId 가 없으면 초기화할 것 자체가 없다 — state 로 복제하지 않고 렌더 중 파생한다.
+  const hasProfile = !!profileId
+  const isInitializing = hasProfile && isSyncingSessions
+
+  // 목록에 없는 활성 id(삭제·프로필 전환 등)는 렌더 중에 걸러 첫 세션으로 물러난다.
+  // effect 로 state 를 되돌리지 않으므로 Context 에 남은 낡은 id 는 무해하게 버려진다.
+  const effectiveSessionId =
+    sessions.find(s => s.id === activeSessionId)?.id ?? sessions[0]?.id ?? null
+
+  // 화면에 실제로 그릴 메시지. 프로필 없음/세션 없음은 상태로 들고 있지 않고 파생한다.
+  const displayMessages = !hasProfile
+    ? [NO_PROFILE_MESSAGE]
+    : !isInitializing && !initError && sessions.length === 0
+      ? [WELCOME_MESSAGE]
+      : messages
+
+  // ── 모달 열림 시 세션 동기화 ────────────────────────────────────────
+  // 흐름: 세션 목록 최신화 -> 복귀할 세션 결정 -> 그 세션 메시지 로드
+  //       (세션이 하나도 없으면 인사말만)
+  // 서버와의 동기화라 effect 가 맞다. 다만 상태 변경은 전부 비동기 콜백 안에서만
+  // 일어난다 — effect 본문에서 동기 setState 를 하면 렌더가 한 번 더 돈다.
+  // ⚠️ 세션 전환/생성/삭제는 각 이벤트 핸들러가 직접 메시지를 로드한다. 여기서
+  //    activeSessionId 를 다시 구독하면 전송 중 낙관적 메시지를 덮어쓸 수 있다.
+  useEffect(() => {
+    if (!hasProfile) return
+    let cancelled = false
+
+    refetchSessions()
+      .then(async (latest) => {
+        if (cancelled) return
+        const nextId = latest.find(s => s.id === sessionIdAtOpen)?.id ?? latest[0]?.id ?? null
+        setActiveSessionId(nextId)
+        if (!nextId) {
+          setMessages([WELCOME_MESSAGE])
+          return
+        }
+        await loadMessagesForSession(nextId)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        console.error('세션 초기화 실패:', err)
+        showError('채팅 세션을 시작할 수 없습니다.')
+        setMessages([INIT_FAILED_MESSAGE])
+        setInitError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setIsSyncingSessions(false)
+      })
+
+    return () => {
+      cancelled = true
     }
-    setIsInitializing(true)
+  }, [
+    hasProfile,
+    initAttempt,
+    refetchSessions,
+    setActiveSessionId,
+    sessionIdAtOpen,
+    loadMessagesForSession,
+  ])
+
+  // 초기화 재시도 — 이벤트 핸들러라 동기 setState 가 허용된다(effect 가 아니다).
+  const retryInit = () => {
     setInitError(false)
-    try {
-      // 모달 열림 시 최신 세션 목록 ensure (다른 디바이스/탭에서 변경 가능성)
-      await refetchSessions()
-      // sessions / activeSessionId 보정은 아래 별도 effect 에서 수행
-    } catch (err) {
-      console.error('세션 초기화 실패:', err)
-      showError('채팅 세션을 시작할 수 없습니다.')
-      setMessages([{ role: 'assistant', content: '채팅 연결에 실패했습니다. 아래 버튼을 눌러 다시 시도해주세요.' }])
-      setInitError(true)
-    } finally {
-      setIsInitializing(false)
-    }
-  }, [profileId, refetchSessions])
-
-  useEffect(() => {
-    initSession()
-  }, [initSession])
-
-  // sessions 변동 시 activeSessionId 보정 (메시지 로드는 아래 별도 effect)
-  useEffect(() => {
-    if (isInitializing) return
-    if (sessions.length === 0) {
-      if (activeSessionId !== null) setActiveSessionId(null)
-      setMessages([{ role: 'assistant', content: '안녕하세요! 복약 관련 궁금한 것을 물어보세요.' }])
-      return
-    }
-    if (!activeSessionId || !sessions.find(s => s.id === activeSessionId)) {
-      setActiveSessionId(sessions[0].id)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, isInitializing])
-
-  // activeSessionId 변경 시마다 (모달 첫 mount 포함) 메시지 자동 로드.
-  // ChatSessionContext 의 activeSessionId 는 모달 unmount 후에도 보존되므로,
-  // 모달 다시 열면 이 effect 가 즉시 발동해 기존 메시지를 표시한다.
-  useEffect(() => {
-    if (!activeSessionId) return
-    if (sessions.length > 0 && !sessions.find(s => s.id === activeSessionId)) return
-    loadMessagesForSession(activeSessionId).catch(err => console.error(err))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSessionId])
+    setIsSyncingSessions(true)
+    setInitAttempt(n => n + 1)
+  }
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
+    // 파생값(displayMessages)이 아니라 실제 대화 state 를 따른다 — 파생 분기는
+    // 한 줄짜리 안내 메시지라 스크롤 대상이 아니고, 매 렌더 새 배열이라 deps 를 흔든다.
   }, [messages, isLoading])
 
   // 세션이 바뀌면 GPS 토글 상태를 새 세션 기준으로 reset
@@ -166,7 +201,7 @@ export default function ChatModal({ onClose, profileId }) {
     setGpsToggleVisible(false)
     setGpsToggleOn(false)
     setPendingGpsTurnId(null)
-  }, [activeSessionId])
+  }, [effectiveSessionId])
 
   // 편집 모드 진입 시 입력창에 포커스
   useEffect(() => {
@@ -179,7 +214,7 @@ export default function ChatModal({ onClose, profileId }) {
   // 세션 전환 — isLoading (현재 세션 답변 대기) 와 무관하게 항상 가능.
   // 새 세션의 isPendingResponse 는 그 세션 메시지 기준으로 재계산되어 자동 분리됨.
   const switchSession = async (sessionId) => {
-    if (sessionId === activeSessionId) return
+    if (sessionId === effectiveSessionId) return
     setActiveSessionId(sessionId)
     setConfirmDeleteId(null)
     try {
@@ -196,7 +231,7 @@ export default function ChatModal({ onClose, profileId }) {
     try {
       const newSession = await createSession(profileId, formatDefaultSessionTitle())
       setActiveSessionId(newSession.id)
-      setMessages([{ role: 'assistant', content: '안녕하세요! 복약 관련 궁금한 것을 물어보세요.' }])
+      setMessages([WELCOME_MESSAGE])
     } catch (err) {
       console.error('새 세션 생성 실패:', err)
       showError('새 채팅을 만들 수 없습니다.')
@@ -247,7 +282,7 @@ export default function ChatModal({ onClose, profileId }) {
     }
     // 확정 클릭 — Context 가 응답으로 sessions 자동 갱신 + activeSessionId 자동 reset
     try {
-      const wasActive = sessionId === activeSessionId
+      const wasActive = sessionId === effectiveSessionId
       await deleteSession(sessionId)
       setConfirmDeleteId(null)
 
@@ -261,7 +296,7 @@ export default function ChatModal({ onClose, profileId }) {
           await loadMessagesForSession(nextId)
         } else {
           setActiveSessionId(null)
-          setMessages([{ role: 'assistant', content: '안녕하세요! 복약 관련 궁금한 것을 물어보세요.' }])
+          setMessages([WELCOME_MESSAGE])
         }
       }
     } catch (err) {
@@ -342,7 +377,8 @@ export default function ChatModal({ onClose, profileId }) {
 
   // 마지막 메시지가 user 면 BE 응답 대기 중 — 모달 unmount 후 재진입해도 이 상태
   // 가 자동 인식돼서 (1) 점점점 스켈레톤 표시 (2) 중복 전송 차단 모두 작동.
-  const isPendingResponse = messages.length > 0 && messages[messages.length - 1].role === 'user'
+  const isPendingResponse =
+    displayMessages.length > 0 && displayMessages[displayMessages.length - 1].role === 'user'
 
   const handleSend = async () => {
     const message = input.trim()
@@ -354,7 +390,7 @@ export default function ChatModal({ onClose, profileId }) {
 
     try {
       // Lazy session creation: 아직 세션이 없으면 여기서 생성한다 — Context 가 sessions 자동 갱신
-      let sid = activeSessionId
+      let sid = effectiveSessionId
       if (!sid) {
         const newSession = await createSession(profileId, formatDefaultSessionTitle())
         sid = newSession.id
@@ -431,7 +467,7 @@ export default function ChatModal({ onClose, profileId }) {
             )}
             <ul>
               {sessions.map(session => {
-                const isActive = session.id === activeSessionId
+                const isActive = session.id === effectiveSessionId
                 const isEditing = session.id === editingSessionId
                 const isConfirmingDelete = session.id === confirmDeleteId
                 return (
@@ -511,7 +547,7 @@ export default function ChatModal({ onClose, profileId }) {
 
           {/* 채팅 영역 */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-surface-2">
-            {messages.map((msg, i) => (
+            {displayMessages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm
                   ${msg.role === 'user'
@@ -569,7 +605,7 @@ export default function ChatModal({ onClose, profileId }) {
           <div className="p-4 bg-surface border-t border-line flex gap-2 items-center">
             {initError ? (
               <button
-                onClick={initSession}
+                onClick={retryInit}
                 disabled={isInitializing}
                 className="flex-1 flex items-center justify-center gap-2 bg-accent text-accent-ink rounded-xl px-4 py-2.5 text-sm hover:brightness-110 disabled:bg-surface-2 active:scale-95 transition-all cursor-pointer"
               >
