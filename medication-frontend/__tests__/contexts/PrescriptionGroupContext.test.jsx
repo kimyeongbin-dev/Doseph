@@ -5,7 +5,7 @@
 
 import { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { PrescriptionGroupProvider, usePrescriptionGroup } from '@/contexts/PrescriptionGroupContext'
@@ -19,11 +19,12 @@ vi.mock('@/contexts/MedicationContext', () => ({ useMedication: () => ({ medicat
 const renderedRefs = []
 
 function Consumer() {
-  const { groups, isLoading } = usePrescriptionGroup()
+  const { groups, isLoading, isError } = usePrescriptionGroup()
   renderedRefs.push(groups)
   return (
     <div>
       <span data-testid="loading">{String(isLoading)}</span>
+      <span data-testid="error">{String(isError)}</span>
       <span data-testid="ids">{groups.map((g) => g.id).join(',') || 'empty'}</span>
     </div>
   )
@@ -98,5 +99,23 @@ describe('PrescriptionGroupContext 특성화', () => {
       after,
       'groups 가 매 렌더 새 배열이면 이를 의존성으로 쓰는 useMemo/effect 가 매번 재계산된다',
     ).toBe(before)
+  })
+
+  // 1-d: 실패를 '빈 목록'과 구분하기 위한 계약. 이 값이 없으면 페이지는
+  // `groups.length === 0` 만 보고 "등록된 처방전이 없어요"(EmptyState)를 그린다.
+  it('조회에 실패하면 isError 로 실패를 전파한다', async () => {
+    api.get.mockRejectedValue({ response: { status: 429 } })
+
+    renderProvider()
+
+    // 같은 화면에 isLoading('true') 도 렌더되므로 **에러 span 안에서만** 본다.
+    // 페이지 전체에서 'true' 를 찾으면 로딩 문구에 걸려 항상 통과한다(대장 D19).
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('error'),
+        'isError 가 없으면 429/500 이 "처방전 없음"으로 보인다(사용자 오인 + 원인 추적 불가)',
+      ).toHaveTextContent('true'),
+    )
+    expect(screen.getByTestId('ids'), '실패해도 빈 배열 계약은 유지한다').toHaveTextContent('empty')
   })
 })

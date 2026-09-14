@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import BottomNav from '@/components/layout/BottomNav'
 import EmptyState from '@/components/common/EmptyState'
+import ErrorState from '@/components/common/ErrorState'
 import { showError } from '@/lib/api'
 import { useProfile } from '@/contexts/ProfileContext'
 import { useChallenge, useChallengeStart } from '@/contexts/ChallengeContext'
@@ -122,6 +123,10 @@ export default function ChallengePage() {
     completedChallenges,
     unstartedByGuide,
     isLoading: challengesLoading,
+    isError: challengesError,
+    error: challengesErrorObject,
+    isRefetching: challengesRefetching,
+    refetchChallenges,
     checkChallenge,
     deleteChallenge,
   } = useChallenge()
@@ -225,6 +230,27 @@ export default function ChallengePage() {
         <Header title="생활습관 챌린지" subtitle="건강한 습관을 만들어보세요" showBack={true} />
         <div className="max-w-3xl mx-auto px-6 py-6 space-y-4 animate-pulse">
           {[1, 2, 3].map(i => <div key={i} className="bg-surface rounded-2xl h-32 w-full" />)}
+        </div>
+        <BottomNav />
+      </main>
+    )
+  }
+
+  // ── 챌린지 조회 실패 ──────────────────────────────────────────────
+  // 흐름: 목록 조회 실패 -> 탭 대신 에러 화면 -> 재시도로 복구
+  // 세 탭(추천/진행중/완료)이 모두 이 한 쿼리에서 파생되므로 탭별로 나누지 않는다.
+  // 나누면 "추천도 없고 진행중도 없고 완료도 없는" 화면이 통째로 거짓말이 된다.
+  if (challengesError) {
+    return (
+      <main className="min-h-screen bg-surface-2 pb-24">
+        <Header title="생활습관 챌린지" subtitle="건강한 습관을 만들어보세요" showBack={true} />
+        <div className="max-w-3xl mx-auto px-6 py-6">
+          <ErrorState
+            error={challengesErrorObject}
+            title="챌린지를 불러오지 못했어요"
+            onRetry={refetchChallenges}
+            isRetrying={challengesRefetching}
+          />
         </div>
         <BottomNav />
       </main>

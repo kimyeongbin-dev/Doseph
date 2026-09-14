@@ -2,8 +2,10 @@
 
 // Challenge 도메인 — TanStack Query adapter.
 //
-// 외부 API 는 기존 그대로 유지 (challenges, activeChallenges, …, refetchChallenges,
-// useChallengeStart, useChallengeCheck). 내부적으로 useQuery + useMutation 으로 교체해
+// 외부 API: challenges, activeChallenges, …, refetchChallenges,
+// useChallengeStart, useChallengeCheck
+// + isError / error / isRefetching (조회 실패 표면화, 후속 큐 1-d).
+// 내부적으로 useQuery + useMutation 으로 교체해
 // dedupe + invalidate 자동화. cross-cascade (가이드/처방전 mutation) 가 자기 손으로
 // challenges 키를 invalidate 하면 본 Provider 가 자동 refetch.
 
@@ -36,6 +38,9 @@ export function ChallengeProvider({ children }) {
   // 의존성으로 쓰는 소비자 쪽 effect/useCallback 이 전부 재실행된다. 참조를 고정한다.
   const challenges = useMemo(() => listQuery.data || [], [listQuery.data])
   const isLoading = listQuery.isLoading
+  // 조회 실패 전파 — 없으면 세 탭이 모두 "아직 없어요"로 보인다(실패가 사라짐).
+  const isError = listQuery.isError
+  const error = listQuery.error
 
   // ── 2) mutations ──────────────────────────────────────────────────
   // 모두 응답으로 cache 직접 patch — 화면 즉시 반영 + invalidate 로 stale 제거.
@@ -149,6 +154,9 @@ export function ChallengeProvider({ children }) {
         unstartedByGuide,
         challengesByGuide,
         isLoading,
+        isError,
+        error,
+        isRefetching: listQuery.isFetching,
         startChallenge,
         updateChallenge,
         deleteChallenge,

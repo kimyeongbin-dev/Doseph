@@ -13,7 +13,7 @@
 
 import { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { ChallengeProvider, useChallenge } from '@/contexts/ChallengeContext'
@@ -44,9 +44,14 @@ function makeChallenge(overrides = null) {
 const renderedRefs = []
 
 function Consumer() {
-  const { activeChallenges } = useChallenge()
+  const { activeChallenges, isError } = useChallenge()
   renderedRefs.push(activeChallenges)
-  return <span data-testid="titles">{activeChallenges.map((c) => c.title).join(',') || 'empty'}</span>
+  return (
+    <div>
+      <span data-testid="titles">{activeChallenges.map((c) => c.title).join(',') || 'empty'}</span>
+      <span data-testid="error">{String(isError)}</span>
+    </div>
+  )
 }
 
 // 프로바이더 바깥의 state 를 바꿔 **프로바이더 자체의 리렌더**를 강제하는 하네스.
@@ -109,5 +114,23 @@ describe('ChallengeContext 특성화', () => {
       after,
       'activeChallenges 가 매 렌더 새 배열이면 이를 의존성으로 쓰는 effect 가 매번 재실행된다',
     ).toBe(before)
+  })
+
+  // 1-d: 챌린지 페이지는 세 탭 모두 이 한 쿼리에서 파생되므로, 실패가 뭉개지면
+  // "추천도 없고 진행중도 없고 완료도 없는" 화면이 통째로 거짓이 된다.
+  it('조회에 실패하면 isError 로 실패를 전파한다', async () => {
+    api.get.mockRejectedValue({ response: { status: 429 } })
+
+    renderHarness()
+
+    // 에러 span 안에서만 단언한다 — 페이지 전체 텍스트 검색은 이웃 요소에 걸려
+    // 깨져도 통과할 수 있다(대장 D19).
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('error'),
+        'isError 가 없으면 조회 실패가 "아직 추천 챌린지가 없어요"로 보인다',
+      ).toHaveTextContent('true'),
+    )
+    expect(screen.getByTestId('titles'), '실패해도 빈 배열 계약은 유지한다').toHaveTextContent('empty')
   })
 })

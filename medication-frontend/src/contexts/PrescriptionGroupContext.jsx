@@ -3,9 +3,13 @@
 /**
  * PrescriptionGroupContext — TanStack Query adapter.
  *
- * 외부 API(usePrescriptionGroup): groups, groupsById, isLoading, sort/search/statusFilter,
- * setSort/setSearch/setStatusFilter, fetchGroupDetail, updateGroup,
- * markGroupCompleted, deleteGroup, refetchGroups + 정렬/탭 enums.
+ * 외부 API(usePrescriptionGroup): groups, groupsById, isLoading, isError, error,
+ * isRefetching, sort/search/statusFilter, setSort/setSearch/setStatusFilter,
+ * fetchGroupDetail, updateGroup, markGroupCompleted, deleteGroup, refetchGroups
+ * + 정렬/탭 enums.
+ *
+ * isError/error/isRefetching 는 조회 실패 표면화(후속 큐 1-d)에서 추가됐다 —
+ * 실패를 '빈 목록'과 구분해 화면이 재시도 UI 를 그릴 수 있게 하는 용도.
  *
  * 별도 export: **usePrescriptionGroupDetail(groupId)** — 상세 조회 전용 query hook.
  * 호출 페이지가 로딩/에러를 useState + useEffect 로 흉내 내지 않도록 쿼리 상태를
@@ -104,6 +108,10 @@ export function PrescriptionGroupProvider({ children }) {
   // 새 배열이 만들어져 아래 sort/filter useMemo 사슬이 통째로 재계산된다.
   const _groupsRaw = useMemo(() => listQuery.data || [], [listQuery.data])
   const isLoading = listQuery.isLoading
+  // 조회 실패 전파 — 없으면 429/500 이 "등록된 처방전이 없어요"로 보인다.
+  const isError = listQuery.isError
+  const error = listQuery.error
+  const isRefetching = listQuery.isFetching
 
   // medication active count 변화 시 list query invalidate — 그룹 라벨 동기화.
   const activeCount = medications.filter((m) => m.is_active).length
@@ -249,6 +257,9 @@ export function PrescriptionGroupProvider({ children }) {
       groups,
       groupsById,
       isLoading,
+      isError,
+      error,
+      isRefetching,
       sort,
       search,
       statusFilter,
@@ -265,6 +276,9 @@ export function PrescriptionGroupProvider({ children }) {
       groups,
       groupsById,
       isLoading,
+      isError,
+      error,
+      isRefetching,
       sort,
       setSort,
       search,

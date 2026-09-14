@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import BottomNav from '@/components/layout/BottomNav'
 import EmptyState from '@/components/common/EmptyState'
+import ErrorState from '@/components/common/ErrorState'
 import { showError } from '@/lib/api'
 import { useProfile } from '@/contexts/ProfileContext'
 import { useLifestyleGuide } from '@/contexts/LifestyleGuideContext'
@@ -204,6 +205,10 @@ function LifestyleGuideContent() {
     guides,
     latestGuide,
     isLoading: guidesLoading,
+    isError: guidesError,
+    error: guidesErrorObject,
+    isRefetching: guidesRefetching,
+    refetchGuides,
     generateGuide,
     deleteGuide,
   } = useLifestyleGuide()
@@ -425,8 +430,20 @@ function LifestyleGuideContent() {
           </button>
         </div>
 
+        {/* ── 가이드 조회 실패 ── */}
+        {/* 가이드는 평소에도 0건일 수 있는 도메인이라, 실패를 EmptyState 로 그리면
+            사용자는 "아직 안 만들었나 보다"로 읽고 영영 원인을 모른다. */}
+        {guidesError && (
+          <ErrorState
+            error={guidesErrorObject}
+            title="생활습관 가이드를 불러오지 못했어요"
+            onRetry={refetchGuides}
+            isRetrying={guidesRefetching}
+          />
+        )}
+
         {/* ── 가이드 없음 ── */}
-        {guides.length === 0 && !isGenerating && (
+        {!guidesError && guides.length === 0 && !isGenerating && (
           <>
             <EmptyState
               title="아직 생활습관 가이드가 없어요"

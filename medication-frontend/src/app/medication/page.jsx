@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 
 import BottomNav from '@/components/layout/BottomNav'
 import EmptyState from '@/components/common/EmptyState'
+import ErrorState from '@/components/common/ErrorState'
 import { showError } from '@/lib/api'
 import { useConfirm } from '@/components/common/ConfirmDialog'
 import {
@@ -135,6 +136,9 @@ export default function MedicationPage() {
   const {
     groups,
     isLoading,
+    isError,
+    error,
+    isRefetching,
     sort,
     search,
     statusFilter,
@@ -308,6 +312,14 @@ export default function MedicationPage() {
           </div>
         ) : !selectedProfileId ? (
           <EmptyState title="프로필을 선택해주세요" message="프로필을 선택하면 처방전이 표시됩니다." />
+        ) : isError ? (
+          // 실패를 EmptyState 로 그리면 "내 처방전이 사라졌다"로 읽힌다 — 실패는 실패로.
+          <ErrorState
+            error={error}
+            title="처방전을 불러오지 못했어요"
+            onRetry={refetchGroups}
+            isRetrying={isRefetching}
+          />
         ) : groups.length === 0 ? (
           <EmptyState
             title={search ? '검색 결과가 없어요' : '등록된 처방전이 없어요'}
