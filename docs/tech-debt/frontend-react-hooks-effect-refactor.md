@@ -1,7 +1,7 @@
 # [TECH DEBT] 프론트엔드 react-hooks effect 리팩터
 
 > 🗓️ 등록: 2026-08-14 (Phase 1 정적 export 작업 중 발견) · 갱신: 2026-09-14
-> 📌 상태: **진행 중** — 32건 중 **26건 해소**, **6건 잔여**
+> 📌 상태: **진행 중** — 32건 중 **29건 해소**, **3건 잔여**
 > 🎯 최종 목표: 경고 0 + 강등한 규칙을 **error 로 복구**(해소 → 안정화 → 승격)
 
 ---
@@ -32,9 +32,9 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 > 📐 **규칙 정본 = `docs/TESTING_SAFETY_NET_RULES.md`** — 무엇을 단언하고 무엇을 단언하지 않는지,
 > 층을 어떻게 나누는지. 아래는 그 규칙에 따라 현재 확보된 자산의 현황이다.
 
-- ✅ **컴포넌트/컨텍스트 층**: `medication-frontend/__tests__/` — Vitest + RTL 특성화 테스트 26개.
+- ✅ **컴포넌트/컨텍스트 층**: `medication-frontend/__tests__/` — Vitest + RTL 특성화 테스트 27개.
   백엔드 불필요(mock)하여 결정적.
-- ✅ **페이지/흐름 층**: Playwright 54개 통과·skip 0. `auth.setup.js` 는 **mock IdP + 진짜 콜백**으로
+- ✅ **페이지/흐름 층**: Playwright 55개 통과·skip 0. `auth.setup.js` 는 **mock IdP + 진짜 콜백**으로
   재작성(제거된 개발자 백도어 의존 해소) → `docs/tech-debt/e2e-auth-strategy.md`,
   `seed.setup.js` 가 앱의 실제 생성 API 로 멱등 시드(복약 2종 · 활성 챌린지 2건, 도메인별
   setup 분리 — 한 도메인의 멱등 early return 이 다른 도메인 시드를 건너뛰지 않게).
@@ -44,7 +44,7 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 
 ## 진행 현황 (2026-09-14)
 
-### ✅ 해소 26건
+### ✅ 해소 29건
 
 | 대상 | 규칙 | 처리 방식 | 커밋 |
 |---|---|---|---|
@@ -60,6 +60,9 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 | `app/main/page.jsx` | set-state ×2 | **B1=초깃값**(진입 URL 이 최초 표시를 정함, effect 는 쿼리 정리 전용으로 축소) · **B2=렌더 중 파생**(마운트당 고정 시드로 인덱스 계산). 뿌리인 `ChallengeContext` 파생 배열 참조 안정화(`b974825`)를 선행 | `460cbac` |
 | `app/mypage/page.jsx` | set-state + deps + immutability | **E3=초깃값**(진입 URL 이 최초 탭 결정) · **E1·E2=쿼리 계층 이관**. `fetchData`+useState 3개+`isInitialLoad` ref 제거, 진행 챌린지는 `ChallengeContext` 재사용해 `/challenges` **중복 GET 제거**, 오늘 복약·연속 복약은 공유 훅(`e5af3ab`) | `9fd85dd` |
 | `app/lifestyle-guide/page.jsx` | set-state ×4 + deps ×2 | **effect 4개 -> 0개**. 오늘 증상은 쿼리 계층 이관(`src/queries/dailyLogs.js` 신설)하고 탭 진입 재조회는 **이벤트 핸들러**로, `selectedGuide` 자동 보정과 챌린지 페이지 리셋은 **렌더 중 파생/조정**으로 | `1c46731` |
+
+| `contexts/PrescriptionGroupContext.jsx` | deps | **`data || []` 를 useMemo 로 고정**. 실측: 데이터가 있을 때는 TanStack 이 쥔 같은 배열이라 이미 안정적이고, 매 렌더 새 배열이 생기는 구간은 data 가 undefined 일 때(로딩·에러)뿐 — 테스트도 그 상태로 세워야 Red 가 된다 | `4bf6957` |
+| `contexts/ChatSessionContext.jsx` + `components/chat/ChatModal.jsx` | set-state ×2 | **"X 가 바뀌면 리셋" 을 렌더 중 조정으로**(prev 비교). 프로필 전환 시 활성 세션 해제(M1) · 세션 전환 시 GPS 토글 리셋(G4). 새 화면이 이전 상태로 한 번 그려지는 창을 없앤다 | `ad5c8c7` |
 
 **판단 기준(억지 제거 금지)**: "React 바깥과 동기화하는가"
 → 파생·이벤트 반응이면 제거 / 서버 상태면 쿼리 계층 / 외부 스토어면 effect 유지하고 deps 만 정정.
@@ -82,41 +85,36 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 > `useCallback` 의존성을 흔들어 **경고가 오히려 2건 늘었다** → `useMemo` 로 해결.
 > **같은 패턴이 남은 컨텍스트들에도 있다**(`listQuery.data || []`).
 
-### ⬜ 잔여 6건
+### ⬜ 잔여 3건
 
-**공유 컨텍스트 5건** — 컨텍스트 자체 계약은 테스트로 잠겼으나 **페이지와의 통합 동작은 미잠금**
-(blast radius 가 커서 페이지 레벨 E2E 확보 후 착수).
+**공유 컨텍스트 3건**
 
 | 파일 | 규칙 |
 |---|---|
 | `contexts/ProfileContext.jsx` | deps + set-state |
-| `contexts/ChatSessionContext.jsx` | set-state |
 | `contexts/LifestyleGuideContext.jsx` | deps |
-| `contexts/PrescriptionGroupContext.jsx` | deps |
 
-**페이지/흐름 1건** — 페이지/흐름 E2E 안전망 확보 완료(`a68484e`·`6c3c06d`·`698355d`), 저위험순 착수 중.
-
-| 파일 | 건수 | 패턴 힌트 |
-|---|---|---|
-| `components/chat/ChatModal.jsx` | 1 | 세션 변경 시 GPS 토글 리셋(G4) — 관측 까다로워 후순위 |
+페이지/흐름 잔여: **0건** (G4 해소로 전부 정리됨).
 
 > 라인 번호는 편집으로 이동하므로 착수 시 `npm run lint` 로 최신 위치를 재확인할 것.
 
-> 🧭 **B2 가 남긴 방법론(G4 에 그대로 적용)**: "관측이 까다롭다"는 대개
-> **층을 잘못 고른 것**이다. B2(챌린지 재추첨)는 그 화면에 프로바이더를 리렌더시키는
-> 사용자 조작이 없어 E2E 로 영원히 관측되지 않는다. 뿌리를 컨텍스트의 **파생 배열 참조
-> 안정성**으로 좁히자 Vitest 로 결정적 Red 를 만들 수 있었다.
-> 순서 = ①E2E 로는 구조적 계약만(활성 항목 중 정확히 1건 렌더) ②뿌리를 컴포넌트/컨텍스트
-> 층에서 Red 로 고정 ③리팩터. 규칙 정본: `docs/TESTING_SAFETY_NET_RULES.md` §2.
+> 🧭 **"관측이 까다롭다"는 대개 층이나 대역 지점을 잘못 고른 것이다**
+> - **B2**(챌린지 재추첨): 그 화면에 프로바이더를 리렌더시키는 사용자 조작이 없어
+>   E2E 로는 영원히 관측되지 않는다 → 뿌리를 컨텍스트의 **파생 배열 참조 안정성**으로
+>   좁히자 Vitest 로 결정적 Red 를 만들 수 있었다(**층**을 다시 고른 경우).
+> - **G4**(GPS 토글): 층은 맞았고 **대역 지점**이 문제였다. `/messages/ask` 를
+>   `202 + action=request_geolocation` 으로 고정하니 토글 등장이 그대로 관측됐다
+>   (실제 위치 권한은 불필요). "까다롭다"는 판단이 실제로는 미탐색이었다.
+> 순서 = ①E2E 는 구조적 계약만 ②관측이 안 되면 층 또는 대역 지점을 다시 고른다
+> ③Red 로 고정 ④리팩터. 규칙 정본: `docs/TESTING_SAFETY_NET_RULES.md` §2·§5.
 
 ## 남은 순서
 
 1. ✅ **E2E 인증 전략 확립**(mock IdP) → 페이지/흐름 안전망 구축 완료
-2. 페이지/흐름 1건(G4) → 공유 컨텍스트 5건 리팩터 (저위험순: ~~ChatModal~~ → ~~main~~ →
-   ~~mypage~~ → ~~lifestyle-guide~~ → **contexts**). 페이지를 먼저 하는 이유 = 컨텍스트는
-   blast radius 가 커서 페이지 쪽 사용 패턴이 정리된 뒤에 손대는 편이 안전.
-3. 관측이 까다로운 잔여 건은 **G4 하나만 남았다**. 컴포넌트 테스트 또는 **정당화된 유지** 판단
-   (B2·E1·E2·A5 는 위 방법론으로 해소 — 먼저 층을 다시 고를 것)
+2. ✅ 페이지/흐름 **전건 해소** (ChatModal → main → mypage → lifestyle-guide → G4)
+3. 공유 컨텍스트 잔여 3건 — `PrescriptionGroupContext`·`ChatSessionContext` 는 해소,
+   남은 건 `ProfileContext`(deps + set-state) · `LifestyleGuideContext`(deps).
+   ⚠️ `ProfileContext` 는 모든 도메인 컨텍스트의 상위라 blast radius 가 가장 크다 — 마지막에.
 4. **안정화 확인 후 3규칙 error 승격** + 이 문서 종료
 
 계획 정본: `docs-private/PLAN_FE_HOOKS_EFFECT.md`
