@@ -84,7 +84,11 @@ jobs:
           DB_HOST: localhost
           DB_PORT: 5432
           DB_NAME: doseph_db
-        run: uv run pytest app
+        # DB 층을 별도 줄로 분리 — pytest 는 수집 0건이면 exit 5 라, 마커/경로가
+        # 어긋나 DB 층이 통째로 안 돌면 여기서 빨개진다(checks.yml 과 같은 이유).
+        run: |
+          uv run pytest app -m "not db"
+          uv run pytest app -m db
 
   # ── ② 이미지 빌드 & ghcr push ──────────────────────────────────────
   # 흐름: buildx -> app/Dockerfile.prod 빌드 -> ghcr push(:latest + :sha)
