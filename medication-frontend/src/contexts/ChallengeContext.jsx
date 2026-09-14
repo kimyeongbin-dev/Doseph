@@ -7,7 +7,7 @@
 // dedupe + invalidate 자동화. cross-cascade (가이드/처방전 mutation) 가 자기 손으로
 // challenges 키를 invalidate 하면 본 Provider 가 자동 refetch.
 
-import { createContext, useCallback, useContext, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 
@@ -32,7 +32,9 @@ export function ChallengeProvider({ children }) {
       return data || []
     },
   })
-  const challenges = listQuery.data || []
+  // `data || []` 를 그대로 쓰면 데이터가 같아도 매 렌더 새 배열이 되어, 이 값을
+  // 의존성으로 쓰는 소비자 쪽 effect/useCallback 이 전부 재실행된다. 참조를 고정한다.
+  const challenges = useMemo(() => listQuery.data || [], [listQuery.data])
   const isLoading = listQuery.isLoading
 
   // ── 2) mutations ──────────────────────────────────────────────────
@@ -122,10 +124,16 @@ export function ChallengeProvider({ children }) {
   const refetchChallenges = useCallback(() => listQuery.refetch(), [listQuery])
 
   // ── 3) computed selectors ─────────────────────────────────────────
-  const activeChallenges = challenges.filter(
-    (c) => c.challenge_status === 'IN_PROGRESS' && c.is_active,
+  // 파생 배열도 메모이제이션한다 — 목록 참조가 고정돼도 filter 가 매 렌더 새 배열을
+  // 만들면 소비자 입장에서는 여전히 "매번 바뀌는 값"이다.
+  const activeChallenges = useMemo(
+    () => challenges.filter((c) => c.challenge_status === 'IN_PROGRESS' && c.is_active),
+    [challenges],
   )
-  const completedChallenges = challenges.filter((c) => c.challenge_status === 'COMPLETED')
+  const completedChallenges = useMemo(
+    () => challenges.filter((c) => c.challenge_status === 'COMPLETED'),
+    [challenges],
+  )
   const unstartedByGuide = (guideId) =>
     challenges.filter(
       (c) => c.guide_id === guideId && !c.is_active && c.challenge_status !== 'DELETED',
