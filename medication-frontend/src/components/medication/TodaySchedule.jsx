@@ -228,7 +228,9 @@ export default function TodaySchedule({ medications, profileId }) {
           const blockLoading = items.some(({ med, time }) => takingKeys.has(`${med.id}__${time}`))
 
           return (
-            <div key={key} className={`rounded-2xl p-4 border transition-all ${isActive ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}>
+            // data-testid: 약품명은 어느 블록에 있어도 화면 어딘가에서는 보이므로,
+            // "시간대에 분류됐다"를 단언하려면 블록 경계가 선택 가능해야 한다.
+            <div key={key} data-testid={`time-block-${key}`} className={`rounded-2xl p-4 border transition-all ${isActive ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Icon size={16} className={isActive ? 'text-accent' : 'text-muted'} />

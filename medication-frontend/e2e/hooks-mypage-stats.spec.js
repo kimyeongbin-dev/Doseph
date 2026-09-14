@@ -10,6 +10,8 @@
 // ⚠️ 의도적으로 단언하지 않는 것: 스트릭·오늘 복약의 **구체적 수치**.
 //    다른 스펙이 복약 체크를 수행하면 달라지는 값이라, 고정하면 실행 순서에 종속된다.
 //    (형식과 존재는 단언하되 값은 단언하지 않는다 — 결정적 실패 유지)
+// ⚠️ 단, 단언 대상은 라벨이 아니라 **값 노드(data-testid)** 여야 한다. 라벨만 보면
+//    값이 비거나 형식이 깨져도 통과한다(2026-09-15 헛된 초록 교정 V6).
 // 전제: docker fastapi(:8000) 기동 + auth.setup 세션 + seed.setup 의 활성 챌린지 2건.
 
 import { test, expect } from '@playwright/test'
@@ -28,15 +30,24 @@ test.describe('마이페이지 통계 카드 (E1·E2)', () => {
 
     // (2) 진행 챌린지 = 시드 활성 챌린지 수
     await expect(
-      page.getByText(`${SEEDED_ACTIVE_CHALLENGES}개 🏆`),
+      page.getByTestId('stat-ongoing-challenges'),
       '진행 챌린지 수는 시드가 보장한 활성 챌린지 수와 일치해야 한다',
-    ).toBeVisible()
+    ).toHaveText(`${SEEDED_ACTIVE_CHALLENGES}개 🏆`)
 
     // (3) 연속 복약은 수치 형식 (값 자체는 단언하지 않음)
     await expect(
-      page.getByText(/^\d+일째 🔥$/),
+      page.getByTestId('stat-streak'),
       '연속 복약은 조회된 수치로 채워져야 한다(미조회 시 렌더 자체가 없거나 형식이 깨진다)',
-    ).toBeVisible()
+    ).toHaveText(/^\d+일째 🔥$/)
+
+    // (4) '오늘 복약'도 **값 노드**를 본다. 라벨만 보면 값이 비어도 통과한다.
+    //     구체적 수치는 실행 순서에 종속되므로 형식만 단언한다(정상 렌더 = '-' 또는 'N종 완료').
+    //     통계 조회가 실패하면 이 카드 자체가 ErrorState 로 대체되므로, 형식 단언만으로도
+    //     "조회가 끝났고 실패하지 않았다"가 잠긴다.
+    await expect(
+      page.getByTestId('stat-today-taken'),
+      "오늘 복약 값은 '-' 또는 'N종 완료' 형식이어야 한다(조회 실패면 카드가 ErrorState 로 대체된다)",
+    ).toHaveText(/^(-|\d+종 완료)$/)
   })
 
   test('프로필 요약이 활성 프로필 기준으로 렌더된다', async ({ page }) => {

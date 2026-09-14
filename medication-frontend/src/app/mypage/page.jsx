@@ -408,18 +408,20 @@ function MyPageContent() {
                   isRetrying={isRefreshing}
                 />
               ) : (
+                /* data-testid: 라벨만 보면 조회 실패·로딩과 구분되지 않아, 테스트가
+                   "조회된 값"만 골라 단언할 수 있게 값 노드에 경계를 노출한다. */
                 <div className="grid grid-cols-3 gap-3 w-full">
                   <div className="bg-surface-2 p-4 rounded-[24px] border border-line">
                     <p className="text-[10px] font-black text-muted mb-1">연속 복약</p>
-                    <p className="text-lg font-black text-ink">{streakDays}일째 🔥</p>
+                    <p data-testid="stat-streak" className="text-lg font-black text-ink">{streakDays}일째 🔥</p>
                   </div>
                   <div className={`p-4 rounded-[24px] border ${todayTakenCount > 0 ? 'bg-green-50 border-green-100' : 'bg-surface-2 border-line'}`}>
                     <p className={`text-[10px] font-black mb-1 ${todayTakenCount > 0 ? 'text-green-600' : 'text-muted'}`}>오늘 복약</p>
-                    <p className="text-lg font-black text-ink">{todayTakenCount > 0 ? `${todayTakenCount}종 완료` : '-'}</p>
+                    <p data-testid="stat-today-taken" className="text-lg font-black text-ink">{todayTakenCount > 0 ? `${todayTakenCount}종 완료` : '-'}</p>
                   </div>
                   <div className="bg-orange-50 p-4 rounded-[24px] border border-orange-100">
                     <p className="text-[10px] font-black text-orange-500 mb-1">진행 챌린지</p>
-                    <p className="text-lg font-black text-ink">{ongoingCount}개 🏆</p>
+                    <p data-testid="stat-ongoing-challenges" className="text-lg font-black text-ink">{ongoingCount}개 🏆</p>
                   </div>
                 </div>
               )}
