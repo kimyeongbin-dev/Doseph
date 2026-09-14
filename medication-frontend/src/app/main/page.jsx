@@ -12,6 +12,7 @@ import { useMedication } from '@/contexts/MedicationContext'
 import { useChallenge } from '@/contexts/ChallengeContext'
 import { useOcrDraft, useOcrEntryNavigator } from '@/contexts/OcrDraftContext'
 import TodaySchedule from '@/components/medication/TodaySchedule'
+import ErrorState from '@/components/common/ErrorState'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import SectionHeader from '@/components/ui/SectionHeader'
@@ -167,7 +168,13 @@ function MainPageContent() {
   const { profiles, selectedProfileId, selectedProfile, createProfile, updateProfile } = useProfile()
   const [isSurveySubmitting, setIsSurveySubmitting] = useState(false)
   // 4 Context 가 모든 server state 를 단일 진실로 관리 — 자체 fetch 0
-  const { activeMedications: medications } = useMedication()
+  const {
+    activeMedications: medications,
+    isError: medicationsError,
+    error: medicationsErrorObject,
+    isRefetching: medicationsRefetching,
+    refetchMedications,
+  } = useMedication()
   const { activeChallenges } = useChallenge()
   const { activeDrafts, removeDraftLocally, refetchDrafts } = useOcrDraft()
   const goToOcrFlow = useOcrEntryNavigator()
@@ -425,7 +432,18 @@ function MainPageContent() {
             </Card>
 
             {/* ── 복약 스케줄 (TodaySchedule 자체가 카드 + 헤더) ── */}
-            <TodaySchedule medications={medications} profileId={selectedProfileId} />
+            {/* 약 목록 조회가 실패하면 일정이 "오늘 먹을 약 없음"으로 보인다.
+                복약 누락으로 이어질 수 있는 오인이라 실패를 그 자리에 드러낸다. */}
+            {medicationsError ? (
+              <ErrorState
+                error={medicationsErrorObject}
+                title="복약 일정을 불러오지 못했어요"
+                onRetry={refetchMedications}
+                isRetrying={medicationsRefetching}
+              />
+            ) : (
+              <TodaySchedule medications={medications} profileId={selectedProfileId} />
+            )}
           </div>
 
           <div className="md:col-span-4 space-y-8">

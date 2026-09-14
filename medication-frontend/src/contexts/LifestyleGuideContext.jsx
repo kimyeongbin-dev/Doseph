@@ -2,8 +2,9 @@
 
 // LifestyleGuide 도메인 — TanStack Query adapter.
 //
-// 외부 API: 기존 그대로 (guides, latestGuide, generateGuide, deleteGuide,
-// revealMoreChallenges, refetchGuides, isLoading + GUIDE_TERMINAL_ERROR_MESSAGES).
+// 외부 API: guides, latestGuide, generateGuide, deleteGuide,
+// revealMoreChallenges, refetchGuides, isLoading + GUIDE_TERMINAL_ERROR_MESSAGES
+// + isError / error / isRefetching (조회 실패 표면화, 후속 큐 1-d).
 //
 // 변경 핵심:
 // - GET /lifestyle-guides/latest 호출 폐기 — 가이드 0건일 때 매번 404 가 떴던
@@ -65,6 +66,11 @@ export function LifestyleGuideProvider({ children }) {
   // 새 배열이 만들어져, 아래 컨텍스트 value 의 useMemo 가 깨지고 모든 소비자가 리렌더된다.
   const guides = useMemo(() => listQuery.data || [], [listQuery.data])
   const isLoading = listQuery.isLoading
+  // 조회 실패 전파 — 가이드는 평소에도 0건일 수 있는 도메인이라, 이 값이 없으면
+  // 실패와 "아직 가이드가 없음"이 영원히 같은 화면이 된다.
+  const isError = listQuery.isError
+  const error = listQuery.error
+  const isRefetching = listQuery.isFetching
   // newest-first 정렬이라 [0] = latest. 별 GET /latest 호출 불필요.
   const latestGuide = guides[0] || null
 
@@ -202,6 +208,9 @@ export function LifestyleGuideProvider({ children }) {
       guides,
       latestGuide,
       isLoading,
+      isError,
+      error,
+      isRefetching,
       generateGuide,
       deleteGuide,
       refetchGuides,
@@ -211,6 +220,9 @@ export function LifestyleGuideProvider({ children }) {
       guides,
       latestGuide,
       isLoading,
+      isError,
+      error,
+      isRefetching,
       generateGuide,
       deleteGuide,
       refetchGuides,

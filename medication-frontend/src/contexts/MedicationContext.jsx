@@ -2,10 +2,14 @@
 
 // Medication 도메인 — TanStack Query adapter (PR-B 마이그레이션).
 //
-// 외부 API 시그니처 100% 호환:
+// 외부 API:
 //   medications, activeMedications, completedMedications, isLoading,
+//   isError, error, isRefetching,
 //   updateMedication, deleteMedication, deleteMedications, deactivateMedication,
 //   getDrugInfo, refetchMedications.
+//
+// isError/error/isRefetching 는 조회 실패 표면화(후속 큐 1-d)에서 추가됐다 —
+// 실패를 '빈 목록'과 구분해 화면이 재시도 UI 를 그릴 수 있게 하는 용도.
 //
 // 변경 핵심:
 // - list GET 을 useQuery (staleTime 30초, profile 전환 시 새 key 로 자동 refetch).
@@ -38,6 +42,10 @@ export function MedicationProvider({ children }) {
   })
   const medications = listQuery.data || []
   const isLoading = listQuery.isLoading
+  // 조회 실패를 소비자에게 전파한다. 이 값이 없으면 실패 시 data 가 undefined 라
+  // medications 가 빈 배열이 되고, 화면은 "약이 하나도 없음"을 그린다(실패가 사라짐).
+  const isError = listQuery.isError
+  const error = listQuery.error
 
   // ── 처방전 그룹 detail cache 의 medications 배열을 직접 patch ────────
   // PrescriptionGroupContext 의 groupsById 는 useQueries(enabled: false) 로
@@ -233,6 +241,9 @@ export function MedicationProvider({ children }) {
         activeMedications,
         completedMedications,
         isLoading,
+        isError,
+        error,
+        isRefetching: listQuery.isFetching,
         updateMedication,
         deleteMedication,
         deleteMedications,
