@@ -63,6 +63,12 @@ src_folder = "./."
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 pythonpath = ["."]
+# `db` = 진짜 PostgreSQL 이 필요한 테스트(app/tests/db/). DB 가 없으면 skip 이 아니라
+# **실패**한다 — skip 은 "검증하지 않았다"를 초록으로 보이게 만들기 때문이다.
+# 빠른 스위트만 돌리려면 `pytest app -m "not db"`.
+markers = [
+    "db: requires a real PostgreSQL server (see app/tests/db/conftest.py)",
+]
 
 [tool.ruff]
 line-length = 120
@@ -430,6 +436,13 @@ ignore_missing_imports = true
 # apscheduler 는 설치돼 있으나 공식 stub·py.typed 마커를 제공하지 않는다(배포처에 stub 없음).
 # defusedxml 처럼 types-* 스텁 패키지가 없으므로 누락 임포트만 무시한다.
 module = ["apscheduler.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# asyncpg 도 py.typed 마커를 제공하지 않는다(types-asyncpg 도 없음).
+# DB 테스트 층(app/tests/db/)이 Tortoise 를 우회해 직접 붙을 때 쓴다 —
+# 비교용 임시 DB 처럼 Tortoise 가 붙어 있지 않은 DB 를 들여다봐야 하기 때문.
+module = ["asyncpg.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
