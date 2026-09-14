@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { User, Activity, Users, Home, Trash2, X, Check, Plus, FileText, LogOut, Pencil } from 'lucide-react'
 import { Controller, useForm } from 'react-hook-form'
@@ -8,12 +8,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import EmptyState from '@/components/common/EmptyState'
 import BottomNav from '@/components/layout/BottomNav'
 import LogoutModal, { useLogout, DeleteAccountModal, useDeleteAccount } from '@/components/auth/LogoutModal'
-import api, { handleApiError } from '@/lib/api'
+import { handleApiError } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/common/ConfirmDialog'
 import FormError from '@/components/form/FormError'
 import HealthSurveyModal from '@/components/common/HealthSurveyModal'
+import { useChallenge } from '@/contexts/ChallengeContext'
 import { useProfile } from '@/contexts/ProfileContext'
+import { useIntakeStreak, useTodayIntakeLogs } from '@/queries/intakeLogs'
 import {
   familyProfileSchema,
   nicknameUpdateSchema,
@@ -214,10 +216,28 @@ function MyPageContent() {
     setSelectedProfileId,
     refetchProfiles,
   } = useProfile()
-  const isInitialLoad = useRef(true)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [activeMenu, setActiveMenu] = useState('기본정보')
+  // 좌측 메뉴의 최초 탭은 진입 URL 이 정한다(effect 로 뒤늦게 전환하지 않는다).
+  // ?tab=family 진입 경로는 ProfileSwitcher 의 "프로필 추가" 뿐이며 이때 mypage 는
+  // 새로 마운트되므로 초깃값으로 충분하다.
+  const [activeMenu, setActiveMenu] = useState(() =>
+    searchParams.get('tab') === 'family' ? '가족관리' : '기본정보',
+  )
+
+  // ── 페이지 통계용 서버 상태 (쿼리 계층) ─────────────────────────────
+  // 흐름: 공유 훅이 profileId 기준으로 조회 -> 파생 계산만 페이지에서 수행
+  // 진행 중 챌린지는 ChallengeContext 가 이미 같은 키로 들고 있어 재조회하지 않는다.
+  const { activeChallenges } = useChallenge()
+  const todayLogsQuery = useTodayIntakeLogs(profileId)
+  const streakQuery = useIntakeStreak(profileId)
+
+  const ongoingCount = activeChallenges.length
+  const streakDays = streakQuery.data ?? 0
+  const todayTakenCount = (todayLogsQuery.data || []).filter(
+    (l) => l.intake_status === 'TAKEN',
+  ).length
+  // 최초 조회 중에는 스켈레톤, 이후 재조회 중에는 흐리게 — 기존 isInitialLoad 분기와 동일.
+  const isLoading = todayLogsQuery.isLoading || streakQuery.isLoading
+  const isRefreshing = todayLogsQuery.isFetching || streakQuery.isFetching
   // ProfileContext 의 데이터를 그대로 파생 사용 (single source of truth).
   // mutation 시 ProfileContext 가 in-place 갱신하므로 자동 리렌더.
   const userProfile = selectedProfile
@@ -227,9 +247,6 @@ function MyPageContent() {
     if (b.relation_type === 'SELF') return 1
     return 0
   })
-  const [ongoingCount, setOngoingCount] = useState(0)
-  const [streakDays, setStreakDays] = useState(0)
-  const [todayTakenCount, setTodayTakenCount] = useState(0)
   const [modalType, setModalType] = useState(null)
   const [selectedFamilyMember, setSelectedFamilyMember] = useState(null)
 
@@ -245,53 +262,22 @@ function MyPageContent() {
     OTHER: '기타',
   }
 
-  useEffect(() => {
-    if (!profileId) return
-    fetchData()
-  }, [profileId])
-
   // 가족관리 탭은 모든 프로필 상태에서 표시되며 (HEAD 의 옵션 B fix), main 의 강제 탭
   // 전환 useEffect 는 의도와 어긋나 제거.
 
-  // ProfileSwitcher 의 "프로필 추가" 버튼이 ?tab=family 로 진입하면 가족관리 탭 자동 활성화.
-  // 활성화 직후 URL 의 ?tab= query 는 router.replace 로 정리 (history 오염 방지).
+  // ── 설문 진입 쿼리 정리 ────────────────────────────────────────────
+  // 흐름: ?tab=family 로 진입 -> (탭은 이미 초깃값으로 활성) -> URL 에서 쿼리 제거
+  // 뒤로가기 history 오염 방지. 상태가 아니라 URL(외부 시스템)만 건드린다.
   useEffect(() => {
     if (searchParams.get('tab') === 'family') {
-      setActiveMenu('가족관리')
       router.replace('/mypage')
     }
   }, [searchParams, router])
 
-  // ProfileContext 가 이미 가진 profiles 재사용 — /profiles 와 /profiles/{id} GET 안 함.
-  // 페이지 자체에서 GET 하는 건 챌린지/스트릭 같이 ProfileContext 가 모르는 데이터만.
-  const fetchData = async () => {
-    if (isInitialLoad.current) setIsLoading(true)
-    else setIsRefreshing(true)
-    try {
-      // ProfileContext 가 profile / list 는 이미 fetch — 페이지는 챌린지/스트릭/오늘
-      // 복약 같은 Context 외부 데이터만 호출.
-      const [challengeRes, streakRes, todayLogsRes] = await Promise.all([
-        api.get(`/api/v1/challenges?profile_id=${profileId}`),
-        api.get(`/api/v1/intake-logs/streak?profile_id=${profileId}`),
-        api.get(`/api/v1/intake-logs?profile_id=${profileId}`),
-      ])
-      // 진행 중인 챌린지 개수 계산 — 챌린지 리스트에서 is_active + status 필터링. BE 에서 별도 카운트 제공 안 함.
-      const ongoing = (challengeRes.data || []).filter(c =>
-        c.is_active === true && c.challenge_status === 'IN_PROGRESS').length;
-        setOngoingCount(ongoing);
-
-      setStreakDays(streakRes.data.streak_days ?? 0)
-      setTodayTakenCount((todayLogsRes.data || []).filter(l => l.intake_status === 'TAKEN').length)
-    } catch (err) { handleApiError(err) } finally {
-      setIsLoading(false)
-      setIsRefreshing(false)
-      isInitialLoad.current = false
-    }
-  }
-
-  // mutation 핸들러는 ProfileContext 가 응답으로 in-place 갱신하므로 수동 fetchData 호출 안 함.
-  // challenge/streak 데이터는 [profileId] effect 가 selectedProfileId 변경 시 자동 재조회 —
-  // 활성 프로필 삭제 시 stale profileId 로 fetchData 가 호출되어 발생하던 404 경합 제거.
+  // 통계 조회는 쿼리 계층이 담당한다(위 useTodayIntakeLogs / useIntakeStreak).
+  // profileId 가 바뀌면 queryKey 가 바뀌어 자동 재조회되므로 수동 fetch 가 필요 없고,
+  // 활성 프로필 삭제 시 stale profileId 로 요청이 나가던 경합도 구조적으로 사라진다.
+  // 프로필 mutation 은 ProfileContext 가 응답으로 in-place 갱신한다.
 
   const handleSaveBasic = async (newData) => {
     try {
