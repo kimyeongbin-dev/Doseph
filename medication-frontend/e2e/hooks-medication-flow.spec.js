@@ -113,13 +113,34 @@ test.describe('복약 목록 -> 그룹 상세', () => {
 })
 
 test.describe('메인 오늘의 복약', () => {
+  // ⚠️ 이전 버전은 `page.getByText('타이레놀정500mg').first()` 하나였다. 약품명은 어느
+  //    블록에 들어가도 화면 어딘가에서는 보이므로, 분류 로직(getBlockKey)이 통째로
+  //    깨져도 통과한다 — 테스트 이름이 말하는 "시간대 블록에 분류"를 전혀 잠그지
+  //    못했다. 블록 경계(data-testid) 안에서만 단언하도록 교정(규칙 R10).
   test('시드된 복약이 시간대 블록에 분류되어 보인다', async ({ page }) => {
     await page.goto('/main')
 
     await expect(page.getByRole('heading', { name: '오늘의 복약' })).toBeVisible({
       timeout: 15_000,
     })
-    // 시드 약품(08:00 / 13:00 / 19:00)이 블록 안에 렌더된다
-    await expect(page.getByText('타이레놀정500mg').first()).toBeVisible()
+
+    // 시드: 타이레놀정500mg = 08:00(아침) + 19:00(저녁) / 오메프라졸캡슐 = 13:00(점심)
+    const morning = page.getByTestId('time-block-morning')
+    const afternoon = page.getByTestId('time-block-afternoon')
+    const evening = page.getByTestId('time-block-evening')
+
+    await expect(morning.getByText('타이레놀정500mg'), '08:00 은 아침 블록이다').toBeVisible()
+    await expect(evening.getByText('타이레놀정500mg'), '19:00 은 저녁 블록이다').toBeVisible()
+    await expect(afternoon.getByText('오메프라졸캡슐'), '13:00 은 점심 블록이다').toBeVisible()
+
+    // 분류가 무너져 한 블록에 몰리면(예: 전부 morning) 아래가 깨진다.
+    await expect(
+      morning.getByText('오메프라졸캡슐'),
+      '13:00 약이 아침 블록에 있으면 분류가 깨진 것이다',
+    ).toHaveCount(0)
+    await expect(
+      afternoon.getByText('타이레놀정500mg'),
+      '08:00/19:00 약이 점심 블록에 있으면 분류가 깨진 것이다',
+    ).toHaveCount(0)
   })
 })
