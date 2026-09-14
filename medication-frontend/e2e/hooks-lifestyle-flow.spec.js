@@ -19,6 +19,13 @@ const API = 'http://localhost:8000/api/v1'
 const GUIDE_NEW = '11111111-1111-4111-8111-111111111111'
 const GUIDE_OLD = '22222222-2222-4222-8222-222222222222'
 
+// 조회 결과 검증용 **고유 센티널 증상명**(규칙 R11).
+// PRESET_SYMPTOMS 칩·라벨·안내문 어디에도 없는 문자열이라, 조회가 실제로 일어나
+// 요약 카드에 렌더된 경우에만 화면에 나타난다. 짧은 단어나 실제 증상명을 쓰면
+// 폼의 프리셋 칩과 겹쳐 조회 없이도 통과한다(V1 사고).
+const SYMPTOM_A = 'E2E증상_QX7'
+const SYMPTOM_B = 'E2E증상_QX8'
+
 function makeGuide(id, label, createdAt = '2026-09-14T00:00:00Z') {
   return {
     id,
@@ -108,13 +115,22 @@ test.describe('생활 가이드 — 가이드 선택·탭·증상', () => {
   })
 
   test('증상 탭 진입 시 오늘 증상이 조회되어 표시된다 (A1·A3)', async ({ page }) => {
-    await stubGuideApis(page, { symptoms: ['두통', '어지러움'] })
+    // ⚠️ 스텁 값은 **고유 센티널**이어야 한다(규칙 R11). 이전 버전은 '두통'·'어지러움'
+    //    이라 SymptomLogForm 의 PRESET_SYMPTOMS 칩 라벨과 문자열이 겹쳤고, 칩은 조회
+    //    결과와 무관하게 항상 렌더되므로 스텁을 비워도 통과했다(2026-09-14 실측).
+    await stubGuideApis(page, { symptoms: [SYMPTOM_A, SYMPTOM_B] })
     await page.goto('/lifestyle-guide')
 
     await page.getByRole('button', { name: /증상/ }).first().click()
 
-    await expect(page.getByText('두통').first()).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByText('어지러움').first()).toBeVisible()
+    // 조회 결과만 그리는 요약 카드 안에서만 본다(규칙 R10). `.first()` 를 쓰지 않아
+    // 다중 매칭이 생기면 Playwright strict mode 가 경보를 낸다.
+    const summary = page.getByTestId('today-symptom-summary')
+    await expect(
+      summary.getByText(SYMPTOM_A),
+      '조회된 오늘 증상이 요약 카드에 렌더돼야 한다',
+    ).toBeVisible({ timeout: 15_000 })
+    await expect(summary.getByText(SYMPTOM_B), '조회 결과 전부가 렌더돼야 한다').toBeVisible()
   })
 
   test('가이드 목록 조회가 실제로 발생한다 (마운트 시 로드)', async ({ page }) => {

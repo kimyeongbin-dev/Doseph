@@ -19,7 +19,7 @@ import { API, errorState, inject429, recoverAndRetry } from './helpers/query-fai
 test.describe('무음 실패 표면화 (1-e)', () => {
   test('마이페이지 통계: 실패 시 "0일째" 를 지어내지 않는다', async ({ page }) => {
     const glob = `${API}/intake-logs/streak**`
-    await inject429(page, glob)
+    const injected = await inject429(page, glob)
     await page.goto('/mypage')
 
     await expect(errorState(page), '통계 조회 실패는 통계 자리에 드러나야 한다').toBeVisible({
@@ -30,7 +30,7 @@ test.describe('무음 실패 표면화 (1-e)', () => {
       '조회하지 못한 값을 0 으로 그리면 진짜 0 과 구분되지 않고 사용자 의욕만 꺾는다',
     ).toHaveCount(0)
 
-    await recoverAndRetry(page, glob)
+    await recoverAndRetry(page, glob, injected)
 
     await expect(
       page.getByText(/^\d+일째 🔥$/),
