@@ -6,6 +6,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import EmptyState from '@/components/common/EmptyState'
+import ErrorState from '@/components/common/ErrorState'
 import BottomNav from '@/components/layout/BottomNav'
 import LogoutModal, { useLogout, DeleteAccountModal, useDeleteAccount } from '@/components/auth/LogoutModal'
 import { handleApiError } from '@/lib/api'
@@ -238,6 +239,14 @@ function MyPageContent() {
   // 최초 조회 중에는 스켈레톤, 이후 재조회 중에는 흐리게 — 기존 isInitialLoad 분기와 동일.
   const isLoading = todayLogsQuery.isLoading || streakQuery.isLoading
   const isRefreshing = todayLogsQuery.isFetching || streakQuery.isFetching
+  // 통계 조회 실패 — 없으면 `?? 0` 폴백이 실패를 "연속 복약 0일째"로 그린다.
+  // 의욕을 꺾는 오정보이고, 진짜 0 과 구분도 되지 않는다.
+  const statsError = todayLogsQuery.isError || streakQuery.isError
+  const statsErrorObject = streakQuery.error || todayLogsQuery.error
+  const retryStats = () => {
+    todayLogsQuery.refetch()
+    streakQuery.refetch()
+  }
   // ProfileContext 의 데이터를 그대로 파생 사용 (single source of truth).
   // mutation 시 ProfileContext 가 in-place 갱신하므로 자동 리렌더.
   const userProfile = selectedProfile
@@ -389,20 +398,31 @@ function MyPageContent() {
               <h2 className="text-xl font-black text-ink mb-1">{userProfile?.name.split('(')[0]}님</h2>
               {/* [수정] 상단 프로필 요약 관계 표시 상세화 */}
               <p className="text-muted text-xs font-bold mb-6">{getDetailRelation(userProfile)}</p>
-              <div className="grid grid-cols-3 gap-3 w-full">
-                <div className="bg-surface-2 p-4 rounded-[24px] border border-line">
-                  <p className="text-[10px] font-black text-muted mb-1">연속 복약</p>
-                  <p className="text-lg font-black text-ink">{streakDays}일째 🔥</p>
+              {/* 통계 조회가 실패하면 숫자를 지어내지 않는다 — 실패를 실패로 보인다.
+                  페이지의 나머지(기본정보·가족관리)는 그대로 동작시킨다. */}
+              {statsError ? (
+                <ErrorState
+                  error={statsErrorObject}
+                  title="복약 통계를 불러오지 못했어요"
+                  onRetry={retryStats}
+                  isRetrying={isRefreshing}
+                />
+              ) : (
+                <div className="grid grid-cols-3 gap-3 w-full">
+                  <div className="bg-surface-2 p-4 rounded-[24px] border border-line">
+                    <p className="text-[10px] font-black text-muted mb-1">연속 복약</p>
+                    <p className="text-lg font-black text-ink">{streakDays}일째 🔥</p>
+                  </div>
+                  <div className={`p-4 rounded-[24px] border ${todayTakenCount > 0 ? 'bg-green-50 border-green-100' : 'bg-surface-2 border-line'}`}>
+                    <p className={`text-[10px] font-black mb-1 ${todayTakenCount > 0 ? 'text-green-600' : 'text-muted'}`}>오늘 복약</p>
+                    <p className="text-lg font-black text-ink">{todayTakenCount > 0 ? `${todayTakenCount}종 완료` : '-'}</p>
+                  </div>
+                  <div className="bg-orange-50 p-4 rounded-[24px] border border-orange-100">
+                    <p className="text-[10px] font-black text-orange-500 mb-1">진행 챌린지</p>
+                    <p className="text-lg font-black text-ink">{ongoingCount}개 🏆</p>
+                  </div>
                 </div>
-                <div className={`p-4 rounded-[24px] border ${todayTakenCount > 0 ? 'bg-green-50 border-green-100' : 'bg-surface-2 border-line'}`}>
-                  <p className={`text-[10px] font-black mb-1 ${todayTakenCount > 0 ? 'text-green-600' : 'text-muted'}`}>오늘 복약</p>
-                  <p className="text-lg font-black text-ink">{todayTakenCount > 0 ? `${todayTakenCount}종 완료` : '-'}</p>
-                </div>
-                <div className="bg-orange-50 p-4 rounded-[24px] border border-orange-100">
-                  <p className="text-[10px] font-black text-orange-500 mb-1">진행 챌린지</p>
-                  <p className="text-lg font-black text-ink">{ongoingCount}개 🏆</p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
