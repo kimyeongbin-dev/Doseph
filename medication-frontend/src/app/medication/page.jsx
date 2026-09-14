@@ -148,8 +148,11 @@ export default function MedicationPage() {
   // 하므로 호출자 측에서 refetchGuides / refetchChallenges 를 부를 필요 없음.
 
   // 검색 input toggle + 입력 버퍼 (즉시 적용보다 사용자 경험 위해 enter 또는 blur 시 적용)
+  // 확정 검색어(search)는 Context 에 살아남고 이 페이지 state 는 재진입 시 초기화되므로,
+  // 버퍼의 초깃값을 확정 검색어로 잡는다. 이후 두 값은 아래 핸들러에서만 함께 움직인다
+  // (effect 로 뒤늦게 맞추면 렌더 -> effect -> 재렌더로 한 번 더 돈다).
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [searchDraft, setSearchDraft] = useState('')
+  const [searchDraft, setSearchDraft] = useState(search)
   // 삭제 중 카드 비활성용 — 동시 클릭 방지.
   const [deletingId, setDeletingId] = useState(null)
 
@@ -181,19 +184,21 @@ export default function MedicationPage() {
     }
   }
 
-  useEffect(() => {
-    setSearchDraft(search)
-  }, [search])
-
   // 페이지 진입마다 최신 list 보장 — 다른 화면 (OCR confirm 등) 에서 새 처방전이
-  // 등록된 직후 /medication 으로 이동 시 stale 방지. Context 의 useEffect 는
-  // selectedProfileId/sort/search 변경 시만 fetch 라 mount 자체에 trigger 없음.
+  // 등록된 직후 /medication 으로 이동 시 stale 방지. Context 의 list query 는
+  // Provider 가 앱 전역에 마운트된 채라 이 페이지 진입만으로는 refetch 되지 않고,
+  // staleTime(기본 60초) 안이면 캐시를 그대로 쓴다.
   useEffect(() => {
     if (selectedProfileId) refetchGroups()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const applySearch = () => setSearch(searchDraft.trim())
+  // 확정 검색어는 trim 된 값 — 버퍼도 같은 값으로 맞춰 두 state 가 어긋나지 않게 한다.
+  const applySearch = () => {
+    const next = searchDraft.trim()
+    setSearchDraft(next)
+    setSearch(next)
+  }
   const clearSearch = () => {
     setSearchDraft('')
     setSearch('')
