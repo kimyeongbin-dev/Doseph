@@ -61,7 +61,9 @@ export function LifestyleGuideProvider({ children }) {
       return data || []
     },
   })
-  const guides = listQuery.data || []
+  // `data || []` 를 그대로 쓰면 data 가 undefined 인 구간(로딩·에러)에서 매 렌더
+  // 새 배열이 만들어져, 아래 컨텍스트 value 의 useMemo 가 깨지고 모든 소비자가 리렌더된다.
+  const guides = useMemo(() => listQuery.data || [], [listQuery.data])
   const isLoading = listQuery.isLoading
   // newest-first 정렬이라 [0] = latest. 별 GET /latest 호출 불필요.
   const latestGuide = guides[0] || null

@@ -3,8 +3,10 @@
 // 잠그는 동작: 마운트 시 선택 프로필로 가이드 목록 조회 -> newest-first 라 latestGuide = guides[0].
 // TanStack Query 기반이라 QueryClientProvider + api/useProfile/sseClient mock 으로 격리.
 
+import { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 import { LifestyleGuideProvider, useLifestyleGuide } from '@/contexts/LifestyleGuideContext'
 import api from '@/lib/api'
@@ -13,13 +15,30 @@ vi.mock('@/lib/api', () => ({ default: { get: vi.fn() } }))
 vi.mock('@/contexts/ProfileContext', () => ({ useProfile: () => ({ selectedProfileId: 'prof-1' }) }))
 vi.mock('@/lib/sseClient', () => ({ streamSSE: vi.fn() }))
 
+// 컨슈머가 렌더될 때마다 guides 참조를 기록한다(참조 안정성 관찰용).
+const renderedRefs = []
+
 function Consumer() {
   const { guides, latestGuide } = useLifestyleGuide()
+  renderedRefs.push(guides)
   return (
     <div>
       <span data-testid="count">{guides.length}</span>
       <span data-testid="latest">{latestGuide?.id ?? 'none'}</span>
     </div>
+  )
+}
+
+// 프로바이더 바깥의 state 를 바꿔 **프로바이더 자체의 리렌더**를 강제하는 하네스.
+function Harness() {
+  const [tick, setTick] = useState(0)
+  return (
+    <>
+      <button onClick={() => setTick(tick + 1)}>리렌더</button>
+      <LifestyleGuideProvider>
+        <Consumer />
+      </LifestyleGuideProvider>
+    </>
   )
 }
 
@@ -34,7 +53,10 @@ function renderProvider() {
   )
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  renderedRefs.length = 0
+})
 
 describe('LifestyleGuideContext 특성화', () => {
   it('마운트 시 가이드 목록을 조회하고 latestGuide = guides[0] 으로 파생한다', async () => {
@@ -44,5 +66,31 @@ describe('LifestyleGuideContext 특성화', () => {
     expect(await screen.findByText('2')).toBeInTheDocument()
     expect(screen.getByTestId('latest')).toHaveTextContent('g-new') // newest-first [0]
     expect(api.get).toHaveBeenCalledWith('/api/v1/lifestyle-guides?profile_id=prof-1')
+  })
+
+  // `listQuery.data || []` 는 데이터가 있을 때는 TanStack 이 쥔 같은 배열이라 이미
+  // 안정적이다. 매 렌더 새 배열이 생기는 구간은 data 가 undefined 일 때(로딩·에러)뿐이고,
+  // 그때 컨텍스트 value 의 useMemo 가 통째로 재계산돼 **모든 소비자가 리렌더**된다.
+  it('조회 결과가 없는 상태에서 리렌더돼도 guides 참조가 유지된다', async () => {
+    api.get.mockRejectedValue(new Error('조회 실패'))
+
+    const user = userEvent.setup()
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={qc}>
+        <Harness />
+      </QueryClientProvider>,
+    )
+    await screen.findByText('0')
+
+    const before = renderedRefs.at(-1)
+    await user.click(screen.getByRole('button', { name: '리렌더' }))
+    const after = renderedRefs.at(-1)
+
+    expect(renderedRefs.length, '리렌더가 실제로 일어나야 비교가 성립한다').toBeGreaterThan(1)
+    expect(
+      after,
+      'guides 가 매 렌더 새 배열이면 컨텍스트 value 메모가 깨져 모든 소비자가 리렌더된다',
+    ).toBe(before)
   })
 })
