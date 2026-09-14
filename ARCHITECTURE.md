@@ -372,7 +372,7 @@ Client          FastAPI         Kakao OAuth      PostgreSQL
 ```
 # .github/workflows/deploy.yml  (CD, on push to main)
 1. Test gate:
-   - Python 3.13 + PostgreSQL 15 service
+   - Python 3.13 + PostgreSQL 17 service (`pgvector/pgvector:0.8.0-pg17`, pinned to match prod)
    - uv sync --frozen, pytest  (ENV=local injected; ENV has no default)
    - failure here blocks every later job
 

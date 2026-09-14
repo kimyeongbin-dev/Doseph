@@ -36,12 +36,16 @@ env:
 
 jobs:
   # ── ① 테스트 게이트 (배포 전 안전망) ────────────────────────────────
-  # 흐름: Postgres15 서비스 -> uv sync(app) -> pytest. 실패 시 후속 잡 미실행.
+  # 흐름: Postgres 서비스 -> uv sync(app) -> pytest. 실패 시 후속 잡 미실행.
   test:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:15-alpine
+        # 로컬 compose·checks.yml 과 **같은 태그**. 2026-09-15 이전에는 여기만
+        # `postgres:15-alpine` 로 남아 있었다 — C12-a 가 checks.yml 만 고쳤던 탓에,
+        # **배포를 막아서는 게이트가 오히려 pgvector 없는 PG15** 였다.
+        # 태그를 바꿀 땐 세 곳(docker-compose.yml · checks.yml · 여기)을 함께 바꾼다.
+        image: pgvector/pgvector:0.8.0-pg17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: pw1234

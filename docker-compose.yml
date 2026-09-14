@@ -4,9 +4,17 @@
 
 services:
   # PostgreSQL + pgvector — RAG 벡터 저장소
-  # 공식 pgvector image (PG15 + pgvector 0.7+). ankane/pgvector 는 archived 라 마이그레이션함.
+  # 공식 pgvector image. ankane/pgvector 는 archived 라 마이그레이션함.
+  #
+  # ⚠️ 태그를 **PG 메이저와 pgvector 버전까지 완전 고정**한다(`pg17` 같은 floating 태그 금지).
+  #    기준은 "최신"이 아니라 **prod(Neon)와 같게** 다 — 2026-09-15 실측으로 prod 는
+  #    PostgreSQL 17.11 · pgvector 0.8.0 이었고, 그때까지 로컬/CI 는 PG15 라 **메이저가
+  #    2단계 어긋나 있었다**. 로컬이 prod 보다 새 pgvector 를 쓰면 0.8.1+ 기능이
+  #    로컬에서만 통과하고 prod 에서 깨진다(패리티는 방향이 있다).
+  #    이 값은 `app/tests/db/test_db_version_pin.py` 가 단언하므로, 태그만 바꾸면 빨개진다.
+  #    CI(.github/workflows/checks.yml)도 **같은 태그**를 써야 한다.
   postgres:
-    image: pgvector/pgvector:pg15
+    image: pgvector/pgvector:0.8.0-pg17
     container_name: postgres
     environment:
       POSTGRES_USER: ${DB_USER:-doseph_admin}

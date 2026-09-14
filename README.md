@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql&logoColor=white)
 ![pgvector](https://img.shields.io/badge/pgvector-halfvec%20%2B%20HNSW-FF6F00)
 ![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
@@ -108,7 +108,7 @@ flowchart TD
 
 ### Data
 
-- PostgreSQL 16 (pg_trgm · pgvector halfvec + HNSW)
+- PostgreSQL 17 (pg_trgm · pgvector halfvec + HNSW) — 로컬·CI 는 `pgvector/pgvector:0.8.0-pg17` 로 고정, prod 는 Neon PG 17
 - Redis (cache · queue)
 
 ### Workers
