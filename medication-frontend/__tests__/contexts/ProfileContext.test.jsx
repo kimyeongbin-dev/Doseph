@@ -8,7 +8,7 @@
 // TanStack Query 기반이라 QueryClientProvider + api mock + non-public path 로 격리.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 
 import { ProfileProvider, useProfile } from '@/contexts/ProfileContext'
 import api from '@/lib/api'
@@ -30,11 +30,13 @@ const PROFILES = [
 ]
 
 function Consumer() {
-  const { selectedProfileId, profiles } = useProfile()
+  const { selectedProfileId, profiles, isLoading } = useProfile()
   return (
     <div>
       <span data-testid="selected">{selectedProfileId ?? 'none'}</span>
       <span data-testid="count">{profiles.length}</span>
+      {/* settled 앵커 — profiles.length 는 로딩 중에도 0 이라 대기 지점으로 쓸 수 없다(R12). */}
+      <span data-testid="loading">{String(isLoading)}</span>
     </div>
   )
 }
@@ -87,7 +89,11 @@ describe('ProfileContext selectedProfileId 정합', () => {
     api.get.mockResolvedValue({ data: [] })
     renderProvider()
 
-    expect(await screen.findByText('0')).toBeInTheDocument()
+    // ⚠️ `findByText('0')` 으로 기다리면 안 된다 — 로딩 중에도 profiles.length 는 0 이라
+    //    조회가 영원히 응답하지 않아도 통과한다(2026-09-15 결핍 주입으로 실측). 조회가
+    //    **끝났다**는 사실은 isLoading=false 로만 확인할 수 있다.
+    await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'))
+    expect(screen.getByTestId('count'), '빈 목록이 실제로 도착해야 한다').toHaveTextContent('0')
     expect(
       screen.getByTestId('selected'),
       '선택할 프로필이 없으면 어떤 id 도 고르면 안 된다',

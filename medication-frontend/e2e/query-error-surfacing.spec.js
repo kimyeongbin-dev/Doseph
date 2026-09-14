@@ -31,11 +31,11 @@ test.describe('목록 조회 실패 표면화 (1-d)', () => {
 
   test('처방전 목록: 재시도가 실제로 목록을 복구시킨다', async ({ page }) => {
     const glob = `${API}/prescription-groups**`
-    await inject429(page, glob)
+    const injected = await inject429(page, glob)
     await page.goto('/medication')
     await expect(errorState(page)).toBeVisible({ timeout: 15_000 })
 
-    await recoverAndRetry(page, glob)
+    await recoverAndRetry(page, glob, injected)
 
     await expect(
       page.getByTestId('prescription-card').first(),
@@ -45,7 +45,7 @@ test.describe('목록 조회 실패 표면화 (1-d)', () => {
 
   test('챌린지: 실패가 "아직 AI 추천 챌린지가 없어요" 로 렌더되지 않는다', async ({ page }) => {
     const glob = `${API}/challenges**`
-    await inject429(page, glob)
+    const injected = await inject429(page, glob)
     await page.goto('/challenge')
 
     await expect(
@@ -54,7 +54,7 @@ test.describe('목록 조회 실패 표면화 (1-d)', () => {
     ).toBeVisible({ timeout: 15_000 })
     await expect(page.getByText('아직 AI 추천 챌린지가 없어요')).toHaveCount(0)
 
-    await recoverAndRetry(page, glob)
+    await recoverAndRetry(page, glob, injected)
 
     await expect(
       page.getByRole('button', { name: '진행중' }),
@@ -66,7 +66,7 @@ test.describe('목록 조회 실패 표면화 (1-d)', () => {
   // 그래서 "실패 -> 에러", "복구 -> 빈 상태" 두 화면이 **서로 다르게** 나오는지를 잠근다.
   test('생활습관 가이드: 실패와 "가이드 0건" 이 서로 다른 화면이다', async ({ page }) => {
     const glob = `${API}/lifestyle-guides**`
-    await inject429(page, glob)
+    const injected = await inject429(page, glob)
     await page.goto('/lifestyle-guide')
 
     await expect(errorState(page)).toBeVisible({ timeout: 15_000 })
@@ -75,7 +75,7 @@ test.describe('목록 조회 실패 표면화 (1-d)', () => {
       '실패를 "아직 안 만들었나 보다" 로 읽게 만들면 사용자는 영영 원인을 모른다',
     ).toHaveCount(0)
 
-    await recoverAndRetry(page, glob)
+    await recoverAndRetry(page, glob, injected)
 
     await expect(
       page.getByText('아직 생활습관 가이드가 없어요'),

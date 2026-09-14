@@ -88,7 +88,11 @@ describe('PrescriptionGroupContext 특성화', () => {
         <Harness />
       </QueryClientProvider>,
     )
-    await screen.findByText('empty')
+    // ⚠️ `findByText('empty')` 으로 기다리면 안 된다 — groups 는 로딩 중에도 비어 있어
+    //    'empty' 가 렌더되므로, 조회가 영원히 응답하지 않아도 통과한다(2026-09-15 실측).
+    //    참조 비교는 data 가 undefined 로 **확정된 뒤**여야 하므로 isError 를 앵커로 쓴다.
+    await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('true'))
+    expect(screen.getByTestId('ids'), '실패 상태에서도 빈 배열 계약은 유지한다').toHaveTextContent('empty')
 
     const before = renderedRefs.at(-1)
     await user.click(screen.getByRole('button', { name: '리렌더' }))

@@ -45,12 +45,14 @@ describe('TodaySchedule 특성화', () => {
       medications: [{ id: 'med-1', medicine_name: '타이레놀', intake_times: ['08:00'] }],
     })
 
-    // 로그 조회 발생
+    // 완료 카운트가 1/1 로 반영될 때까지 먼저 대기한다(fetch 반영).
+    // ⚠️ 호출 단언을 await 앞에 두면 "쿼리가 렌더 중 즉시 호출되는가"라는 타이밍 구현
+    //    세부에 의존한다. settled 이후에 보면 조회 발생 여부만 보게 된다.
+    expect(await screen.findByText(/1\/1\s*완료/)).toBeInTheDocument()
+    // 로그 조회 발생 (settled 이후 확인)
     expect(api.get).toHaveBeenCalledWith('/api/v1/intake-logs', {
       params: { profile_id: 'prof-1', target_date: expect.any(String) },
     })
-    // 완료 카운트가 1/1 로 반영될 때까지 대기(fetch 반영)
-    expect(await screen.findByText(/1\/1\s*완료/)).toBeInTheDocument()
   })
 
   it('시간 미설정 약은 "복약 시간 미설정" 섹션에 표시한다', async () => {
