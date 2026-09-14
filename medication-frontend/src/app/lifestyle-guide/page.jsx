@@ -4,12 +4,12 @@
 // - 이력 날짜 칩으로 과거 가이드 조회 가능 (과거 가이드는 챌린지 버튼 비활성화)
 // - 각 탭에 연결된 챌린지를 하단 배너로 표시 (3-상태: 시작 전/진행중/완료)
 // - 증상 탭에는 오늘의 일일 증상 로그 입력 폼 포함
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import BottomNav from '@/components/layout/BottomNav'
 import EmptyState from '@/components/common/EmptyState'
-import api, { showError } from '@/lib/api'
+import { showError } from '@/lib/api'
 import { useProfile } from '@/contexts/ProfileContext'
 import { useLifestyleGuide } from '@/contexts/LifestyleGuideContext'
 import { useChallenge, useChallengeStart, useChallengeCheck } from '@/contexts/ChallengeContext'
@@ -18,6 +18,7 @@ import StartChallengeModal from '@/components/common/StartChallengeModal'
 import { useConfirm } from '@/components/common/ConfirmDialog'
 import PrescriptionPickerModal from '@/components/lifestyle/PrescriptionPickerModal'
 import SymptomLogForm from '@/components/lifestyle/SymptomLogForm'
+import { useInvalidateTodaySymptomLog, useTodaySymptomLog } from '@/queries/dailyLogs'
 import toast from 'react-hot-toast'
 import { AlertTriangle, Moon, Utensils, Dumbbell, Stethoscope, ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -213,7 +214,7 @@ function LifestyleGuideContent() {
 
   const [isGenerating, setIsGenerating] = useState(false)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
-  const [selectedGuide, setSelectedGuide] = useState(null)
+  // 사용자가 칩으로 고른 가이드 ID. 선택된 가이드 자체는 아래에서 파생한다.
   const [userPickedGuideId, setUserPickedGuideId] = useState(null)
   // 챌린지 페이지네이션 (5개씩 1/3, 2/3, 3/3). 가이드 변경 시 첫 페이지로 reset.
   const [challengePage, setChallengePage] = useState(0)
@@ -224,56 +225,49 @@ function LifestyleGuideContent() {
     VALID_TAB_KEYS.includes(initialTabFromQuery) ? initialTabFromQuery : 'interaction'
   )
 
-  // ── 오늘의 증상 상태 ──
-  const [todaySymptoms, setTodaySymptoms] = useState([])
-  const [todayNote, setTodayNote] = useState('')
-  const [symptomsLoading, setSymptomsLoading] = useState(false)
+  // ── 오늘의 증상 (서버 상태 — 쿼리 계층) ──
+  // 흐름: 공유 훅이 profileId 기준으로 조회 -> 저장/탭 진입 시 invalidate 로 재조회
+  const todayLogQuery = useTodaySymptomLog(profileId)
+  const refetchTodaySymptoms = useInvalidateTodaySymptomLog(profileId)
+  const todaySymptoms = todayLogQuery.data?.symptoms ?? []
+  const todayNote = todayLogQuery.data?.note ?? ''
+  const symptomsLoading = todayLogQuery.isLoading
 
   const chipScrollRef = useRef(null)
   const isLoading = guidesLoading
 
-  // ── 오늘의 증상 fetch ──
-  // GET /api/v1/daily-logs?profile_id=...&days=1
-  // 응답: list[DailySymptomLogResponse]
-  // 필드: { id, profile_id, log_date, symptoms: string[], note: string|null, created_at }
-  // 후속 정정: 다른 페이지/컴포넌트와 동일하게 axios 기반 `api` client 사용 (auth
-  // 헤더 자동 주입 + 일관된 에러 처리). 직접 fetch 제거.
-  const fetchTodaySymptoms = async () => {
-    if (!profileId) return
-    const today = new Date().toISOString().split('T')[0]
-    setSymptomsLoading(true)
-    try {
-      const res = await api.get('/api/v1/daily-logs', {
-        params: { profile_id: profileId, days: 1 },
-      })
-      const data = res.data || [] // list[DailySymptomLogResponse]
-      // days=1 이지만 혹시 어제 것도 포함될 수 있으니 오늘 날짜로 한 번 더 필터
-      const todayLog = data.find((log) => log.log_date === today)
-      setTodaySymptoms(todayLog?.symptoms ?? [])
-      setTodayNote(todayLog?.note ?? '')
-    } catch {
-      // 조용히 실패 — 카드 빈 상태로 표시
-    } finally {
-      setSymptomsLoading(false)
-    }
+  // ── 탭 전환 ────────────────────────────────────────────────────────
+  // 흐름: 탭 클릭 -> 활성 탭 갱신 -> 증상 탭이면 오늘 기록 재조회
+  // 재조회를 effect 가 아니라 이벤트 핸들러에서 하는 이유: 탭 전환은 사용자 행동이지
+  // 상태 동기화가 아니다(마운트 시 최초 조회는 쿼리 훅이 담당).
+  const handleSelectTab = (tabKey) => {
+    setActiveTab(tabKey)
+    if (tabKey === 'symptom') refetchTodaySymptoms()
   }
 
-  // 페이지 마운트 시 조회
-  useEffect(() => {
-    fetchTodaySymptoms()
-  }, [profileId])
+  // ── 표시할 가이드 선택 (렌더 중 파생) ───────────────────────────────
+  // 흐름: 사용자가 고른 가이드(ready) 우선 -> 없으면 최신 가이드 -> 그것도 아니면
+  //       목록에서 첫 ready -> 하나도 없으면 null
+  // 목록이 갱신돼 고른 가이드가 사라지면(삭제 등) 그 ID 를 되돌리는 대신 **무시**한다
+  // (effect 로 state 를 정리하면 렌더 한 번을 잘못된 값으로 흘려보내게 된다).
+  const pickedGuide = userPickedGuideId
+    ? guides.find((g) => g.id === userPickedGuideId && g.status === 'ready') || null
+    : null
+  const latestReadyGuide =
+    latestGuide && latestGuide.status === 'ready'
+      ? latestGuide
+      : guides.find((g) => g.status === 'ready') || null
+  const selectedGuide = pickedGuide || latestReadyGuide
 
-  // 증상 탭 진입 시 재조회
-  useEffect(() => {
-    if (activeTab === 'symptom') {
-      fetchTodaySymptoms()
-    }
-  }, [activeTab])
-
-  // 가이드가 바뀌면 챌린지 페이지를 1쪽으로 리셋 (사용자가 칩으로 다른 가이드 선택 등)
-  useEffect(() => {
+  // ── 가이드 전환 시 챌린지 페이지 리셋 (렌더 중 조정) ────────────────
+  // 흐름: 직전 가이드 ID 와 비교 -> 달라졌으면 첫 페이지로
+  // effect 로 하면 옛 페이지 번호가 한 번 렌더된 뒤에야 보정된다.
+  const selectedGuideId = selectedGuide?.id ?? null
+  const [pagedGuideId, setPagedGuideId] = useState(selectedGuideId)
+  if (pagedGuideId !== selectedGuideId) {
+    setPagedGuideId(selectedGuideId)
     setChallengePage(0)
-  }, [selectedGuide?.id])
+  }
 
   // ── guideChallenges ──
   const guideChallenges = (selectedGuide ? challengesByGuide(selectedGuide.id) : [])
@@ -293,33 +287,6 @@ function LifestyleGuideContent() {
   const firstReadyGuide = guides.find(g => g.status === 'ready') || null
   const isViewingHistory =
     !!selectedGuide && !!firstReadyGuide && selectedGuide.id !== firstReadyGuide.id
-
-  // ── selectedGuide 자동 보정 ──
-  useEffect(() => {
-    if (userPickedGuideId) {
-      const picked = guides.find(g => g.id === userPickedGuideId && g.status === 'ready')
-      if (picked) {
-        if (picked !== selectedGuide) setSelectedGuide(picked)
-        return
-      }
-      setUserPickedGuideId(null)
-      return
-    }
-
-    if (latestGuide && latestGuide.status === 'ready') {
-      if (selectedGuide?.id !== latestGuide.id || selectedGuide !== latestGuide) {
-        setSelectedGuide(latestGuide)
-      }
-      return
-    }
-
-    if (guides.length > 0) {
-      const firstReady = guides.find(g => g.status === 'ready')
-      setSelectedGuide(firstReady || null)
-    } else {
-      setSelectedGuide(null)
-    }
-  }, [latestGuide, guides, selectedGuide, userPickedGuideId])
 
   const eligibleGroups = (prescriptionGroups || []).filter((g) => g.has_active_medication)
   const hasEligibleGroup = eligibleGroups.length > 0
@@ -620,7 +587,7 @@ function LifestyleGuideContent() {
                 {TABS.map((tab) => (
                   <button
                     key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
+                    onClick={() => handleSelectTab(tab.key)}
                     className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                       activeTab === tab.key
                         ? `${tab.bg} ${tab.color}`
@@ -709,14 +676,10 @@ function LifestyleGuideContent() {
                         <p className="font-bold text-ink mb-1">지난 가이드를 보고 계셔요</p>
                         <p>오늘의 증상은 한 곳에서만 기록할 수 있어요. 최근 가이드에서 입력해주세요.</p>
                       </div>
+                      {/* 사용자 선택만 해제하면 파생 규칙이 최신 가이드로 되돌린다 */}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (firstReadyGuide) {
-                            setUserPickedGuideId(null)
-                            setSelectedGuide(firstReadyGuide)
-                          }
-                        }}
+                        onClick={() => setUserPickedGuideId(null)}
                         className="shrink-0 px-3 py-2 text-xs font-bold rounded-xl bg-orange-500 text-accent-ink hover:bg-orange-600 cursor-pointer"
                       >
                         최근 가이드로
@@ -727,7 +690,7 @@ function LifestyleGuideContent() {
                       profileId={profileId}
                       initialSymptoms={todaySymptoms}
                       initialNote={todayNote}
-                      onSaved={() => fetchTodaySymptoms()}
+                      onSaved={refetchTodaySymptoms}
                     />
                   )}
                 </div>
