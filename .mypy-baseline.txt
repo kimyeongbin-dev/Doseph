@@ -37,7 +37,6 @@ app/apis/v1/mock_oauth_routers.py:0: error: Missing type arguments for generic t
 app/apis/v1/mock_oauth_routers.py:0: error: Missing type arguments for generic type "dict"  [type-arg]
 app/apis/v1/mock_oauth_routers.py:0: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
 app/apis/v1/mock_oauth_routers.py:0: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
-app/apis/v1/oauth_routers.py:0: error: Argument "redirect_uri" to "OAuthConfigResponse" has incompatible type "str | None"; expected "str"  [arg-type]
 app/apis/v1/ocr_routers.py:0: error: Missing type arguments for generic type "dict"  [type-arg]
 app/apis/v1/profile_routers.py:0: error: Call to untyped function "ProfileService" in typed context  [no-untyped-call]
 app/core/redis_client.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]

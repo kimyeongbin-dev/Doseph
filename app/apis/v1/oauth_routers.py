@@ -168,15 +168,25 @@ async def get_kakao_oauth_config() -> OAuthConfigResponse:
         OAuthConfigResponse: ``authorize_url`` adapts to environment
         (local → mock server, dev/prod → real Kakao endpoint).
     """
-    # authorize_url: Browser must access external URL
-    # - local: Mock server (development convenience)
-    # - dev/prod: Actual Kakao server
+    # authorize_url: 브라우저가 직접 이동할 URL
+    # - local: mock IdP (개발·E2E 용 테스트 대역, 로컬 전용 등록)
+    # - dev/prod: 실제 카카오 서버
     if config.ENV == Env.LOCAL:
-        # local: Use mock server (FRONTEND_URL -> Next.js rewrites -> FastAPI)
-        authorize_url = f"{config.FRONTEND_URL}/api/v1/mock/kakao/authorize"
+        # 로컬은 독립 API 구조라 FE(:3000)에 API 프록시(rewrites)가 없다.
+        # 따라서 백엔드 주소(API_BASE_URL)로 직접 이동해야 한다.
+        authorize_url = f"{config.API_BASE_URL}/api/v1/mock/kakao/authorize"
     else:
         # dev/prod: Actual Kakao OAuth
         authorize_url = "https://kauth.kakao.com/oauth/authorize"
+
+    # KAKAO_REDIRECT_URI 는 ENV 기본값(local/dev) 또는 prod 기동 검증으로 항상 채워진다
+    # (app/core/config.py 의 apply_env_defaults / validate_production_secrets).
+    # 타입체커는 그 불변식을 알 수 없으므로 여기서 명시적으로 좁힌다(방어 계층 겸용).
+    if config.KAKAO_REDIRECT_URI is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="OAuth 설정이 완료되지 않았습니다.",
+        )
 
     # Generate signed state (CSRF protection)
     state = _generate_state()
