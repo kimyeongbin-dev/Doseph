@@ -151,9 +151,13 @@ function MainPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(true)
-  const [showSurvey, setShowSurvey] = useState(false)
+  // 설문 모달의 최초 표시 여부는 진입 URL 이 결정한다(effect 로 뒤늦게 켜지 않는다).
+  // 진입 경로는 카카오 콜백의 router.replace('/main?showSurvey=true') 뿐이며,
+  // 이때 main 은 새로 마운트되므로 초깃값으로 충분하다.
+  const [showSurvey, setShowSurvey] = useState(() => searchParams.get('showSurvey') === 'true')
   const [showChat, setShowChat] = useState(false)
-  const [activeChallenge, setActiveChallenge] = useState(null)
+  // 챌린지 랜덤 선택용 시드 — 마운트당 1회만 뽑아 렌더 중 파생을 순수하게 유지한다.
+  const [challengePickSeed] = useState(() => Math.random())
   const [greeting, setGreeting] = useState({ msg: '반가워요', sub: '오늘 하루도 건강하게 시작해봐요' })
 
   // [추가] 오늘의 증상 관련 상태 관리
@@ -182,10 +186,11 @@ function MainPageContent() {
     return () => clearTimeout(bgTimerRef.current)
   }, [currentBgIndex])
 
-  // 설문 팝업 쿼리 파라미터 감지
+  // ── 설문 진입 쿼리 정리 ────────────────────────────────────────────
+  // 흐름: ?showSurvey=true 로 진입 -> (모달은 이미 초깃값으로 열림) -> URL 에서 쿼리 제거
+  // 뒤로가기로 다시 설문이 뜨는 오염을 막기 위한 것. 상태가 아니라 URL(외부 시스템)만 건드린다.
   useEffect(() => {
     if (searchParams.get('showSurvey') === 'true') {
-      setShowSurvey(true)
       router.replace('/main', { scroll: false })
     }
   }, [searchParams, router])
@@ -232,15 +237,13 @@ function MainPageContent() {
     fetchData()
   }, [selectedProfileId])
 
-  // 진행 중 챌린지에서 랜덤 1개 — activeChallenges 갱신 시 자동 반영
-  useEffect(() => {
-    if (activeChallenges.length === 0) {
-      setActiveChallenge(null)
-      return
-    }
-    const random = activeChallenges[Math.floor(Math.random() * activeChallenges.length)]
-    setActiveChallenge(random)
-  }, [activeChallenges])
+  // ── 표시할 챌린지 선택 (렌더 중 파생) ───────────────────────────────
+  // 흐름: 진행 중 챌린지 목록 -> 마운트당 고정된 시드로 인덱스 계산 -> 1건 선택
+  // effect + setState 로 뽑으면 목록의 참조가 바뀔 때마다 재추첨되어 표시가 흔들린다.
+  const activeChallenge =
+    activeChallenges.length > 0
+      ? activeChallenges[Math.floor(challengePickSeed * activeChallenges.length)]
+      : null
 
   // main 페이지 진입 시 / 프로필 전환 시 OCR drafts 동기화.
   useEffect(() => {
