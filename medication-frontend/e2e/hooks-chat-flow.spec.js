@@ -55,18 +55,80 @@ test.describe('챗 모달 — 세션 초기화 / 메시지 로드', () => {
     ).toBeVisible({ timeout: 15_000 })
   })
 
-  test('세션이 있으면 그 세션의 메시지를 자동 로드한다 (G2·G3)', async ({ page }) => {
+  // ⚠️ 발신자 구분은 BE 의 `sender_type`(USER|ASSISTANT)으로 판정한다.
+  //    과거 이 mock 은 `role` 을 보내 모든 메시지가 assistant 로 렌더됐는데,
+  //    텍스트 존재만 단언해서 통과했다 — 매핑이 깨져도 초록인 구멍이었다.
+  //    관측 가능한 차이로 잠근다: user 는 원문 그대로, assistant 는 Markdown 렌더.
+  test('세션이 있으면 그 세션의 메시지를 발신자 구분대로 로드한다 (G2·G3)', async ({ page }) => {
     await stubChatApis(page, {
       sessions: [{ id: SESSION_ID, title: '테스트 세션', created_at: '2026-09-14T00:00:00Z' }],
       messages: [
-        { id: 'm1', role: 'user', content: '이 약 같이 먹어도 되나요', created_at: '2026-09-14T00:00:01Z' },
-        { id: 'm2', role: 'assistant', content: '고정된 mock 답변입니다', created_at: '2026-09-14T00:00:02Z' },
+        {
+          id: 'm1',
+          sender_type: 'USER',
+          content: '이 약 **같이** 먹어도 되나요',
+          created_at: '2026-09-14T00:00:01Z',
+        },
+        {
+          id: 'm2',
+          sender_type: 'ASSISTANT',
+          content: '고정된 **mock 답변**입니다',
+          created_at: '2026-09-14T00:00:02Z',
+        },
       ],
     })
     await openChat(page)
 
-    await expect(page.getByText('이 약 같이 먹어도 되나요')).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByText('고정된 mock 답변입니다')).toBeVisible()
+    // USER 메시지는 Markdown 을 거치지 않으므로 ** 가 그대로 보인다
+    await expect(page.getByText('이 약 **같이** 먹어도 되나요')).toBeVisible({ timeout: 15_000 })
+    // ASSISTANT 메시지는 Markdown 렌더 -> strong 엘리먼트가 생긴다
+    await expect(
+      page.locator('strong', { hasText: 'mock 답변' }),
+      'ASSISTANT 메시지는 Markdown 으로 렌더돼야 한다(발신자 매핑 확인)',
+    ).toBeVisible()
+  })
+
+  // 세션 전환은 activeSessionId 보정(G2)과 메시지 재로드(G3)가 함께 도는 경로다.
+  test('세션을 전환하면 그 세션의 메시지로 교체된다 (G2·G3)', async ({ page }) => {
+    const SECOND_ID = '55555555-5555-4555-8555-555555555555'
+    await page.route(`${API}/chat-sessions**`, async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { id: SESSION_ID, title: '첫 번째 세션', created_at: '2026-09-14T00:00:00Z' },
+          { id: SECOND_ID, title: '두 번째 세션', created_at: '2026-09-13T00:00:00Z' },
+        ]),
+      })
+    })
+    // 세션별로 다른 메시지를 돌려줘 "어느 세션의 메시지인지"가 관측 가능하게 한다
+    await page.route(`${API}/messages/session/**`, async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      const isSecond = route.request().url().includes(SECOND_ID)
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: isSecond ? 'b1' : 'a1',
+            sender_type: 'USER',
+            content: isSecond ? '두 번째 세션 메시지' : '첫 번째 세션 메시지',
+            created_at: '2026-09-14T00:00:01Z',
+          },
+        ]),
+      })
+    })
+
+    await openChat(page)
+
+    // 목록 첫 항목이 기본 활성 세션
+    await expect(page.getByText('첫 번째 세션 메시지')).toBeVisible({ timeout: 15_000 })
+
+    await page.getByText('두 번째 세션', { exact: true }).click()
+
+    await expect(page.getByText('두 번째 세션 메시지')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('첫 번째 세션 메시지')).toBeHidden()
   })
 
   test('메시지 조회가 실패해도 모달이 크래시하지 않는다', async ({ page }) => {
