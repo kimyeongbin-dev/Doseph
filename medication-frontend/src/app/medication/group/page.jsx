@@ -8,7 +8,7 @@
 // 정적 export 대응: 동적 세그먼트 [group_id] 대신 쿼리 파라미터(?group_id=)를 사용하며,
 // useSearchParams 는 <Suspense> 경계 안에서만 호출한다(CSR bailout 규정).
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ArrowLeft,
@@ -28,7 +28,10 @@ import { showError } from '@/lib/api'
 import BottomNav from '@/components/layout/BottomNav'
 import { useConfirm } from '@/components/common/ConfirmDialog'
 import MedicationDetailPanel from '@/components/medication/MedicationDetailPanel'
-import { usePrescriptionGroup } from '@/contexts/PrescriptionGroupContext'
+import {
+  usePrescriptionGroup,
+  usePrescriptionGroupDetail,
+} from '@/contexts/PrescriptionGroupContext'
 
 // 등록 경로 — 사용자에게 보일 한국어 라벨 매핑
 const SOURCE_LABEL = {
@@ -147,41 +150,24 @@ function PrescriptionGroupContent() {
   const router = useRouter()
   const confirm = useConfirm()
   const groupId = useSearchParams().get('group_id')
-  const {
-    groupsById,
-    fetchGroupDetail,
-    updateGroup,
-    markGroupCompleted,
-    deleteGroup,
-  } = usePrescriptionGroup()
+  const { updateGroup, markGroupCompleted, deleteGroup } = usePrescriptionGroup()
 
-  // detail 은 Context cache 로부터 derive — fetch 가 끝나면 cache 가 채워지며 자동 렌더.
-  const group = groupId ? groupsById[groupId] || null : null
-  const [isLoading, setIsLoading] = useState(!group)
-  const [error, setError] = useState(null)
+  // 상세 조회는 쿼리 계층이 단일 진실 — 로딩/에러를 페이지 state 로 복제하지 않는다.
+  // mutation 의 setQueryData/invalidate 결과도 같은 key 를 통해 그대로 반영된다.
+  const detailQuery = usePrescriptionGroupDetail(groupId)
+  const group = detailQuery.data || null
+  const isLoading = detailQuery.isLoading
+  const error = detailQuery.isError
+    ? detailQuery.error?.response?.status === 404
+      ? '처방전을 찾을 수 없어요.'
+      : '처방전을 불러오지 못했어요.'
+    : null
+
   const [editingField, setEditingField] = useState(null)
   const [draft, setDraft] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isCompleting, setIsCompleting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-
-  useEffect(() => {
-    if (!groupId) return
-    let cancelled = false
-    setIsLoading(true)
-    setError(null)
-    fetchGroupDetail(groupId, { forceRefresh: true })
-      .catch((err) => {
-        if (cancelled) return
-        setError(err?.response?.status === 404 ? '처방전을 찾을 수 없어요.' : '처방전을 불러오지 못했어요.')
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [groupId, fetchGroupDetail])
 
   const startEdit = (field) => {
     setDraft(group?.[field] || '')
@@ -263,13 +249,12 @@ function PrescriptionGroupContent() {
       router.push(`/medication/detail?id=${medicationId}`)
     }
   }
-  // 그룹의 약 list 가 갱신되면 선택된 약이 사라졌는지 체크 (삭제 등)
-  useEffect(() => {
-    if (!selectedMedicationId || !group?.medications) return
-    if (!group.medications.find((m) => m.id === selectedMedicationId)) {
-      setSelectedMedicationId(null)
-    }
-  }, [group?.medications, selectedMedicationId])
+  // 약이 삭제되면 선택 id 가 남아 있어도 가리키는 대상이 없다.
+  // state 를 effect 로 되돌리는 대신 렌더 중에 "유효한 선택"만 파생한다
+  // (남은 id 는 무해하게 버려지고, 다음 선택이 덮어쓴다).
+  const selectedMedication =
+    (selectedMedicationId && group?.medications?.find((m) => m.id === selectedMedicationId)) || null
+  const validSelectedId = selectedMedication?.id ?? null
 
   return (
     <main className="min-h-screen bg-surface-2 pb-24">
@@ -394,7 +379,7 @@ function PrescriptionGroupContent() {
                       key={m.id}
                       medication={m}
                       onClick={() => handleMedicationClick(m.id)}
-                      selected={m.id === selectedMedicationId}
+                      selected={m.id === validSelectedId}
                     />
                   ))
                 )}
@@ -404,7 +389,7 @@ function PrescriptionGroupContent() {
             {/* 우측 — 약품 상세 panel (lg+ 에서만 표시, 모바일은 별 페이지로 push) */}
             <div className="hidden lg:block bg-surface rounded-2xl border border-line p-5">
               <MedicationDetailPanel
-                medicationId={selectedMedicationId}
+                medicationId={validSelectedId}
                 onDeleted={() => setSelectedMedicationId(null)}
               />
             </div>

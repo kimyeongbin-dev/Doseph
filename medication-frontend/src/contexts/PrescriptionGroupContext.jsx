@@ -21,7 +21,30 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import api from '@/lib/api'
 import { useMedication } from '@/contexts/MedicationContext'
 import { useProfile } from '@/contexts/ProfileContext'
-import { qk } from '@/queries/keys'
+import { qk, STALE } from '@/queries/keys'
+
+// ── 처방전 상세 조회 fn (queryKey 공유자 전원이 같이 쓴다) ────────────
+// 흐름: groupId -> GET /prescription-groups/{id} -> 상세 객체
+// 같은 queryKey 에 여러 관찰자가 붙으면 나중에 등록된 쪽 queryFn 이 쓰이므로,
+// cache-only 관찰자(groupsByIdQueries)와 실제 조회 hook 이 같은 fn 을 공유해야
+// 등록 순서에 따라 동작이 달라지지 않는다.
+async function fetchGroupDetailRequest(groupId) {
+  const { data } = await api.get(`/api/v1/prescription-groups/${groupId}`)
+  return data
+}
+
+// ── 처방전 상세 query hook ───────────────────────────────────────────
+// 흐름: groupId -> useQuery(detail key) -> 캐시 히트면 즉시, 아니면 GET
+// 호출 페이지가 로딩/에러를 useState + useEffect 로 흉내 내지 않도록 쿼리 상태를
+// 그대로 넘긴다. 재시도 정책은 QueryProvider 기본값(4xx 즉시 실패)을 따른다.
+export function usePrescriptionGroupDetail(groupId) {
+  return useQuery({
+    queryKey: qk.prescriptionGroups.detail(groupId),
+    enabled: !!groupId,
+    queryFn: () => fetchGroupDetailRequest(groupId),
+    staleTime: STALE.prescriptionGroups,
+  })
+}
 
 export const PRESCRIPTION_SORT = Object.freeze({
   DATE_DESC: 'date_desc',
@@ -131,7 +154,7 @@ export function PrescriptionGroupProvider({ children }) {
         qc.invalidateQueries({ queryKey: qk.prescriptionGroups.detail(groupId) })
         return cached
       }
-      const { data } = await api.get(`/api/v1/prescription-groups/${groupId}`)
+      const data = await fetchGroupDetailRequest(groupId)
       qc.setQueryData(qk.prescriptionGroups.detail(groupId), data)
       return data
     },
@@ -196,11 +219,10 @@ export function PrescriptionGroupProvider({ children }) {
   const groupsByIdQueries = useQueries({
     queries: _groupsRaw.map((g) => ({
       queryKey: qk.prescriptionGroups.detail(g.id),
-      // detail 은 명시적 호출 시에만 fetch — 본 useQueries 는 cache 읽기 전용.
-      queryFn: async () => {
-        const cached = qc.getQueryData(qk.prescriptionGroups.detail(g.id))
-        return cached || null
-      },
+      // detail 은 명시적 호출 시에만 fetch — 본 useQueries 는 cache 읽기 전용
+      // (enabled:false 라 여기서 fn 이 돌지는 않지만, 같은 key 공유자와 fn 을
+      //  일치시켜 등록 순서에 따른 동작 차이를 없앤다).
+      queryFn: () => fetchGroupDetailRequest(g.id),
       enabled: false,
       // 캐시 미스 시 throw 방지.
       retry: false,
