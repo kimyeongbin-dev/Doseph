@@ -46,6 +46,58 @@
 
 ---
 
+### ChatModal — `components/chat/ChatModal.jsx`
+**역할**: AI 상담 모달. 좌측 세션 사이드바(생성/이름변경/삭제/전환) + 우측 대화 영역.
+`next/dynamic`(`ssr:false`)으로 지연 로드된다.
+
+#### ⚠️ 발신자 구분 계약 (이 컴포넌트에서 가장 자주 틀리는 지점)
+
+**BE 가 주는 필드명과 FE 내부에서 쓰는 필드명이 다르다.**
+
+| 경계 | 필드 | 값 |
+|---|---|---|
+| BE 응답 (`GET /messages/session/{id}`) | `sender_type` | `USER` \| `ASSISTANT` (`app/models/messages.py` 의 `SenderType`) |
+| FE 내부 상태 (`messages[]`) | `role` | `'user'` \| `'assistant'` |
+
+변환은 `loadMessagesForSession` 한 곳에서만 일어난다:
+```js
+role: m.sender_type === 'USER' ? 'user' : 'assistant'
+```
+
+이 구분이 화면에서 만들어 내는 **관측 가능한 차이**는 두 가지다:
+
+1. **정렬/색**: `user` 는 오른쪽 정렬 + accent 배경, `assistant` 는 왼쪽 + surface 배경.
+2. **렌더 방식**: `user` 는 **원문 그대로**(`whitespace-pre-wrap` 텍스트),
+   `assistant` 는 **`react-markdown` 을 통과**한다(LLM 이 Markdown 으로 답하므로).
+   → assistant 메시지의 `**굵게**` 는 `<strong>` 이 되고, user 메시지의 `**굵게**` 는
+   별표가 그대로 보인다.
+
+> 🔴 **실제 사고(2026-09-14)**: E2E mock 이 `role` 을 보내고 있었다. 컴포넌트는 `sender_type`
+> 을 보므로 **모든 mock 메시지가 assistant 로 렌더**됐는데, 테스트는 "텍스트가 보이는가"만
+> 단언해서 **초록이었다**. 매핑이 깨져도 잡히지 않는 구멍.
+> → mock 을 `sender_type` 으로 정정하고, 위 2번(Markdown 렌더 차이)을 단언해 잠갔다.
+> **교훈: mock 의 필드명이 실제 계약과 같은지 확인하고, 매핑 결과가 눈에 보이는 차이로
+> 드러나게 단언하라.** 텍스트 존재만 보는 단언은 매핑을 검증하지 못한다.
+
+`role` 은 화면 렌더 외에 **한 곳 더** 쓰인다 — `isPendingResponse`:
+```js
+displayMessages[displayMessages.length - 1].role === 'user'   // 마지막이 user = BE 응답 대기 중
+```
+모달을 닫았다 열어도 "답변 대기 중" 상태가 자동 인식되고 중복 전송이 막히는 근거가 이것이다.
+즉 **발신자 매핑이 틀어지면 렌더뿐 아니라 중복 전송 차단까지 깨진다.**
+
+#### 상태 구조 (2026-09-14 리팩터 후)
+- `messages` = 실제 대화 state. 서버 로드분 + 전송 중 낙관적 추가분이 한 배열에 있다.
+- `displayMessages` = 렌더용 **파생값**. 프로필 없음 / 세션 없음 안내는 state 로 들고 있지 않는다.
+- `effectiveSessionId` = 렌더 중 파생. Context 의 `activeSessionId` 가 현재 목록에 없으면
+  (삭제·프로필 전환) 첫 세션으로 물러난다. 낡은 id 를 effect 로 지우지 않고 **무시**한다.
+- 세션 동기화 effect는 **모달 열림 시 1회**(+재시도)만 돈다. 전환·생성·삭제는 각 이벤트
+  핸들러가 직접 메시지를 로드한다 — effect 가 `activeSessionId` 를 구독하면 전송 중
+  낙관적 메시지를 서버 목록으로 덮어쓴다.
+- GPS 토글(JIT opt-in): 세션이 바뀌면 hidden + OFF 로 리셋(G4, 잔여 경고 1건).
+
+---
+
 ## 2. 전역 상태(Context)
 
 ### ProfileContext — `contexts/ProfileContext.jsx`
