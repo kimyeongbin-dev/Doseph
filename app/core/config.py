@@ -113,6 +113,14 @@ class Config(BaseSettings):
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 14 * 24 * 60  # 14 days
     JWT_LEEWAY: int = 5
 
+    # ── Rate limit (IP 기준 요청 한도) ────────────────────────────────
+    # 기본값 = 운영 기준. 한 IP 에서 대량 요청이 정상인 환경(E2E 스위트 등)만
+    # env 로 올린다 — 코드는 그대로 두고 값만 환경별로 (12-factor Factor III).
+    # 관측 구간(윈도우 초)은 비교 가능성을 위해 코드 상수로 고정.
+    RATE_LIMIT_GET_MAX_REQUESTS: int = 200
+    RATE_LIMIT_MUTATION_MAX_REQUESTS: int = 30
+    RATE_LIMIT_AUTH_MAX_REQUESTS: int = 10
+
     # External API settings
     OPENAI_API_KEY: str | None = None
     DATA_GO_KR_API_KEY: str | None = None

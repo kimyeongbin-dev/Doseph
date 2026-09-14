@@ -71,12 +71,6 @@ app/main.py:0: note: "dict" is invariant -- see https://mypy.readthedocs.io/en/s
 app/main.py:0: note: "list" is invariant -- see https://mypy.readthedocs.io/en/stable/common_issues.html#variance
 app/main.py:0: note: Consider using "Mapping" instead, which is covariant in the value type
 app/main.py:0: note: Consider using "Sequence" instead, which is covariant
-app/middlewares/rate_limit.py:0: error: Call to untyped function "InMemoryRateLimitStore" in typed context  [no-untyped-call]
-app/middlewares/rate_limit.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-app/middlewares/rate_limit.py:0: error: Missing type arguments for generic type "Callable"  [type-arg]
-app/middlewares/rate_limit.py:0: error: Returning Any from function declared to return "Response"  [no-any-return]
-app/middlewares/rate_limit.py:0: error: Returning Any from function declared to return "Response"  [no-any-return]
-app/middlewares/rate_limit.py:0: note: Use "-> None" if function does not return a value
 app/middlewares/security.py:0: error: Missing type arguments for generic type "Callable"  [type-arg]
 app/middlewares/security.py:0: error: Returning Any from function declared to return "Response"  [no-any-return]
 app/repositories/account_repository.py:0: error: Incompatible types in assignment (expression has type "str | None", variable has type "str")  [assignment]

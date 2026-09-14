@@ -9,29 +9,29 @@ for various request types:
 Note: Redis-based storage is recommended for production environments.
 """
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 import logging
 import time
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.config import config
+
 logger = logging.getLogger(__name__)
 
 
 class RateLimitConfig:
-    """Rate limiting configuration settings."""
+    """Rate limiting window settings.
 
-    # 일반 GET 요청: 200 req / 60 sec per IP
-    GET_MAX_REQUESTS = 200
+    Request thresholds live in `Config` (RATE_LIMIT_*_MAX_REQUESTS) so a single
+    high-volume client (e.g. an E2E suite) can be accommodated by environment
+    rather than by editing code. Only the observation windows stay constant.
+    """
+
+    # 관측 구간은 환경과 무관하게 고정 — 한도만 env 로 조정한다.
     GET_WINDOW_SECONDS = 60
-
-    # 변경 요청 (POST/PATCH/DELETE): 30 req / 60 sec per IP
-    MUTATION_MAX_REQUESTS = 30
     MUTATION_WINDOW_SECONDS = 60
-
-    # 인증 관련 엔드포인트: 10 req / 60 sec per IP
-    AUTH_MAX_REQUESTS = 10
     AUTH_WINDOW_SECONDS = 60
 
     # Excluded paths (health checks, documentation, etc.)
@@ -56,7 +56,7 @@ class InMemoryRateLimitStore:
     Redis-based storage is recommended for production environments.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # key: (count, window_start_time)
         self._store: dict[str, tuple[int, float]] = {}
         self._last_cleanup = time.time()
@@ -121,7 +121,11 @@ _rate_limit_store = InMemoryRateLimitStore()
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Rate limiting middleware for request throttling."""
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         """Apply per-IP rate limit then forward to the next ASGI handler.
 
         Limits depend on path/method (auth strictest, mutations medium, GET lenient).
@@ -207,14 +211,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Authentication-related paths
         for prefix in RateLimitConfig.AUTH_PATH_PREFIXES:
             if path.startswith(prefix):
-                return RateLimitConfig.AUTH_MAX_REQUESTS, RateLimitConfig.AUTH_WINDOW_SECONDS
+                return config.RATE_LIMIT_AUTH_MAX_REQUESTS, RateLimitConfig.AUTH_WINDOW_SECONDS
 
         # Mutation requests
         if method in ("POST", "PATCH", "PUT", "DELETE"):
-            return RateLimitConfig.MUTATION_MAX_REQUESTS, RateLimitConfig.MUTATION_WINDOW_SECONDS
+            return (
+                config.RATE_LIMIT_MUTATION_MAX_REQUESTS,
+                RateLimitConfig.MUTATION_WINDOW_SECONDS,
+            )
 
         # Regular GET requests
-        return RateLimitConfig.GET_MAX_REQUESTS, RateLimitConfig.GET_WINDOW_SECONDS
+        return config.RATE_LIMIT_GET_MAX_REQUESTS, RateLimitConfig.GET_WINDOW_SECONDS
 
     def _get_path_category(self, path: str) -> str:
         """Get path category for rate limit key generation.
