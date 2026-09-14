@@ -175,6 +175,8 @@ jobs:
         if: steps.check_tests.outputs.has_tests == 'true'
         env:
           PYTHONPATH: "."
+          # ENV 는 필수값(기본값 없음 — fail-closed). CI 에는 .env 가 없으므로 명시 주입.
+          ENV: local
           DB_USER: postgres
           DB_PASSWORD: pw1234
           DB_HOST: localhost

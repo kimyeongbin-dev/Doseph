@@ -77,8 +77,14 @@ class Config(BaseSettings):
         extra="allow",
     )
 
-    # Environment settings
-    ENV: Env = Env.LOCAL
+    # ── 환경 선택 (필수 · fail-closed) ────────────────────────────────
+    # 기본값을 두지 않는다. 미설정 시 기동 단계에서 즉시 실패시키기 위함이다.
+    # 과거 기본값은 Env.LOCAL 이었는데, 이는 실패 방향이 잘못됐다(fail-open):
+    # .env 유실·이름 오타·env_file 로딩 실패 시 프로덕션이 조용히 local 로 부팅하고
+    #   (1) mock IdP 라우터가 등록되며 (2) prod 필수값 검증이 통째로 스킵된다.
+    # 안전한 기본값이 없는 설정은 "명시 필수"가 정답이다(OWASP Secure by Default /
+    # Fail Safe Defaults, 12-factor Config).
+    ENV: Env
     SECRET_KEY: str = _DEFAULT_SECRET_KEY
     TIMEZONE: zoneinfo.ZoneInfo = Field(default_factory=lambda: zoneinfo.ZoneInfo("Asia/Seoul"))
     TEMPLATE_DIR: str = str(Path(__file__).resolve().parent.parent / "templates")

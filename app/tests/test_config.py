@@ -5,6 +5,7 @@ Enforces 12-factor portability: production must inject public URLs via env
 must fail fast at startup rather than silently falling back to a stale default.
 """
 
+from pydantic import ValidationError
 import pytest
 
 from app.core.config import _ENV_URLS, Config, Env, docs_urls
@@ -23,9 +24,16 @@ _PROD_URLS = {
 }
 
 
-def _prod_config(**overrides: object) -> Config:
+def _prod_config(**overrides: str) -> Config:
     """Build a PROD Config isolated from any local .env file."""
-    return Config(_env_file=None, ENV=Env.PROD, **{**_PROD_SECRETS, **overrides})
+    # 동적 **kwargs 언패킹은 Pydantic 모델의 필드별 타입과 정적으로 대응시킬 수 없다
+    # (파라미터 후보마다 arg-type 오류가 하나씩 발생). 테스트 전용 헬퍼이고 값은
+    # 전부 str 이므로 이 한 줄만 명시적으로 무시한다.
+    return Config(
+        _env_file=None,
+        ENV=Env.PROD,
+        **{**_PROD_SECRETS, **overrides},  # type: ignore[arg-type]
+    )
 
 
 def test_prod_with_all_urls_ok() -> None:
@@ -52,6 +60,18 @@ def test_local_still_gets_localhost_defaults() -> None:
 
     assert cfg.API_BASE_URL == "http://localhost:8000"
     assert cfg.FRONTEND_URL == "http://localhost:3000"
+
+
+def test_env_is_required_and_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ENV 가 없으면 기동 실패(fail-closed).
+
+    과거 기본값 Env.LOCAL 은 실패 방향이 잘못됐다 — .env 유실 시 프로덕션이 조용히
+    local 로 부팅해 mock IdP 등록 + prod 필수값 검증 스킵으로 이어진다.
+    """
+    monkeypatch.delenv("ENV", raising=False)
+
+    with pytest.raises(ValidationError, match="ENV"):
+        Config(_env_file=None)
 
 
 def test_prod_env_urls_have_no_hardcoded_platform_defaults() -> None:

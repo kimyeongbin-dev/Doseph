@@ -39,13 +39,17 @@ cd medication-frontend && npm run dev          # http://localhost:3000
 
 ## 환경 구분 — `ENV` 한 줄
 
-| ENV | 용도 | 개발자 로그인 |
+| ENV | 용도 | 카카오 로그인 |
 |---|---|---|
-| `local` | 로컬 Docker | (백도어 제거됨 — 아래 주의) |
-| `dev` | 로컬 Docker, 카카오 로그인 실테스트 | — |
-| `prod` | 배포 환경 | — |
+| `local` | 로컬 Docker | **mock IdP**(테스트 대역). mock 라우터는 이때만 등록됨 |
+| `dev` | 로컬 Docker | 실제 카카오 서버(실테스트) |
+| `prod` | 배포 환경 | 실제 카카오 서버 |
 
 `.env` 의 `ENV` 와 `NEXT_PUBLIC_ENV` 를 같은 값으로 맞춘다.
+
+> ⚠️ **`ENV` 는 필수값이다(기본값 없음).** 미설정 시 앱이 기동 단계에서 실패한다.
+> 과거 기본값은 `local` 이었는데, 설정이 유실되면 프로덕션이 조용히 local 로 떠서
+> mock IdP 가 등록되고 prod 필수값 검증까지 건너뛰는 **fail-open** 구조였다.
 
 `ENV` 에 따라 백엔드(`app/core/config.py`)가 아래를 자동 적용한다:
 

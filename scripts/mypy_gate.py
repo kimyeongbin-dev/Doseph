@@ -1,7 +1,9 @@
 """MyPy 타입 게이트 (mypy-baseline 연동, CI·로컬 pre-push 공용).
 
-기존 919 오류를 baseline(`.mypy-baseline.txt`)으로 고정해 **신규 타입오류만 차단**하고
-(출혈 정지), 기존 오류는 모듈별로 점진 소각한다. CI(Linux)와 로컬(Windows)이 **같은
+기존 오류를 baseline(`.mypy-baseline.txt`)으로 고정해 **신규 타입오류만 차단**하고
+(출혈 정지), 기존 오류는 파일을 건드릴 때마다 그 자리에서 점진 소각한다(보이스카웃).
+주의: 도입 초기에 보이던 919 는 `python_executable="python"`(bare) 설정으로 의존성 타입을
+해석하지 못해 부풀려진 허수였고, 설정 정정 후의 실제 출발점은 379 였다. CI(Linux)와 로컬(Windows)이 **같은
 단일 스크립트**를 호출하도록 하여 게이트 동작을 일치시킨다(DRY).
 
 이식성 처리:
