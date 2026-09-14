@@ -11,10 +11,10 @@
 
 | 버전     | 테마                                | 크기  | 상태          | 종료 기준 (요약)                                         |
 | ------ | --------------------------------- | --- | ----------- | -------------------------------------------------- |
-| v2.0   | 무료 스택 재배포                          | 중-대 | 계획          | 외부 URL 한 줄로 full flow 동작 + 인프라 비용 0               |
-| v2.1   | Quick wins — 루트/문서/AI 지침 정리       | 소   | 대기 (v2.0)   | 루트 트래킹 항목 ≤ 20개 + 잔재 파일 0개                        |
-| v2.2   | 모노레포 구조 재설계 + 마이그레이션              | 중-대 | 대기 (v2.1)   | best example 비교 + 새 구조 적용 + CI/E2E green          |
-| v2.3   | 정상 동작 재확인 및 테스트 (회귀 안전망)          | 중   | 대기 (v2.2)   | 핵심 user flow 5종 E2E green + coverage ≥ 60%        |
+| v2.0   | 무료 스택 재배포                          | 중-대 | **✅ 완료**    | 외부 URL 한 줄로 full flow 동작 + 인프라 비용 0               |
+| v2.1   | Quick wins — 루트/문서/AI 지침 정리       | 소   | 🔄 부분 진행    | 루트 트래킹 항목 ≤ 20개 + 잔재 파일 0개                        |
+| v2.2   | 모노레포 구조 재설계 + 마이그레이션              | 중-대 | 대기          | best example 비교 + 새 구조 적용 + CI/E2E green          |
+| v2.3   | 정상 동작 재확인 및 테스트 (회귀 안전망)          | 중   | **🔄 진행 중** | 핵심 user flow 5종 E2E green + coverage ≥ 60%        |
 | v2.4   | 백엔드 성능 — 측정 + RAG/DB 핫스팟 개선       | 중   | 대기 (v2.3)   | 단계별 p50/p95 측정 + 핫스팟 1~3개 개선 수치 기록                |
 | v2.5   | 클린 코드 — Ruff ignore 해제 + 분할       | 소-중 | 대기 (v2.4)   | Ruff ignore ≥ 3개 해제 + 300줄 초과 파일 0개               |
 | v2.6   | FE UX 개선 — streaming / 모바일 / 접근성  | 중   | 대기 (v2.4)*  | Lighthouse mobile ≥ 90 + axe-core CI 통합           |
@@ -43,38 +43,51 @@ flowchart LR
 - 월 인프라 비용 = 0원 (LLM/OCR API 사용량분만 본인 부담)
 - 1~2년 단위로 만료/이주 부담 없는 always-free 스택
 
-### 후보 스택
-| 레이어             | 후보                                              | 비고                                                |
+### 채택 스택 (실제 결과)
+
+> 계획 단계의 후보는 Oracle ARM + Vercel + Upstash 였다. 조사·실측 과정에서 아래로 바뀌었다.
+> 당시 후보표 원본은 `docs-private/_legacy/2026-09-14_ROADMAP.snapshot.md` 에 보존.
+
+| 레이어             | 채택                                              | 후보와 달라진 이유                                        |
 | --------------- | ----------------------------------------------- | ------------------------------------------------- |
-| FE              | Vercel Hobby                                    | Next.js 15 first-class, 100GB/월 대역폭              |
-| BE / Worker     | Oracle Cloud Always Free (ARM Ampere A1, 4 vCPU + 24GB) | 진짜 평생 무료, Docker Compose 그대로 이식                 |
-| DB              | Neon (PostgreSQL 16 + pgvector)                 | free tier 0.5GB / 1 compute — pgvector·pg_trgm 지원 확인 |
-| Redis / Queue   | Upstash Redis                                   | free tier 10K cmd/day · 256MB — RQ 호환성 검증 필요     |
-| LLM             | OpenAI (기존)                                      | 본인 키, 사용량 과금                                      |
-| OCR             | CLOVA OCR (기존)                                  | 본인 키, 사용량 과금                                      |
-| Reverse Proxy   | Caddy on Oracle ARM (또는 Nginx 유지)               | Let's Encrypt 자동                                  |
-| Domain          | DuckDNS / Cloudflare Tunnel                     | 무료                                                |
+| FE              | **Cloudflare Pages** (정적 export)                 | Vercel → CF. 정적 export 라 Node 런타임 불필요, 같은 엣지에서 WAF·CSP 까지 일관 관리 |
+| BE / Worker     | **GCP Compute Engine e2-micro** (Always Free)     | Oracle 한국 리전 가입 불가. 대신 GCP 무료는 US 전용이라 리전 제약을 감수 |
+| DB              | **Neon** (PostgreSQL + pgvector, `us-west-2`)     | 후보 그대로. 단 **VM 리전과 co-location** 이 지연에 크게 작용      |
+| Redis / Queue   | **미사용**                                          | 배포 범위를 "로그인 경로"로 한정 → RQ 불필요(APScheduler 인프로세스). Upstash 검증은 보류 |
+| LLM / OCR       | OpenAI · CLOVA OCR (기존)                          | 변동 없음                                             |
+| Reverse Proxy   | **없음 — Cloudflare Tunnel**                       | Caddy/Nginx 불필요. 아웃바운드 터널이라 **인바운드 포트 0개**, 인증서 갱신(certbot)도 불필요 |
+| Domain          | **Cloudflare** (`doseph.com` / `api.doseph.com`)  | DuckDNS 대신 자체 도메인                                 |
 
 ### 작업 단계
-- [ ] Oracle Cloud Always Free 계정 + ARM 인스턴스 프로비저닝
-- [ ] Neon Postgres 인스턴스 + `pgvector` / `pg_trgm` extension 활성화 검증
-- [ ] Upstash Redis 연결 + RQ 호환성 검증 (free tier command 한계 측정)
-- [ ] `docker-compose.prod.yml` 환경변수 + 호스트 매핑 수정 (DB/Redis 외부화)
-- [ ] GitHub Actions `deploy.yml` 의 ghcr.io org를 본인 user namespace로 이전 (`ai-healthcare-02` → `kimyeongbin-dev`)
-- [ ] EC2 SSH deploy → Oracle ARM SSH deploy 로 secrets 교체
-- [ ] Vercel에 `medication-frontend` 배포 + API 도메인 환경변수 연결
-- [ ] aerich 마이그레이션 Neon에 1회 적용 + drug data seed (축소판 우선)
-- [ ] HTTPS + SSE long-poll 패스스루 검증
+- [x] GCP Always Free 인스턴스 프로비저닝 (`us-west1-b`)
+- [x] Neon Postgres + `pgvector` / `pg_trgm` 활성화 검증
+- [x] 배포용 compose 작성 (`docker-compose.gcp-login.yml` — DB 외부화, 인바운드 포트 0)
+- [x] GitHub Actions ghcr namespace 이전 (`kimyeongbin-dev`)
+- [x] SSH deploy 교체 — **WIF(keyless) + IAP 터널**, VM 은 pull 만(빌드 없음)
+- [x] Cloudflare Pages 에 `medication-frontend` 배포 + API 도메인 연결
+- [x] aerich 마이그레이션 Neon 적용 (배포마다 원샷 `migrate` 로 상시화)
+- [x] HTTPS 검증 (Cloudflare 종단) + 공개 health 200
+- [ ] SSE long-poll 패스스루 검증 (로그인 경로만 배포 중이라 미검증)
+- [ ] drug data seed (배포 범위 확대 시)
 - [ ] README §1 "서비스 화면" 섹션 채우기 (GIF + 데모 URL)
 
 ### Definition of Done
-- 외부 URL 한 줄로 full flow 동작
-- 월 청구액 = LLM / OCR API 사용량분만
-- README §1 서비스 화면 + 데모 URL 갱신
+- [x] 외부 URL 한 줄로 로그인 flow 동작
+- [x] 월 청구액 = LLM / OCR 사용량분만 (인프라 0원 — 예산 초과 시 VM 자동중지 킬스위치 구성)
+- [ ] README §1 서비스 화면 + 데모 URL 갱신
+
+### 배우고 넘어간 것
+- **Oracle 한국 리전 가입 불가**, GCP 무료는 US 전용 — "always free"라도 리전 제약이 설계를 바꾼다.
+- **VM↔DB co-location** 은 개선됐지만, 사용자·카카오가 한국이라 **체감 지연은 라우팅이 지배**한다.
+  (VM 을 아시아로 옮기거나 관리형 런타임으로 가는 선택지가 남아 있음)
+- **nginx 를 걷어낸 전환의 뒷정리를 빠뜨려** env 템플릿·문서가 낡은 채 남았고, 한참 뒤
+  로컬이 죽은 포트를 가리키는 형태로 터졌다 → 전환의 완료 기준을 코드가 아니라 설정·문서까지로.
 
 ### 리스크 / 미해결
-- Upstash free tier 10K cmd/day가 RQ broker 부하를 견디는지 사전 측정 — 한계 시 Redis self-host(Oracle ARM 컨테이너)로 fallback
-- Neon free tier 0.5GB로 `medicine_chunk` 33K + halfvec(3072d) embedding 용량 산정 — 한계 시 chunk 축소 또는 Supabase로 전환
+- e2-micro 1GB 메모리: uvicorn 워커 2개는 OOM crashloop → 단일 워커로 운영 중. 트래픽 증가 시 재검토.
+- 재배포 시 컨테이너 교체로 **약 40초 다운타임**. 무의미한 재배포는 CD 경로 필터로 제거했으나
+  무중단 배포(blue-green / rolling / 관리형 런타임)는 미해결.
+- Neon free tier 용량으로 `medicine_chunk` + halfvec(3072d) 산정 — RAG 배포 확대 시 재검토.
 
 ---
 
@@ -163,8 +176,16 @@ v2.0(인프라 교체) + v2.1/v2.2(구조 개편) 직후 회귀 위험이 가장
 - mypy strict 통과 영역 확대 (현재 `app.models.*`, `tests.*` 등 override 中)
 
 ### 작업 단계
-- [ ] 현 시점 coverage 측정 + baseline 기록 (`docs/v2.3_coverage_baseline.md`)
-- [ ] 핵심 user flow 5종 E2E 테스트 도입 (Playwright on Next.js)
+- [x] **MyPy baseline 게이트 도입** — 기존 오류를 고정하고 **신규 타입오류만 CI/로컬에서 차단**
+      (출혈 정지). 기존 오류는 파일을 건드릴 때마다 그 자리에서 소각(보이스카웃).
+      도입 초기 수치 919는 `python_executable` 오설정으로 부풀려진 허수였고, 정정 후 실제 379에서 출발.
+- [x] **프론트 컴포넌트 테스트 레이어 도입** — Vitest + React Testing Library(CI 연결).
+      페이지 흐름은 Playwright, 컴포넌트·컨텍스트 세부는 Vitest 로 층 분리.
+- [x] **Playwright 인증 E2E 복구** — 개발자 로그인 백도어 제거로 죽어 있던 setup 을
+      **mock IdP 로 실제 로그인 흐름을 태우는 방식**으로 재작성(콜백·세션발급·쿠키는 진짜 경로).
+- [x] 리팩터 안전망으로 컴포넌트/컨텍스트 특성화 테스트 24종 확보
+- [ ] 현 시점 coverage 측정 + baseline 기록
+- [ ] 핵심 user flow 5종 E2E 확대 (현재 인증·라우팅·스모크까지)
 - [ ] 백엔드 비즈니스 로직 단위 테스트 보강 (intent / RAG / OCR 파이프라인 우선)
 - [ ] CI에 coverage threshold gate 추가 (60% → 점진 ↑)
 - [ ] aerich downgrade / upgrade 양방향 smoke test (CI)

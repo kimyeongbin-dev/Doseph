@@ -118,15 +118,22 @@ flowchart TD
 
 ### Frontend
 
-- Next.js 15 · React
+- Next.js 16 · React 19 (JavaScript/JSX)
+- 정적 export (`output: 'export'`)
 - TanStack Query v5
+- Vitest + React Testing Library · Playwright
 
 ### Infra
 
-- Docker Compose (dev / prod 분리)
-- Nginx (reverse proxy)
-- AWS EC2 (팀 시점, 현재 종료 → v2.x에서 무료 스택으로 마이그레이션 예정)
-- GitHub Actions CI/CD
+- Docker Compose (로컬 / 배포 분리)
+- **Cloudflare Pages** (프론트) · **Cloudflare Tunnel** (API 인그레스, TLS 종단)
+- **GCP Compute Engine e2-micro** (백엔드, Always Free)
+- **Neon PostgreSQL** (관리형, pgvector)
+- GitHub Actions CI/CD — ghcr 이미지 빌드 후 VM 은 pull 만, WIF keyless + IAP
+- 인바운드 포트 0개(아웃바운드 터널), nginx·certbot 없음
+
+> 팀 프로젝트 시점에는 AWS EC2 + Nginx + Vercel 구성이었다. EC2 종료 후
+> 무료 스택으로 재배포하면서 위 구성으로 옮겼다(§6).
 
 ---
 
@@ -305,10 +312,19 @@ flowchart TD
 
 팀 작업이 끝난 뒤에도 "이건 다음에 꼭 다시 보자" 싶었던 것들이 남았다. v2.x로 버전을 끊어서 차근차근 개선하는 중. 각 버전 시작 전에는 `PLAN_v2_X.md`로 사전 설계.
 
-- **v2.0 — 일단 다시 띄우기.** 팀 시점에 쓰던 EC2가 종료돼서, 무료 스택(Oracle Cloud ARM + Vercel + Neon + Upstash)으로 옮겨서 다시 살리기.
+- **v2.0 — 일단 다시 띄우기. ✅ 완료.** 팀 시점에 쓰던 EC2가 종료돼서 무료 스택으로 재배포.
+  처음 후보는 Oracle Cloud ARM + Vercel + Upstash 였는데, 실제로는
+  **GCP e2-micro(Always Free) + Cloudflare Pages/Tunnel + Neon** 으로 갔다.
+  Oracle 은 한국 리전 가입이 막혀 있었고, Cloudflare Tunnel 을 쓰면 **인바운드 포트를 0개**로
+  둘 수 있어 공인 IP·인증서 갱신(certbot) 자체가 필요 없어졌다. 로그인 경로만 필요한 단계라
+  Redis(Upstash)도 아직 쓰지 않는다.
 - **v2.1 — Quick wins.** 루트에 남은 팀 시점 잔재(`PLAN_*.md`, `.sql` dump, `.pem`, 로그) 정리. AI 에이전트 지침(CLAUDE/AGENTS/GEMINI) 단일 source로 묶기.
 - **v2.2 — 모노레포 구조 재설계.** 2026 기준 best example 참조해서 디렉토리 layout 갱신. `app/core` ↔ `ai_worker/core` 중복도 같이 정리.
-- **v2.3 — 회귀 안전망.** v2.0~v2.2 직후라 가장 위험한 구간. 핵심 user flow 5종 Playwright E2E + 백엔드 coverage 60% + mypy strict 확대.
+- **v2.3 — 회귀 안전망. 🔄 진행 중.** v2.0~v2.2 직후라 가장 위험한 구간.
+  현재까지: **MyPy baseline 게이트**(신규 타입오류만 차단, 기존은 파일 건드릴 때마다 점진 소각),
+  **Vitest + RTL 컴포넌트 테스트 레이어 도입**, **Playwright E2E 인증 복구**
+  (개발자 로그인 백도어를 제거한 뒤 mock IdP 로 실제 로그인 흐름을 태우는 방식으로 전환).
+  남은 것: 페이지 단위 E2E 확대, 백엔드 coverage 목표치.
 - **v2.4 — 백엔드 성능.** 단계별 p50/p95 측정 인프라부터 깔고, 핫스팟 1~3개 개선. halfvec HNSW 튜닝 + N+1 정리.
 - **v2.5 — 클린 코드.** 현재 `pyproject.toml` 에 ignore된 룰 점진 해제. 300줄 초과 파일 분할. per-file ignore 해소.
 - **v2.6 — FE UX.** SSE streaming UX, 모바일 반응형, 접근성(axe-core), Lighthouse mobile ≥ 90.
@@ -331,7 +347,7 @@ flowchart TD
 
 LLM 응답 일관성은 **Structured Output + Tool Calling**으로 잡았다. 자유 텍스트 응답을 JSON 스키마로 강제하면서 프런트엔드의 응답 처리·검증 코드가 단순해졌고, 인용 메타도 안정적으로 따라붙었다.
 
-스트리밍은 WebSocket 대신 **SSE long-poll**로. 인프라가 한 단계 단순해졌고 (Nginx만 거치면 됨), 모바일 환경에서도 안정적이었다.
+스트리밍은 WebSocket 대신 **SSE long-poll**로. 인프라가 한 단계 단순해졌고(당시 구성에선 Nginx만 거치면 됐다), 모바일 환경에서도 안정적이었다. 이후 재배포에서 Nginx를 걷어내고 Cloudflare Tunnel로 옮겼는데, SSE가 일반 HTTP 응답이라 이때도 프로토콜 전환 비용이 없었던 게 뒤늦게 이득이었다.
 
 ### 협업에서 배운 것
 
@@ -343,7 +359,8 @@ LLM 응답 일관성은 **Structured Output + Tool Calling**으로 잡았다. �
 
 - **정량 지표를 처음부터 측정**하기. RAG p50, OCR 매칭 정확도, halfvec 도입 전후 메모리 절감 % 등을 측정 인프라 같이 깔고 시작했어야 했다. v2.4(백엔드 성능) 단계에서 측정 인프라부터 깔고 핫스팟을 잡을 계획.
 - **테스트 커버리지를 처음부터**. 마지막 주에 회귀 잡느라 시간을 많이 썼다.
-- **배포 환경을 처음부터 무료/저비용 스택으로**. EC2가 종료된 지금 다시 띄우려면 또 손이 간다 — v2.x에서 Oracle ARM + Vercel + Neon + Upstash 조합으로 갈 예정.
+- **배포 환경을 처음부터 무료/저비용 스택으로**. EC2가 종료되고 나서 다시 띄우는 데 손이 많이 갔다. v2.0에서 GCP Always Free + Cloudflare + Neon 조합으로 옮기며 해결했지만, 처음부터 이렇게 잡았으면 그 비용을 안 썼을 것이다.
+- **"전환을 끝냈다"의 기준을 코드가 아니라 설정·문서까지로**. nginx를 걷어내고 API 직결로 바꿨는데 env 템플릿과 문서를 같이 고치지 않아, 한참 뒤에 로컬이 죽은 포트를 가리키는 형태로 터졌다. 코드만 바꾼 전환은 아직 끝난 게 아니라는 걸 이때 배웠다.
 
 ---
 
