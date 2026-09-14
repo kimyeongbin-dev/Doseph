@@ -25,7 +25,7 @@ from app.repositories.profile_repository import ProfileRepository
 class ProfileService:
     """Profile business logic service for user profile management."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.repository = ProfileRepository()
         self.medication_repository = MedicationRepository()
         self.challenge_repository = ChallengeRepository()
