@@ -133,9 +133,15 @@ E2E_TARGET=dev npx playwright test e2e/p1-routing.spec.js --project=authed
 | `hooks-chat-flow.spec.js` | 챗 세션 생성·전환·삭제·발신자 구분(G1~G3) — LLM 고정 | 무 |
 | `hooks-challenge-card.spec.js` | main 활성 챌린지 카드의 구조적 계약(B2) | 시드 챌린지 |
 | `hooks-mypage-stats.spec.js` | 마이페이지 통계 3종 렌더 + 진행 챌린지 수 일치(E1·E2) | 시드 챌린지 |
+| `query-error-surfacing.spec.js` | 목록 조회 실패가 빈 상태가 아닌 **에러 상태**로 렌더 + 재시도 복구(1-d) | 시드 복약·챌린지 |
+| `silent-failure-surfacing.spec.js` | 통계 실패 시 숫자를 지어내지 않음 · 챗 초기화 실패 시 재시도 UI 도달(1-e) | 백엔드 필요 |
+
+> 위 두 스펙은 `helpers/query-failure.js` 로 **429 를 주입**한다(4xx 는 재시도 없이 즉시
+> 실패 → 결정적·빠름). `helpers/` 는 `testMatch` 에 걸리지 않아 스펙으로 수집되지 않는다.
 
 > `navigation.spec.js` 는 `data-testid="prescription-card"`, `data-testid="medication-item"` 를
 > 선택자로 사용한다(테스트가 먼저 참조하는 인터페이스).
+> 실패 표면화 스펙은 `data-testid="error-state"`(ErrorState) 를 앵커로 쓴다.
 
 ---
 
