@@ -1,7 +1,9 @@
 # [TECH DEBT] E2E 인증 전략 부재 — dev 로그인 백도어 제거로 `auth.setup.js` 무효화
 
 > 🗓️ 발견: 2026-09-14 (6C 안전망 준비 중 Playwright setup 실행에서 드러남)
-> 📌 상태: **미해결** — 인증이 필요한 Playwright 스펙 전부 실행 불가
+> ✅ 상태: **해결 (2026-09-14)** — 채택안 A(mock IdP + 진짜 콜백)로 `auth.setup.js` 재작성(`067c25e`).
+> 인증이 필요한 Playwright 스펙이 정상 실행된다(현재 **55 passed · 0 skipped**).
+> 이 문서는 선택 근거·대안 비교의 이력 보존용이다.
 > 🎯 목표: 앱에 백도어를 되살리지 않으면서 E2E 가 인증 세션을 얻는 방법 확립
 
 ---
@@ -55,13 +57,14 @@ mock IdP 는 있었지만 두 가지가 막고 있었고, 2026-09-14 에 해소�
 
 > 개념 정리(IdP/RP, OAuth vs OIDC, 대역 위치 선정 근거): `docs-private/study/idp-oauth-oidc.md`
 
-## 처리 조건
+## 처리 조건 (전부 충족)
 
-1. A 안 채택 시 **앱 코드 변경 없이 테스트 하네스만** 수정(백도어 재도입 금지).
-2. 토큰 생성은 테스트 전용 유틸로 격리하고, 쿠키 속성(HttpOnly·SameSite·domain)을 실제 로그인과 동일하게 맞춘다.
-3. 완료 후 `e2e/README.md` 의 문제 해결 항목과 본 문서를 갱신한다.
+1. ✅ **앱 코드 변경 없이 테스트 하네스만** 수정 — 백도어를 되살리지 않았다.
+2. ✅ 쿠키 속성은 실제 로그인과 동일하다 — **토큰을 위조하지 않고** mock IdP 의 code 를 진짜 콜백에
+   넘겨 BE 가 세션을 발급하게 했기 때문이다(콜백·토큰교환·userinfo 매핑·가입·쿠키 발급이 전부 실코드).
+3. ✅ `e2e/README.md` 의 문제 해결 항목과 본 문서를 갱신했다.
 
 ## 연결
-- 6C(react-hooks effect 리팩터)의 **Playwright 흐름 층 선결 조건**.
-  컴포넌트/컨텍스트 층 안전망은 이미 확보됨(`medication-frontend/__tests__/`).
-  계획: `docs-private/PLAN_FE_HOOKS_EFFECT.md`
+- 6C(react-hooks effect 리팩터)의 **Playwright 흐름 층 선결 조건이었고, 해소되어 6C 가 완주했다**
+  (32건 전건 해소 + 3규칙 error 승격). 원장: `docs/tech-debt/frontend-react-hooks-effect-refactor.md`
+- 안전망 작성 규칙 정본: `docs/TESTING_SAFETY_NET_RULES.md` (§5 = 대역을 어디에 둘 것인가)

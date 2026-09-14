@@ -1,7 +1,8 @@
 # 프론트엔드 컴포넌트·컨텍스트 역할 레퍼런스 (Doseph)
 
-> 🗓️ 작성 2026-09-14 · 6C(react-hooks effect 리팩터) 안전망 작업 중, 대상 컴포넌트가
-> "이 앱에서 실제로 무슨 일을 하는가"를 정리. 리팩터 시 동작 보존 기준으로 참조.
+> 🗓️ 작성 2026-09-14 · 6C(react-hooks effect 리팩터) 안전망 작업 중 정리 · **갱신 2026-09-14(6C 완료 반영)**
+> 각 컴포넌트가 "이 앱에서 실제로 무슨 일을 하는가"를 정리한 문서. 리팩터 시 동작 보존 기준으로 참조.
+> 아래 "6C 처리 결과" 줄은 **실제로 어떻게 처리했는지**의 기록이다(32건 전건 해소).
 > 대상 파일 경로는 `medication-frontend/src/` 기준.
 
 이 문서는 6C 리팩터 대상(또는 인접) 컴포넌트/컨텍스트의 **역할**만 다룬다. 코딩 규칙은
@@ -19,7 +20,7 @@
   오버라이드와 연동) + `localStorage` 저장.
 - 마운트 전엔 아이콘 없는 자리표시자만 렌더(SSR/CSR 하이드레이션 불일치 방지). FOUC 방지
   인라인 스크립트는 `layout` head 에 별도로 있음.
-- 6C 리팩터 방향(L1): 외부 스토어(localStorage/OS) 구독이므로 `useSyncExternalStore` 정석.
+- 6C 처리 결과(L1) ✅: 외부 스토어(localStorage/OS) 구독이라 **`useSyncExternalStore`** 로 전환(`41b63f1`).
 
 ### TimeSlotPicker — `components/medication/TimeSlotPicker.jsx`
 **역할**: 약 **한 개**의 복약 시간대 토글 피커. 슬롯 = 아침(08:00)/점심(13:00)/저녁(19:00)/취침(21:00).
@@ -34,7 +35,7 @@
   `intake_times` 없는 약은 "복약 시간 미설정" 섹션에 모음.
 - 마운트 시 오늘 `intake-logs` 조회 → `TAKEN` 상태를 완료 표시(진행률 바 + n/m 완료).
 - 체크(복용 기록 `POST` + `/take`)·언체크(`DELETE`)·"전체 완료"(블록 일괄) 지원.
-- 6C 리팩터 방향(K1): 로그 조회 effect. 외부 데이터 동기화라 정당화 유지 후보.
+- 6C 처리 결과(K1) ✅: 서버 상태라 **TanStack Query 이관**(`6707ab2`). 이후 공유 훅 `@/queries/intakeLogs` 로 추출(`e5af3ab`) — 마이페이지 통계와 같은 키를 보게 되어 queryFn 을 한 곳으로 모았다.
 
 ### MedicineNameAutocomplete — `components/medication/MedicineNameAutocomplete.jsx`
 **역할**: 약품명 실시간 자동완성 입력(약 등록/편집 폼).
@@ -42,7 +43,7 @@
   (백엔드 pg_trgm fuzzy 매칭, 최대 8건) → dropdown.
 - 키보드 ↑/↓/Enter/Esc 지원. `react-hook-form` 의 `Controller` 와 **제어형(controlled)** 으로 사용.
 - 마운트 시 prefilled value(OCR 결과 자동 채움 등)는 조회 스킵(사용자 typing 시에만 조회).
-- 6C 리팩터 방향(I1): 입력 파생 상태 → 렌더 계산/이벤트 정리 검토.
+- 6C 처리 결과(I1) ✅: **이벤트 기반 전환**(onChange 에서 debounce 시작). effect 흉내내던 ref 2개 제거(`5e3ca01`).
 
 ---
 
@@ -94,7 +95,7 @@ displayMessages[displayMessages.length - 1].role === 'user'   // 마지막이 us
 - 세션 동기화 effect는 **모달 열림 시 1회**(+재시도)만 돈다. 전환·생성·삭제는 각 이벤트
   핸들러가 직접 메시지를 로드한다 — effect 가 `activeSessionId` 를 구독하면 전송 중
   낙관적 메시지를 서버 목록으로 덮어쓴다.
-- GPS 토글(JIT opt-in): 세션이 바뀌면 hidden + OFF 로 리셋(G4, 잔여 경고 1건).
+- GPS 토글(JIT opt-in): 세션이 바뀌면 hidden + OFF 로 리셋. 6C 처리 결과(G4) ✅: effect → **렌더 중 조정**(`ad5c8c7`). E2E 는 `/messages/ask` 를 `202 + action=request_geolocation` 으로 고정해 토글 등장을 관측한다.
 
 ---
 
@@ -108,7 +109,7 @@ displayMessages[displayMessages.length - 1].role === 'user'   // 마지막이 us
   `SELF`(본인) 프로필로 폴백 → 첫 프로필 순. `localStorage('selectedProfileId')` 동기화.
 - CRUD 는 `useMutation`, 성공 시 list 캐시 직접 patch. 삭제 시 연관 도메인 캐시(처방전/복약/
   가이드/챌린지/챗/OCR) invalidate(BE cascade 동기화). `RELATION_LABELS` 등 상수 제공.
-- 6C 리팩터 방향(P1/P2): 선택 정합 effect. 폴백 체인이 까다로워 안전망 선점 필수.
+- 6C 처리 결과(P1/P2) ✅: 한 effect 가 겸하던 "선택 보정"과 "localStorage 반영"을 분리 — 보정은 **렌더 중 파생**, 저장만 effect(state 미변경)(`d57946a`).
 
 ---
 
