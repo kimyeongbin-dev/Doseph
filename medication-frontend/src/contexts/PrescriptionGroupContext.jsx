@@ -100,7 +100,9 @@ export function PrescriptionGroupProvider({ children }) {
       return data || []
     },
   })
-  const _groupsRaw = listQuery.data || []
+  // `data || []` 를 그대로 쓰면 data 가 undefined 인 구간(로딩·에러)에서 매 렌더
+  // 새 배열이 만들어져 아래 sort/filter useMemo 사슬이 통째로 재계산된다.
+  const _groupsRaw = useMemo(() => listQuery.data || [], [listQuery.data])
   const isLoading = listQuery.isLoading
 
   // medication active count 변화 시 list query invalidate — 그룹 라벨 동기화.
