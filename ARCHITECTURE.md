@@ -185,6 +185,21 @@ PostgreSQL Database
 
 ## RAG Layer (app/services/rag/)
 
+> 🔴 **이 절(파이프라인·스키마·교체 절차)과 아래 "AI Worker Architecture" 절은 낡았다 — 근거로 인용하지 말 것.**
+> 서비스가 아직 **로그인 경로 안정화 구간**이라 RAG 계열은 의도적으로 뒤에 둔 상태다(2026-09-15 판단).
+> 이 문서는 `CLAUDE.md` §4.1 이 *"여기 정의된 구조를 엄격히 따르라"* 고 지시하는 대상이므로,
+> **따르면 안 되는 절**임을 여기 명시한다.
+>
+> | 이 절이 말하는 것 | 실측 (2026-09-15) |
+> |---|---|
+> | `ko-sroberta-multitask` · 768차원 · SentenceTransformer | `app/services/rag/config.py` = **`text-embedding-3-large` · 3072** |
+> | `HNSW(m=16, ef_construction=64)` 인덱스가 있다 | **벡터 인덱스 0개** (btree 5 · gin 5). 컬럼은 `halfvec(3072)`, `medicine_chunk` **0행** — *만들 수 있음*은 `test_db_vector.py` 가 검증하지만 *만들어져 있지는 않다* |
+> | `providers/sentence_transformer.py` | 그 파일 없음 |
+> | AI Worker 가 `medicines.json` 이름 매칭으로 RAG 수행 | 실제 RAG 는 `medicine_chunk` 벡터 검색 |
+>
+> 갱신은 RAG 구간에 착수할 때 그 PLAN 의 `affects` 로 처리한다.
+> 등재 = `docs-private/DOC_TRUTH_DRIFT.md` §B-1.
+
 ### Pipeline Flow
 ```
 ChatModal
@@ -485,7 +500,7 @@ registered only when `ENV=local` and additionally refuses to serve in any other 
 | **Frontend** | Next.js + React (JavaScript/JSX) | 16 / 19 | Static export (`output: 'export'`) |
 | **FE hosting** | Cloudflare Pages | - | Static hosting + CDN (`doseph.com`) |
 | **Backend** | FastAPI | 0.128+ | Python 3.13 async API server |
-| **Database** | Neon PostgreSQL (+pgvector) | 15 | Managed relational + vector store |
+| **Database** | Neon PostgreSQL (+pgvector 0.8.0) | **17** | Managed relational + vector store (prod 17.11 measured 2026-09-15) |
 | **Cache/Queue** | Redis | Alpine | RQ broker, cache (**local stack only**) |
 | **ORM** | Tortoise ORM | 0.25+ | Async Python ORM |
 | **Migrations** | aerich | 0.9+ | Applied by a one-shot `migrate` service |
