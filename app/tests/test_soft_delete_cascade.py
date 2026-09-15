@@ -40,7 +40,7 @@ class TestAccountWithdrawalFailure:
     @pytest.mark.asyncio
     async def test_delete_account_raises_500_on_failure(self) -> None:
         """cascade 도중 예외 → HTTPException 500 으로 변환."""
-        account = MagicMock(id=uuid4(), deleted_at=None)
+        account = MagicMock(id=uuid4())
         service = self._build_oauth_service(account)
         service.account_repo.delete = AsyncMock(side_effect=RuntimeError("boom"))
 

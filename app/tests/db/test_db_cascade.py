@@ -5,15 +5,18 @@
 만 본다. 구현을 복사한 tautological 테스트라, 정책이 틀려도 호출 순서만 같으면
 초록이다.
 
-정책이 **조건부**라 이게 특히 위험하다:
+삭제가 **연쇄**라 이게 특히 위험하다:
 
     처방전 그룹 삭제
       -> 그 프로필의 활성 가이드 정리
-         -> 미시작 챌린지(is_active=False)  : soft delete
-         -> 활성/완료 챌린지(is_active=True): guide_id 만 끊고 **보존**
+         -> 그 가이드에서 나온 챌린지 전부 함께 삭제 (진행 중·완료분 포함)
+         -> 사용자가 직접 만든 챌린지(guide_id IS NULL)는 영향 없음
 
-"사용자가 이미 진행한 것은 남긴다"는 제품 결정이고, 코드만 읽어선 확신이 안 선다.
+한 번의 DELETE 가 FK 를 타고 어디까지 번지는지는 코드만 읽어선 확신이 안 선다.
 게다가 FE 가 이 동작에 기대어 캐시를 invalidate 한다.
+
+⚠️ 2026-09-15(QA-01): 여기 적혀 있던 *"미시작은 soft delete, 진행분은 guide_id 만 끊고
+보존"* 은 **더 이상 사실이 아니다.** soft delete 는 폐지됐고 진행분도 함께 삭제된다.
 
 여기서는 행을 실제로 만들고 지운 뒤 **남았는가/사라졌는가**를 본다.
 """
@@ -53,9 +56,9 @@ pytestmark = [pytest.mark.db, pytest.mark.asyncio(loop_scope="session")]
 
 
 # ── 처방전 그룹 삭제 -> 약이 함께 정리되는가 ─────────────────────────
-# 흐름: 계정/프로필/그룹/약 생성 -> 그룹 삭제 -> 약이 soft delete 됐는지 직접 확인
-async def test_deleting_prescription_group_soft_deletes_its_medications(db: None) -> None:
-    """Deleting a prescription group must soft-delete its medications."""
+# 흐름: 계정/프로필/그룹/약 생성 -> 그룹 삭제 -> 약 행이 사라졌는지 직접 확인
+async def test_deleting_prescription_group_removes_its_medications(db: None) -> None:
+    """Deleting a prescription group must physically remove its medications."""
     account = await create_account()
     profile = await create_profile(account)
     group = await create_prescription_group(profile)
@@ -258,7 +261,7 @@ async def test_self_profile_cannot_be_deleted_directly(db: None) -> None:
 
 # ── 세션 삭제 -> 메시지 ───────────────────────────────────────────────
 async def test_deleting_chat_session_cascades_to_messages(db: None) -> None:
-    """Deleting a chat session must soft-delete its messages."""
+    """Deleting a chat session must physically remove its messages."""
     account = await create_account()
     profile = await create_profile(account)
     session = await create_chat_session(account, profile)

@@ -1,0 +1,103 @@
+# 폐기된 개념의 어휘 사전 — `scripts/check_comment_staleness.py` 가 읽는다.
+#
+# 왜 이 파일이 있나
+# -----------------
+# 개념을 폐기하면 코드는 바뀌는데 **그 개념을 말하는 문장은 저장소 곳곳에 남는다.**
+# QA-01 이 soft delete 를 폐지한 뒤 거짓 문장 57줄이 남았고, 실측 결과 그중
+# **47줄(82%)** 이 폐기된 *어휘*만으로 검출됐다. 가장 싸고 가장 잘 잡는 수단이다.
+#
+# 쓰는 법
+# -------
+# 개념을 폐기할 때 [[banned]] 에 그 어휘를 등록한다. 그 순간부터 저장소 어디서든
+# 그 단어가 나오면 push 가 막힌다. 정당한 사용은 [[allow]] 에 **사유와 함께** 넣는다.
+# 사유가 없으면 로드 자체가 실패한다 — 사유 없는 허용목록은 곧 통과 기계가 된다.
+#
+# ⚠️ 한계: 이 사전은 **폐기된 어휘**만 잡는다. "유예 7일" 이 14일로 바뀌었는데 주석은
+# 7일인 경우처럼 **값이 어긋난 것은 못 잡는다** — 그건 상수와 테스트가 잠근다
+# (예: `test_default_grace_period_is_seven_days`).
+
+[[banned]]
+word = "soft delete"
+reason = "QA-01(2026-09-15)에서 soft delete 를 전면 폐지하고 deleted_at 컬럼 7개를 드롭했다. 삭제는 전부 물리 삭제다."
+
+[[banned]]
+word = "soft-delete"
+reason = "위와 같은 개념의 하이픈 표기. 표기만 달라도 같은 거짓이다."
+
+[[banned]]
+word = "deleted_at"
+reason = "QA-01 에서 드롭된 컬럼. 이 이름을 쓰는 질의가 컬럼 드롭 후에도 17곳 살아 있었다(대장 D28)."
+
+# ── 정당한 사용 (사유 필수) ──────────────────────────────────────────
+
+[[allow]]
+path = "scripts/check_comment_staleness.py"
+reason = "게이트 자신. 폐기어를 설명하는 문서열을 가질 수밖에 없다."
+
+[[allow]]
+path = "scripts/comment_vocabulary.toml"
+reason = "사전 자신."
+
+[[allow]]
+path = "app/tests/test_check_comment_staleness.py"
+reason = "게이트의 테스트. 표본으로 폐기어를 쓴다."
+
+[[allow]]
+path = "app/tests/test_dto_exposure.py"
+reason = "모델 차원 soft delete 재도입 방지 테스트. 막으려는 대상의 이름을 말해야 한다."
+
+[[allow]]
+path = "app/tests/db/test_db_soft_delete.py"
+reason = "QA-01 이전의 질문을 기록한 파일. 파일명 자체가 역사다."
+
+[[allow]]
+path = "app/services/ocr_service.py"
+reason = "OCR draft 의 consumed_at 은 **진짜** soft delete 다(행을 24h 보관). 폐지 대상이 아니었다."
+
+[[allow]]
+path = "app/apis/v1/ocr_routers.py"
+reason = "위와 같은 이유 — consumed_at 기반의 진짜 soft delete."
+
+[[allow]]
+path = "app/repositories/"
+reason = "메서드 이름이 아직 soft_delete 다(QA-30 에서 정정 예정). 이름이 거짓이라는 경고 주석을 함께 달아 뒀다."
+
+[[allow]]
+path = "app/workers/medication_worker.py"
+reason = "QA-01 이전 동작을 서술하는 과거형 경위 문단. 역사는 지우지 않는다."
+
+[[allow]]
+path = "app/workers/ocr_cleanup_worker.py"
+reason = "'soft delete 가 아닌 hard delete' 라는 대비 서술. 현재 동작을 정확히 말한다."
+
+[[allow]]
+path = "app/services/oauth.py"
+reason = "QA-01 의 경위(한쪽은 soft 한쪽은 hard 라 서로를 덮었다)를 서술하는 과거형 문단."
+
+[[allow]]
+path = "app/services/profile_service.py"
+reason = "위와 같은 과거형 경위 서술."
+
+[[allow]]
+path = "app/services/lifestyle_guide_service.py"
+reason = "위와 같은 과거형 경위 서술."
+
+[[allow]]
+path = "app/db/migrations/"
+reason = "마이그레이션은 **역사 그 자체**다. 컬럼을 드롭한 마이그레이션은 그 컬럼 이름을 말할 수밖에 없고, 지나간 마이그레이션은 절대 고치지 않는다."
+
+[[allow]]
+path = "app/core/config.py"
+reason = "유예기간 상수(QA-29) 옆의 과거형 경위 — 'QA-01 로 soft delete 를 폐지해 되돌릴 수단이 0 이 됐다'. 현재를 정확히 서술한다."
+
+[[allow]]
+path = "app/services/medication_service.py"
+reason = "'전에는 deleted_at IS NOT NULL 로 되짚었는데 이제 못 한다'는 과거형 설명. 계산 시점이 왜 삭제 전으로 옮겨졌는지의 근거라 지우면 이유가 사라진다."
+
+[[allow]]
+path = "app/tests/db/test_db_cascade.py"
+reason = "QA-01 이전 동작을 과거형으로 서술하는 문단(재활성화 경로 부재 등)과 'soft delete 폐지' 를 명시한 단언 주석."
+
+[[allow]]
+path = "app/tests/test_soft_delete_cascade.py"
+reason = "파일명이 과거 잔재다. 이름 정정은 QA-30 과 함께 처리한다 — 지금 바꾸면 행동 변경 커밋과 섞인다."

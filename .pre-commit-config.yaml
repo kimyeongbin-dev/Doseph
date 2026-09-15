@@ -98,6 +98,32 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # QA 앵커 ↔ 후속 큐 대조 (pre-push)
+      # 앵커는 "오류 ↔ 코드 위치" 를 잇는 유일한 사람-작성 연결고리인데 지금까지
+      # 아무도 검증하지 않았다. 오타·철회된 항목 하나로 연결이 조용히 끊어진다.
+      # docs-private 이 없는 환경(CI)에서는 조용히 통과.
+      - id: qa-anchor-parity
+        name: 🔗 QA 앵커 유효성 검사
+        entry: uv run python scripts/check_anchors.py
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # 폐기된 개념의 어휘가 아직 남아 있는지 (pre-push)
+      # QA-01 이 soft delete 를 폐지한 뒤 거짓 문장 57줄이 남았고, 그중 2줄은
+      # OpenAPI summary·DTO description 으로 사용자에게 노출됐다. 실측 결과
+      # 그 57줄 중 47줄(82%)이 폐기 어휘만으로 검출된다 — 가장 싸고 잘 잡는 수단.
+      - id: comment-staleness
+        name: 🗣️ 폐기 어휘 잔존 검사
+        entry: uv run python scripts/check_comment_staleness.py
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
   # External hooks for additional checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
