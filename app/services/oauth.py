@@ -5,14 +5,12 @@ Supports both development/test environments with mock servers and production
 environments with actual provider servers. Follows modern async patterns.
 """
 
-from datetime import datetime
 import logging
 from typing import Any
 from uuid import uuid4
 
 from fastapi import HTTPException, status
 import httpx
-from tortoise.transactions import in_transaction
 
 from app.core import config
 from app.core.config import Env
@@ -401,31 +399,17 @@ class OAuthService:
             HTTPException: 500 — cascade 도중 예외.
         """
         try:
-            # 회원의 chat_sessions 미리 수집 (messages cascade 용)
-            account_sessions = await self.chat_session_repo.get_all_by_account(account.id)
-            profiles = await self.profile_repo.get_all_by_account(account.id)
-
-            async with in_transaction():
-                # 1) refresh_tokens **행 자체를 삭제** (보안 우선)
-                #    탈퇴는 폐기가 아니라 erasure 다 — token_hash 를 남기지 않는다.
-                await self.refresh_token_repo.delete_all_for_account(account.id)
-
-                # 2) profiles cascade — SELF 포함 모두 (회원탈퇴는 SELF guard 우회)
-                for profile in profiles:
-                    await self.profile_service.cascade_delete_profile(profile)
-
-                # 3) account 의 직접 chat_sessions soft + 그 messages soft
-                #    profile_id 만 가진 세션은 이미 위 cascade 에서 처리됨.
-                await self.chat_session_repo.bulk_soft_delete_by_account(account.id)
-                for session in account_sessions:
-                    await self.message_repo.bulk_soft_delete_by_session(session.id)
-
-                # 4) 계정 비활성화 + deleted_at
-                await self.account_repo.deactivate(account)
-                if hasattr(account, "deleted_at"):
-                    account.deleted_at = datetime.now(config.TIMEZONE)
-                    await account.save()
-
+            # 계정 행 하나를 지우면 끝난다 — FK CASCADE 가 나머지를 원자적으로 정리한다.
+            #   accounts <- refresh_tokens · profiles · chat_sessions (전부 ON DELETE CASCADE)
+            #   profiles <- medications · challenges · prescription_groups · intake_logs ·
+            #               daily_symptom_logs · lifestyle_guides · ocr_drafts
+            #   chat_sessions <- messages
+            #
+            # QA-01(2026-09-15) 전에는 이 흐름이 4단계 20여 줄이었다. 손으로 도는 cascade 가
+            # FK 와 같은 일을 하면서, 한쪽은 soft 한쪽은 hard 라 **서로를 덮는 불일치**를
+            # 만들었다. 기계장치를 하나로 줄이고, 그 기계장치(FK 정책)를 테스트로 잠근다
+            # (`test_db_constraints.py::test_account_children_cascade_on_delete`).
+            await self.account_repo.delete(account)
             return True
         except Exception as e:
             raise HTTPException(

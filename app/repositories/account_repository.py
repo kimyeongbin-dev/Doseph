@@ -25,7 +25,6 @@ class AccountRepository:
         return await Account.filter(
             auth_provider=provider,
             provider_account_id=provider_account_id,
-            deleted_at__isnull=True,
         ).first()
 
     async def get_by_id(self, account_id: UUID) -> Account | None:
@@ -39,7 +38,6 @@ class AccountRepository:
         """
         return await Account.filter(
             id=account_id,
-            deleted_at__isnull=True,
         ).first()
 
     async def create(
@@ -102,3 +100,20 @@ class AccountRepository:
         account.is_active = False
         await account.save()
         return account
+
+    async def delete(self, account: Account) -> None:
+        """Delete an account row — 자식은 FK CASCADE 가 함께 지운다.
+
+        탈퇴는 폐기가 아니라 **erasure** 다(QA-01/QA-02, 2026-09-15).
+        ``accounts`` 를 참조하는 FK(profiles · chat_sessions · refresh_tokens)가
+        ``ON DELETE CASCADE`` 이므로 이 한 줄이 계정 이하 전부를 정리한다.
+
+        이전에는 ``is_active=False`` + ``deleted_at`` 으로 행을 남겼는데,
+        ``UNIQUE(auth_provider, provider_account_id)`` 때문에 **같은 신원으로 재가입이
+        불가능**했다(2026-09-15 테스트로 실증 — UniqueViolationError).
+        행을 지우면 제약이 풀려 정상 재가입이 된다.
+
+        Args:
+            account: 삭제 대상 Account.
+        """
+        await Account.filter(id=account.id).delete()

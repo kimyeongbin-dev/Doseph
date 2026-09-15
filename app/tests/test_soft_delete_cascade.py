@@ -11,7 +11,7 @@ mock 이 여전히 적합한 자리라서 남긴다.
 """
 
 from contextlib import asynccontextmanager
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -33,25 +33,8 @@ class TestAccountWithdrawalFailure:
 
     def _build_oauth_service(self, account: MagicMock) -> OAuthService:
         service = OAuthService()
-        service.refresh_token_repo = MagicMock()
-        service.refresh_token_repo.delete_all_for_account = AsyncMock(return_value=2)
-
-        service.profile_repo = MagicMock()
-        service.profile_repo.get_all_by_account = AsyncMock(return_value=[])
-
-        service.profile_service = MagicMock()
-        service.profile_service.cascade_delete_profile = AsyncMock()
-
-        service.chat_session_repo = MagicMock()
-        service.chat_session_repo.get_all_by_account = AsyncMock(return_value=[])
-        service.chat_session_repo.bulk_soft_delete_by_account = AsyncMock(return_value=0)
-
-        service.message_repo = MagicMock()
-        service.message_repo.bulk_soft_delete_by_session = AsyncMock(return_value=3)
-
         service.account_repo = MagicMock()
-        service.account_repo.deactivate = AsyncMock(return_value=account)
-
+        service.account_repo.delete = AsyncMock(return_value=None)
         return service
 
     @pytest.mark.asyncio
@@ -59,12 +42,11 @@ class TestAccountWithdrawalFailure:
         """cascade 도중 예외 → HTTPException 500 으로 변환."""
         account = MagicMock(id=uuid4(), deleted_at=None)
         service = self._build_oauth_service(account)
-        service.refresh_token_repo.delete_all_for_account = AsyncMock(side_effect=RuntimeError("boom"))
+        service.account_repo.delete = AsyncMock(side_effect=RuntimeError("boom"))
 
-        with (
-            patch("app.services.oauth.in_transaction", _fake_transaction),
-            pytest.raises(HTTPException) as exc,
-        ):
+        # QA-01 S5: 탈퇴가 FK CASCADE 위임(단일 DELETE)으로 바뀌면서 서비스가
+        # in_transaction 을 더는 쓰지 않는다 — 패치할 대상이 사라졌다.
+        with pytest.raises(HTTPException) as exc:
             await service.delete_account(account)
 
         assert exc.value.status_code == 500

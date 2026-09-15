@@ -305,9 +305,37 @@ async def test_account_withdrawal_cascades_everything(db: None) -> None:
     assert await ChatSession.filter(id=session.id).count() == 0, "계정 직속 세션 행이 남아 있다"
     assert await ChatMessage.filter(id=message.id).count() == 0, "세션 메시지 행이 남아 있다"
 
-    account_rows = await Account.filter(id=account.id).values("is_active", "deleted_at")
-    assert account_rows[0]["is_active"] is False, "탈퇴한 계정이 아직 활성이다"
-    assert account_rows[0]["deleted_at"] is not None, "탈퇴한 계정에 deleted_at 이 없다"
+    # QA-01 S5: 계정도 물리 삭제다 — "비활성 표시"가 아니라 행이 사라진다.
+    assert await Account.filter(id=account.id).count() == 0, "탈퇴한 계정 행이 남아 있다"
+
+
+# ── ⭐ 탈퇴 후 재가입 — 유니크 제약과 충돌하지 않는가 ────────────────────────
+# 흐름: 탈퇴 -> 같은 (auth_provider, provider_account_id) 로 다시 가입 시도
+#
+# ⚠️ 이건 **추정을 실증하는 테스트**다(QA-01 S5). accounts 에
+#    UNIQUE(auth_provider, provider_account_id) 가 있고, 조회는 deleted_at__isnull=True 로
+#    거르는데 **재활성화 경로가 없었다**. 즉 soft delete 시절에는 탈퇴한 사용자가
+#    다시 로그인하면 "조회 실패 -> 생성 시도 -> 유니크 충돌" 이 날 수밖에 없었다.
+#    계정을 물리 삭제하면 제약이 풀려 정상 재가입이 된다.
+async def test_rejoin_after_withdrawal_is_possible(db: None) -> None:
+    """After withdrawal the same provider identity must be able to sign up again."""
+    account = await create_account()
+    provider = account.auth_provider
+    provider_account_id = account.provider_account_id
+    await create_profile(account)
+
+    await OAuthService().delete_account(account)
+
+    # 같은 신원으로 재가입 — 유니크 제약에 걸리면 여기서 IntegrityError 가 난다.
+    rejoined = await Account.create(
+        auth_provider=provider,
+        provider_account_id=provider_account_id,
+        nickname="재가입",
+        is_active=True,
+    )
+
+    assert rejoined.id != account.id, "재가입은 새 계정이어야 한다"
+    assert await Account.filter(id=account.id).count() == 0, "탈퇴한 계정 행이 남아 있다"
 
 
 async def _deleted_at_of(model: type[Model], row_id: Any) -> Any:

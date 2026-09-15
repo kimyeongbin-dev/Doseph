@@ -4,10 +4,8 @@ This module provides data access layer for the profiles table,
 handling user and family member profile management operations.
 """
 
-from datetime import datetime
 from uuid import UUID, uuid4
 
-from app.core import config
 from app.models.profiles import Gender, Profile, RelationType
 
 
@@ -116,17 +114,14 @@ class ProfileRepository:
         return profile
 
     async def bulk_soft_delete_by_account(self, account_id: UUID) -> int:
-        """계정 소유의 모든 active profile 을 일괄 soft delete.
+        """계정의 모든 프로필을 일괄 삭제한다.
 
-        회원탈퇴(account cascade soft-delete) 흐름의 1단계로 호출되며, 이미
-        deleted_at 이 set 된 row 는 자연스럽게 제외된다 (idempotent).
+        ⚠️ 이름과 달리 **물리 삭제**다(QA-01). 자식은 FK CASCADE 가 함께 지운다.
 
         Args:
             account_id: 대상 계정 UUID.
 
         Returns:
-            새로 deleted_at 이 채워진 row 수 (이미 삭제된 행은 카운트 X).
+            삭제된 row 수.
         """
-        return await Profile.filter(
-            account_id=account_id,
-        ).update(deleted_at=datetime.now(tz=config.TIMEZONE))
+        return await Profile.filter(account_id=account_id).delete()

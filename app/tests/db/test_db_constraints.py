@@ -145,6 +145,36 @@ async def test_no_deferrable_constraints_exist(db: None) -> None:
     )
 
 
+# ── ⭐ FK 삭제 정책 — cascade 를 FK 에 맡겼으므로 그 FK 를 잠근다 ───────────
+# 흐름: pg_constraint 에서 삭제 정책을 읽어 CASCADE 인지 확인
+# QA-01 에서 손으로 돌던 cascade 코드를 전부 제거하고 FK 에 위임했다.
+# **위임한 대상이 바뀌면 조용히 고아 행이 남는다** — 그래서 정책 자체를 단언한다.
+# (누가 SET NULL 이나 NO ACTION 으로 바꾸면 여기서 빨개진다)
+async def test_account_and_profile_children_cascade_on_delete(db: None) -> None:
+    """Every FK we rely on for cascade deletion must be ON DELETE CASCADE."""
+    rows = await _fetch(
+        "select c.conrelid::regclass::text as child, c.confrelid::regclass::text as parent, "
+        "c.confdeltype as policy from pg_constraint c "
+        "where c.contype = 'f' and c.confrelid in "
+        "('accounts'::regclass, 'profiles'::regclass, 'chat_sessions'::regclass, "
+        "'lifestyle_guides'::regclass)"
+    )
+
+    # ⚠️ asyncpg 는 `confdeltype`("char" 타입)을 **bytes** 로 준다(b"c"). str 비교하면
+    #    전부 불일치로 보여 테스트가 항상 빨개진다 — 정규화해서 비교한다.
+    def _policy(raw: Any) -> str:
+        return raw.decode() if isinstance(raw, bytes) else str(raw)
+
+    non_cascade = [
+        f"{r['child']} -> {r['parent']} ({_policy(r['policy'])})" for r in rows if _policy(r["policy"]) != "c"
+    ]
+
+    assert not non_cascade, (
+        "삭제 cascade 를 FK 에 맡겼는데 CASCADE 가 아닌 FK 가 있다 — 고아 행이 남는다: " + ", ".join(non_cascade)
+    )
+    assert len(rows) >= 11, f"기대보다 FK 가 적다({len(rows)}) — 위임 대상이 사라졌을 수 있다"
+
+
 async def _fetch(query: str) -> list[dict[str, Any]]:
     """Run a query on the current Tortoise connection.
 
