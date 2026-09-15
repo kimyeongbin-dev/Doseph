@@ -194,9 +194,13 @@ jobs:
         #   ② pytest 는 수집된 테스트가 0건이면 **exit 5** 로 실패한다. 즉 마커나
         #      경로가 어긋나 DB 층이 통째로 안 돌면 이 스텝이 빨개진다. 한 번에
         #      돌리면 "0건 실행"이 조용히 초록으로 지나간다(skip 과 같은 실패 방식).
+        #   ③ 루트 `tests/`(180건)도 반드시 함께 돌린다. 2026-09-15 까지 이 경로가
+        #      어느 워크플로에도 없어 **23건이 4개월 반 빨간 채 방치**돼 있었다(QA-27).
+        #      경로를 빼면 그 상태로 되돌아간다.
         # DB 층은 conftest 가 doseph_db_test 를 새로 만들어 aerich upgrade 로 세운다.
         # CI 의 postgres 는 슈퍼유저라 CREATE DATABASE 권한이 있다.
         run: |
           uv run coverage run -m pytest app -m "not db"
           uv run coverage run --append -m pytest app -m db
+          uv run coverage run --append -m pytest tests
           uv run coverage report -m
