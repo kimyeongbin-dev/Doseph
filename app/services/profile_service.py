@@ -213,10 +213,11 @@ class ProfileService:
         self._apply_gender_default_on_relation_change(update_data)
         return await self.repository.update(profile, **update_data)
 
-    # ── 프로필 삭제 (cascade — soft + hard 혼합) ────────────────────────
-    # 흐름: profile soft -> medication/challenge/chat_session soft + 그 자식 message
-    #       -> intake_log/lifestyle_guide/ocr_draft/daily_symptom_log hard
-    # 단일 트랜잭션. 회원탈퇴(account_service) 도 이 helper 를 호출.
+    # ── 프로필 삭제 (cascade — 전부 물리 삭제) ──────────────────────────
+    # 흐름: profile 행 삭제 -> FK ON DELETE CASCADE 가 자식 8종을 함께 정리
+    #       (medication/challenge/chat_session/intake_log/lifestyle_guide/
+    #        ocr_draft/daily_symptom_log, messages 는 chat_session 을 통해 연쇄)
+    # 단일 DELETE 라 원자적. 회원탈퇴(oauth) 도 이 helper 를 호출.
 
     async def cascade_delete_profile(self, profile: Profile) -> None:
         """Profile 삭제 — 자식 row 는 FK CASCADE 가 함께 정리한다.
@@ -239,7 +240,7 @@ class ProfileService:
         await self.repository.soft_delete(profile)
 
     async def delete_profile(self, profile_id: UUID) -> None:
-        """Delete profile (soft delete) — 자식 cascade.
+        """Delete profile (행을 물리 삭제) — 자식은 FK cascade.
 
         Args:
             profile_id: Profile UUID to delete.

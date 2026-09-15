@@ -417,7 +417,7 @@ class MedicationService:
         return await self.repository.update(medication, is_active=False)
 
     async def delete_medication(self, medication_id: UUID) -> None:
-        """Delete medication (soft delete).
+        """Delete medication (행을 물리 삭제한다).
 
         Args:
             medication_id: Medication UUID to delete.
@@ -426,7 +426,7 @@ class MedicationService:
         await self.repository.soft_delete(medication)
 
     async def delete_medication_with_owner_check(self, medication_id: UUID, account_id: UUID) -> None:
-        """Delete medication with ownership verification (soft delete).
+        """Delete medication with ownership verification (행을 물리 삭제한다).
 
         Args:
             medication_id: Medication UUID to delete.
@@ -435,15 +435,15 @@ class MedicationService:
         medication = await self.get_medication_with_owner_check(medication_id, account_id)
         await self.repository.soft_delete(medication)
 
-    # ── Bulk soft delete (계정 소유 medication 다건 동시 삭제) ────────────
-    # 흐름: 계정의 프로필 목록 조회 -> bulk_soft_delete (단일 UPDATE)
+    # ── 다건 삭제 (계정 소유 medication 동시 삭제) ────────────────────────
+    # 흐름: 계정의 프로필 목록 조회 -> bulk_soft_delete (단일 DELETE)
     #       -> 응답에 deleted_count + 누락 ids 보고
     async def bulk_delete_with_owner_check(
         self,
         ids: list[UUID],
         account_id: UUID,
     ) -> MedicationBulkDeleteResponse:
-        """다건 medication soft delete — ownership 위반 ids 는 silently skip.
+        """다건 medication 삭제 — ownership 위반 ids 는 silently skip.
 
         Args:
             ids: 삭제 요청된 medication ID 목록 (1~100건, DTO 에서 강제).
@@ -460,8 +460,8 @@ class MedicationService:
         return MedicationBulkDeleteResponse(deleted_count=deleted_count, skipped_ids=skipped)
 
     # ── 처방전 그룹 단위 삭제 (cascade — 가이드 + 챌린지) ──────────────
-    # 흐름: medication 그룹 soft -> 그 프로필의 active lifestyle_guide cascade
-    #       (가이드 cascade 안에서 챌린지 정책 — 미시작 soft, 활성 보존 — 적용)
+    # 흐름: medication 그룹 물리 삭제 -> 그 프로필의 active lifestyle_guide cascade
+    #       (가이드가 지워지면 그 챌린지도 FK CASCADE 로 함께 사라진다)
     # 단건 삭제는 ``bulk_delete_with_owner_check`` 그대로 (cascade 없음).
 
     async def delete_prescription_group_with_owner_check(

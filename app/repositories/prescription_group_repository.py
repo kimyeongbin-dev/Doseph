@@ -46,7 +46,7 @@ class PrescriptionGroupRepository:
         )
 
     async def get_by_id(self, group_id: UUID) -> PrescriptionGroup | None:
-        """Get group by ID (excluding soft deleted)."""
+        """Get group by ID."""
         return await PrescriptionGroup.filter(
             id=group_id,
         ).first()

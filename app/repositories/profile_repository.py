@@ -13,7 +13,7 @@ class ProfileRepository:
     """Profile database repository for user profile management."""
 
     async def get_by_id(self, profile_id: UUID) -> Profile | None:
-        """Get profile by ID (excluding soft deleted).
+        """Get profile by ID.
 
         Args:
             profile_id: Profile UUID.

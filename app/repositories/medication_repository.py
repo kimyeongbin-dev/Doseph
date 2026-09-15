@@ -20,7 +20,7 @@ class MedicationRepository:
     """Medication database repository for prescription management."""
 
     async def get_by_id(self, medication_id: UUID) -> Medication | None:
-        """Get medication by ID (excluding soft deleted).
+        """Get medication by ID.
 
         Args:
             medication_id: Medication UUID.

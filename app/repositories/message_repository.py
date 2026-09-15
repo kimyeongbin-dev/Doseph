@@ -13,7 +13,7 @@ class MessageRepository:
     """Chat message database repository for conversation management."""
 
     async def get_by_id(self, message_id: UUID) -> ChatMessage | None:
-        """Get message by ID (excluding soft deleted).
+        """Get message by ID.
 
         Args:
             message_id: Message UUID.
@@ -26,7 +26,7 @@ class MessageRepository:
         ).first()
 
     async def count_by_session(self, session_id: UUID) -> int:
-        """세션의 살아있는(soft delete 제외) 메시지 수 — 옵션 D 의 compact trigger 입력."""
+        """세션의 메시지 수 — 옵션 D 의 compact trigger 입력."""
         return await ChatMessage.filter(session_id=session_id).count()
 
     async def get_by_session(self, session_id: UUID, limit: int | None = None) -> list[ChatMessage]:

@@ -352,7 +352,7 @@ class LifestyleGuideService:
         return await self.guide_repo.get_all_by_profile(profile_id)
 
     async def delete_guide_with_owner_check(self, guide_id: UUID, account_id: UUID) -> None:
-        """가이드 삭제 — 활성/완료 챌린지는 보존(guide_id=None), 미시작은 soft delete."""
+        """가이드 삭제 — 그 가이드에서 나온 챌린지도 진행 중·완료분까지 함께 사라진다."""
         guide = await self.get_guide_with_owner_check(guide_id, account_id)
         await self._cascade_delete_guide(guide)
         logger.info("[GUIDE] 가이드 삭제 완료 guide_id=%s account_id=%s", guide_id, account_id)
@@ -381,8 +381,8 @@ class LifestyleGuideService:
         """프로필의 모든 active 가이드 일괄 cascade 삭제.
 
         처방전 그룹 삭제 흐름에서 호출 — 약 그룹이 사라지면 그 시점 기준의
-        가이드도 의미가 흐려지므로 함께 정리. 챌린지 보존 정책은
-        ``_cascade_delete_guide`` 와 동일하게 적용.
+        가이드도 의미가 흐려지므로 함께 정리. 각 가이드의 챌린지는
+        ``_cascade_delete_guide`` 와 동일하게 **함께 물리 삭제**된다.
 
         Args:
             profile_id: 대상 프로필 UUID.

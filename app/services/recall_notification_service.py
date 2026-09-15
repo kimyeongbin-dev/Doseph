@@ -20,8 +20,7 @@ Dedup strategy (cron-F3):
       messages. If yes → skip.
 
 Session resolution:
-    - The service grabs the user's most recent (non-soft-deleted)
-      ``ChatSession`` and writes there. If none exists, the alert is
+    - The service grabs the user's most recent ``ChatSession`` and writes there. If none exists, the alert is
       silently skipped with a warning log — recall alerts assume the
       user has at least one chat session.
 

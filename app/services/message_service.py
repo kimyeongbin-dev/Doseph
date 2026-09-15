@@ -365,7 +365,7 @@ class MessageService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found.")
         profile_id = session_obj.profile_id
 
-        # ★ user 메시지 영속화 - 실패 시 soft delete rollback
+        # ★ user 메시지 영속화 - 실패 시 그 행을 삭제해 rollback
         user_msg = await self.repository.create_user_message(session_id, content)
         try:
             # Step 1: medical_context + ingredient_mapping + Query Rewriter (4o-mini)
@@ -962,7 +962,7 @@ class MessageService:
         return results
 
     async def delete_message(self, message_id: UUID) -> None:
-        """Delete message (soft delete).
+        """Delete message (행을 물리 삭제한다).
 
         Args:
             message_id: Message UUID to delete.
@@ -971,7 +971,7 @@ class MessageService:
         await self.repository.soft_delete(message)
 
     async def delete_message_with_owner_check(self, message_id: UUID, account_id: UUID) -> None:
-        """Delete message with ownership verification (soft delete).
+        """Delete message with ownership verification (행을 물리 삭제한다).
 
         Args:
             message_id: Message UUID to delete.

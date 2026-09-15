@@ -114,7 +114,7 @@ class MedicationResponse(BaseMedication):
 
 
 class MedicationBulkDeleteRequest(BaseModel):
-    """Bulk soft-delete request — 계정 소유 medication ids 묶음.
+    """Bulk delete request — 계정 소유 medication ids 묶음.
 
     타인 소유·이미 삭제·존재하지 않는 ids 는 응답의 ``skipped_ids`` 로 보고된다.
     """
@@ -123,9 +123,9 @@ class MedicationBulkDeleteRequest(BaseModel):
 
 
 class MedicationBulkDeleteResponse(BaseModel):
-    """Bulk soft-delete 결과 — UI 토스트/안내용."""
+    """Bulk delete 결과 — UI 토스트/안내용."""
 
-    deleted_count: int = Field(..., description="실제 soft delete 처리된 개수")
+    deleted_count: int = Field(..., description="실제 삭제된 개수")
     skipped_ids: list[UUID] = Field(
         default_factory=list,
         description="ownership/존재하지 않음/이미 삭제됨으로 건너뛴 ID",

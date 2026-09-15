@@ -14,7 +14,7 @@ class ChatSessionRepository:
     """Chat session database repository for conversation management."""
 
     async def get_by_id(self, session_id: UUID) -> ChatSession | None:
-        """Get session by ID (excluding soft deleted).
+        """Get session by ID.
 
         Args:
             session_id: Session UUID.

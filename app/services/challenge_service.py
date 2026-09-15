@@ -320,7 +320,7 @@ class ChallengeService:
         return await self.repository.update(challenge, completed_dates=completed_dates)
 
     async def delete_challenge(self, challenge_id: UUID) -> None:
-        """Delete challenge (soft delete).
+        """Delete challenge (행을 물리 삭제한다).
 
         Args:
             challenge_id: Challenge UUID to delete.
@@ -329,7 +329,7 @@ class ChallengeService:
         await self.repository.soft_delete(challenge)
 
     async def delete_challenge_with_owner_check(self, challenge_id: UUID, account_id: UUID) -> None:
-        """Delete challenge with ownership verification (soft delete).
+        """Delete challenge with ownership verification (행을 물리 삭제한다).
 
         Args:
             challenge_id: Challenge UUID to delete.

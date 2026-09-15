@@ -2,7 +2,7 @@
 
 Registers cron jobs:
   - 00:05 KST: generate today's IntakeLog records
-  - 00:10 KST: deactivate and soft-delete expired medications
+  - 00:10 KST: deactivate and delete expired medications
   - 03:00 KST: sync MFDS drug-recall notices + dispatch user alerts
   - 03:30 KST: prune stale ocr_drafts (created_at < now - 24h)
 """

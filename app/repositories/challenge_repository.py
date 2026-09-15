@@ -60,7 +60,7 @@ class ChallengeRepository:
     """Challenge database repository for health challenge management."""
 
     async def get_by_id(self, challenge_id: UUID) -> Challenge | None:
-        """Get challenge by ID (excluding soft deleted).
+        """Get challenge by ID.
 
         Args:
             challenge_id: Challenge UUID.

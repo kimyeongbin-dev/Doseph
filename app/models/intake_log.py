@@ -41,8 +41,6 @@ class IntakeLog(models.Model):
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 
-    # Cache/log data - soft delete excluded
-
     class Meta:
         table = "intake_logs"
         indexes = (

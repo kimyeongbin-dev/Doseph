@@ -224,23 +224,23 @@ async def delete_medication(
 
 
 # ── DELETE /medications (bulk) ──────────────────────────────────────────
-# 흐름: 본문 ids -> 계정 소유 프로필 scope -> 단일 UPDATE soft delete
+# 흐름: 본문 ids -> 계정 소유 프로필 scope -> 단일 DELETE (물리 삭제)
 #       -> {deleted_count, skipped_ids} 반환 (200 OK)
 @router.delete(
     "",
     response_model=MedicationBulkDeleteResponse,
     status_code=status.HTTP_200_OK,
-    summary="Bulk delete medications (soft delete)",
+    summary="Bulk delete medications",
 )
 async def bulk_delete_medications(
     request: MedicationBulkDeleteRequest,
     current_account: CurrentAccount,
     service: MedicationServiceDep,
 ) -> MedicationBulkDeleteResponse:
-    """다건 medication 을 한 번에 soft delete 한다.
+    """다건 medication 을 한 번에 삭제한다 (행을 물리 삭제).
 
     타인 소유·존재하지 않음·이미 삭제됨인 ids 는 ``skipped_ids`` 로 보고된다.
-    부분 실패 없이 한 번의 UPDATE 로 처리되어 일관성을 유지한다.
+    부분 실패 없이 한 번의 DELETE 로 처리되어 일관성을 유지한다.
 
     Args:
         request: 삭제할 medication ID 목록 (1~100건).
@@ -254,8 +254,8 @@ async def bulk_delete_medications(
 
 
 # ── POST /medications/prescription-group/delete ──────────────────────────
-# 흐름: medication 그룹 soft delete -> 그 프로필의 active 가이드 cascade
-#       (가이드 안에서 챌린지 정책 — 미시작 soft / 활성 보존 — 자동 적용)
+# 흐름: medication 그룹 물리 삭제 -> 그 프로필의 active 가이드 cascade
+#       (가이드가 지워지면 그 챌린지도 FK CASCADE 로 함께 사라진다)
 @router.post(
     "/prescription-group/delete",
     response_model=MedicationBulkDeleteResponse,
@@ -271,7 +271,7 @@ async def delete_prescription_group(
 
     단건 약 삭제는 ``DELETE /medications`` 그대로 사용. 본 endpoint 는 처방전
     카드 자체가 사라지는 시나리오에서 호출되며, 그 프로필의 active
-    lifestyle_guide 들도 함께 정리한다 (challenge 보존 정책 동일).
+    lifestyle_guide 들도 함께 정리한다 (그 가이드의 챌린지도 함께 삭제된다).
 
     Args:
         request: medication ids + profile_id.

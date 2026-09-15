@@ -201,8 +201,7 @@ class LifestyleGuideRepository:
     async def bulk_delete_by_profile(self, profile_id: UUID) -> int:
         """프로필의 모든 lifestyle guide 일괄 hard-delete.
 
-        LifestyleGuide 는 deleted_at 컬럼이 없는 LLM 산출물이라 hard-delete
-        정책. Profile cascade soft-delete 흐름의 일부로 호출.
+        Profile cascade 삭제 흐름의 일부로 호출된다.
 
         Args:
             profile_id: 대상 프로필 UUID.

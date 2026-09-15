@@ -448,7 +448,7 @@ async def delete_account(
     current_account: Annotated[Account, Depends(get_current_account)],
     oauth_service: Annotated[OAuthService, Depends(get_oauth_service)],
 ) -> Response:
-    """Soft-delete the current account and invalidate all tokens.
+    """Delete the current account (물리 삭제) and invalidate all tokens.
 
     Args:
         request: FastAPI Request (reserved for future audit log).

@@ -379,11 +379,10 @@ class OAuthService:
         """Refresh Token 무효화 (로그아웃)"""
         return await self.refresh_token_repo.revoke(token)
 
-    # ── 회원탈퇴 (cascade soft-delete) ────────────────────────────────
-    # 흐름: refresh_tokens hard -> profiles cascade (medication/challenge/session/...)
-    #       -> account 의 직접 chat_sessions soft + messages soft
-    #       -> account 비활성화 + deleted_at = now() (단일 트랜잭션)
-    # SELF guard 우회: profile_service._cascade_delete_profile 직접 호출.
+    # ── 회원탈퇴 (cascade 물리 삭제) ──────────────────────────────────
+    # 흐름: accounts 행 1건 DELETE -> FK ON DELETE CASCADE 가 나머지를 원자적 정리
+    #       (refresh_tokens · profiles · chat_sessions -> 그 자식들까지 연쇄)
+    # ⚠️ 유예 없이 즉시 사라진다 — 유예 도입은 QA-29 의 다음 회차 대상이다.
 
     async def delete_account(self, account: Account) -> bool:
         """회원 탈퇴 — 자식 모두 cascade.

@@ -167,7 +167,10 @@ async def delete_guide(
     current_account: CurrentAccount,
     service: LifestyleGuideServiceDep,
 ) -> None:
-    """가이드 삭제. 활성/완료 챌린지는 보존(guide_id=None), 미시작 챌린지는 soft delete."""
+    """가이드 삭제. 그 가이드에서 나온 챌린지는 **진행 중·완료분까지 함께 물리 삭제**된다.
+
+    사용자가 직접 만든 챌린지(``guide_id`` 가 NULL)는 영향받지 않는다.
+    """
     await service.delete_guide_with_owner_check(guide_id, current_account.id)
 
 
