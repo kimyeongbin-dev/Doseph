@@ -10,12 +10,47 @@ This document defines the **logical guidelines and coding rules** that all AI ag
 
 ## 1. Agentic Workflow
 
-### 1.1 Design First (PLAN.md)
-* **No Immediate Code Modifications**: NEVER write or modify code immediately.
-* **Utilize PLAN.md**: Always create or update `PLAN.md` at the project root first to document the architecture, data flow, and edge cases.
-* **Visualization**: Use Mermaid flowcharts to visualize Backend (BE) data flows and business logic.
-* **Wait for Approval**: After drafting `PLAN.md`, pause your work, request feedback from the user, and wait.
-* **Execution Condition**: Begin code implementation ONLY when the user explicitly gives the `go` command.
+### 1.1 Design First — `PLAN.md` 생애주기 (애자일 분기 하나)
+
+> 🔴 **불변식**: 저장소 루트의 `PLAN.md` 는 **"지금 진행 중인 계획" 단 하나**다.
+> 진행 중인 계획이 없으면 **루트에 `PLAN.md` 가 없어야 한다.**
+> *구식 `PLAN.md` 가 루트에 남아 있는 상태는 그 자체로 결함이다* — 다음 사람이 그걸
+> 현재 계획으로 읽고, 그걸 인용한 주석·문서가 전부 거짓이 된다(실제로 **참조 20곳**이 그렇게 깨졌다).
+
+```plaintext
+없음 ──(착수)──> PLAN.md 작성 ──(go)──> 실행 ──(전부 완료)──> 승인 요청 ──> 아카이브 ──> 없음
+                                                                              ↑
+                                                              여기서 루트는 다시 비어야 한다
+```
+
+**① 착수 — 루트에 `PLAN.md` 가 없을 때만 만든다**
+* **코드를 먼저 고치지 않는다.** 아키텍처·데이터 흐름·엣지 케이스를 `PLAN.md` 에 먼저 적는다.
+* 루트에 `PLAN.md` 가 **이미 있으면** 그것이 진행 중인 계획이다. 새 주제를 시작하려면
+  **먼저 그것을 닫아야 한다**(③). 덮어쓰지 않는다.
+* BE 데이터 흐름·비즈니스 로직은 **Mermaid 흐름도**로 시각화한다.
+
+**② 실행 — `go` 를 받고 나서**
+* 초안을 쓴 뒤 **멈추고 사용자 피드백을 기다린다.**
+* 사용자가 명시적으로 `go` 라고 할 때만 구현을 시작한다.
+* 진행 중에는 `PLAN.md` 안의 **진행 현황 절**을 갱신한다(중단돼도 거기서 이어갈 수 있게).
+
+**③ 종료 — 전부 완료되면 (여기가 가장 자주 빠뜨리는 지점)**
+1. **사용자에게 아카이브 승인을 요청한다.** 임의로 옮기지 않는다.
+2. 승인되면 문서 머리에 **분류(완료/폐기)와 완료 시기**를 적는다.
+3. **`docs-private/_legacy/YYYY-MM-DD_plan-archive/`** 로 옮긴다. 여러 건을 한 번에 넘길 때는
+   **한 폴더로 묶는다**(폴더에 `README.md` 로 무엇이 왜 들어갔는지 적는다).
+4. 🔴 **그 PLAN 이 인용하거나 파생시킨 문서도 함께 닫고 같이 옮긴다.** 본체만 옮기면
+   딸린 문서가 살아 있는 계획인 척 남는다.
+5. 🔴 **옮기기 전에 참조처를 센다** — `grep -rn "<PLAN 파일명>"`. 옮기면 죽는 링크를
+   **같은 작업 안에서** 갱신한다.
+6. **루트 `PLAN.md` 는 비운다.** 다음 계획을 시작하기 전까지 루트에 PLAN 이 없어야 한다.
+7. `§6-1` 의 완료 조건(완료기록 + 스냅샷 + 상태줄 + 큐 + `study/`)을 **여기서 함께** 센다.
+
+> 📌 **아카이브 ≠ 스냅샷**. `_legacy/*.snapshot.md` 는 *작업 당시의 사본*이고,
+> `_legacy/YYYY-MM-DD_plan-archive/` 는 *정본의 은퇴본*이다. 둘 다 남긴다.
+>
+> ⚠️ 아카이브된 PLAN 은 **정본이 아니다.** 거기 적힌 결정을 근거로 인용하지 말고,
+> 살아 있는 정본(코드·테스트·규칙 문서)을 인용한다.
 
 ### 1.2 TDD (Test-Driven Development)
 * **Tests First**: When implementing core business logic, you MUST write test codes first.
