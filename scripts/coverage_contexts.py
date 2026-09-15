@@ -24,6 +24,13 @@ from coverage import CoverageData
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_FILE = REPO_ROOT / ".coverage"
 
+# 자기 출력 인코딩을 UTF-8 로 고정한다. 이 스크립트는 한글·이모지를 찍는데,
+# Windows 콘솔(cp949)에서 돌면 **본래 하려던 일은 다 끝난 뒤 출력 단계에서**
+# UnicodeEncodeError 로 죽는다 — 성공을 실패로 보이게 만드는 종류의 실패다.
+# 자식 프로세스는 UTF8_ENV 가, 자기 자신은 이 두 줄이 책임진다(대장 D36).
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # 수집 대상. DB 층을 **별도 스텝으로** 돌리는 이유는 CI 와 같다 — pytest 는 수집 0건이면
 # exit 5 로 실패하므로, 한 층이 통째로 안 돌면 조용히 지나가지 않는다.
 SUITES = [
