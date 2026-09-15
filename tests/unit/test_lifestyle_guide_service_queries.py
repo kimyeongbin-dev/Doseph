@@ -59,68 +59,61 @@ def service() -> LifestyleGuideService:
     return svc
 
 
-# ── generate_guide_with_owner_check ───────────────────────────────────────
+# ── enqueue_guide_with_owner_check ────────────────────────────────────────
+# ⚠️ 2026-09-15 재작성(QA-27): `generate_guide_with_owner_check` 는 가이드 생성이
+#    큐 기반으로 재설계되면서 `enqueue_guide_with_owner_check` 로 바뀌었다.
+#    이 파일이 CI 에서 돌지 않아 옛 이름을 향한 채 4개월 반 빨간 상태였다.
+#
+# 이 래퍼의 책임은 **소유권 게이트 + 위임** 둘뿐이다. 실제 생성 흐름(dedupe·pending·enqueue)은
+# test_lifestyle_guide_service.py 가 잠근다. 그래서 여기서는 내부를 대역으로 두고
+# "막을 것을 막는가 / 통과시킨 뒤 그대로 넘기는가"만 본다.
 
 
-async def test_generate_guide_with_owner_check_success(
+async def test_enqueue_guide_with_owner_check_delegates_when_owned(
     service: LifestyleGuideService,
 ) -> None:
-    """소유자 확인 후 가이드를 생성해야 한다."""
+    """소유자면 enqueue_guide_generation 에 그대로 위임하고 결과를 돌려준다."""
     account_id = uuid4()
     profile = _make_profile(account_id=account_id)
-    guide = _make_guide(profile_id=profile.id)
+    group_id = uuid4()
+    expected = _make_guide(profile_id=profile.id)
 
     service.profile_repo.get_by_id = AsyncMock(return_value=profile)
-    service.medication_repo.get_active_by_profile = AsyncMock(
-        return_value=[
-            MagicMock(medicine_name="타이레놀", category="해열진통제", intake_instruction="식후", dose_per_intake="1정")
-        ]
-    )
-    service.llm_client.chat.completions.create = AsyncMock(
-        return_value=MagicMock(
-            choices=[
-                MagicMock(
-                    message=MagicMock(
-                        content=(
-                            '{"diet":"저염식","sleep":"규칙 수면","exercise":"유산소","symptom":"혈압 측정",'
-                            '"interaction":"자몽 금지","recommended_challenges":[]}'
-                        )
-                    )
-                )
-            ]
-        )
-    )
-    service.guide_repo.create = AsyncMock(return_value=guide)
-    service.challenge_repo.bulk_create_from_guide = AsyncMock(return_value=[])
+    service.enqueue_guide_generation = AsyncMock(return_value=expected)
 
-    result = await service.generate_guide_with_owner_check(profile.id, account_id)
+    result = await service.enqueue_guide_with_owner_check(profile.id, group_id, account_id)
 
-    assert result is guide
+    assert result is expected
+    service.enqueue_guide_generation.assert_awaited_once_with(profile.id, group_id)
 
 
-async def test_generate_guide_with_owner_check_profile_not_found(
+async def test_enqueue_guide_with_owner_check_profile_not_found(
     service: LifestyleGuideService,
 ) -> None:
-    """프로필이 존재하지 않으면 HTTP 404를 발생시켜야 한다."""
+    """프로필이 존재하지 않으면 404 — 위임까지 가지 않는다."""
     service.profile_repo.get_by_id = AsyncMock(return_value=None)
+    service.enqueue_guide_generation = AsyncMock()
 
     with pytest.raises(HTTPException) as exc_info:
-        await service.generate_guide_with_owner_check(uuid4(), uuid4())
+        await service.enqueue_guide_with_owner_check(uuid4(), uuid4(), uuid4())
 
     assert exc_info.value.status_code == 404
+    service.enqueue_guide_generation.assert_not_awaited()
 
 
-async def test_generate_guide_with_owner_check_forbidden(
+async def test_enqueue_guide_with_owner_check_forbidden(
     service: LifestyleGuideService,
 ) -> None:
-    """다른 계정의 프로필이면 HTTP 403을 발생시켜야 한다."""
+    """남의 프로필이면 403 — 게이트가 실제로 막는지 위임 미발생으로도 확인한다."""
     profile = _make_profile(account_id=uuid4())  # different account
     service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+    service.enqueue_guide_generation = AsyncMock()
 
     with pytest.raises(HTTPException) as exc_info:
-        await service.generate_guide_with_owner_check(profile.id, uuid4())
+        await service.enqueue_guide_with_owner_check(profile.id, uuid4(), uuid4())
 
     assert exc_info.value.status_code == 403
+    service.enqueue_guide_generation.assert_not_awaited()
 
 
 # ── get_guide_with_owner_check ─────────────────────────────────────────────
