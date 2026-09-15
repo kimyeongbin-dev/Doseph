@@ -263,7 +263,6 @@ class OAuthService:
         existing = await Profile.filter(
             account_id=account.id,
             relation_type=RelationType.SELF,
-            deleted_at__isnull=True,
         ).first()
         if existing:
             return

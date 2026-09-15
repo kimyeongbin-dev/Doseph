@@ -21,7 +21,7 @@ async def generate_today_intake_logs() -> None:
     per scheduled intake_time using get_or_create to prevent duplicates.
     """
     today = date.today()
-    medications = await Medication.filter(is_active=True, deleted_at__isnull=True).all()
+    medications = await Medication.filter(is_active=True).all()
 
     created_count = 0
     skipped_count = 0

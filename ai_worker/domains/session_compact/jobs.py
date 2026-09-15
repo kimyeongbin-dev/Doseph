@@ -68,7 +68,7 @@ async def compact_and_save_session_job(session_id: str) -> dict:
     logger.info("[COMPACT] start session=%s", session_id[:8])
     await Tortoise.init(config=TORTOISE_ORM)
     try:
-        session = await ChatSession.filter(id=session_id, deleted_at__isnull=True).first()
+        session = await ChatSession.filter(id=session_id).first()
         if session is None:
             logger.warning("[COMPACT] session=%s not found, skip", session_id[:8])
             return {"status": "no_session", "summary_chars": 0, "consumed_message_count": 0}

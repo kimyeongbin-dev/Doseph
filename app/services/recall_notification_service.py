@@ -77,7 +77,6 @@ async def _already_notified(
     """
     qs = ChatMessage.filter(
         session__profile_id=profile_id,
-        deleted_at__isnull=True,
         metadata__kind=RECALL_ALERT_KIND,
         metadata__recall_item_seq=recall.item_seq,
         metadata__recall_command_date=recall.recall_command_date,
@@ -90,7 +89,7 @@ async def _already_notified(
 
 async def _resolve_target_session_id(profile_id: UUID) -> UUID | None:
     """Return the most recent live chat-session for this profile."""
-    session = await ChatSession.filter(profile_id=profile_id, deleted_at__isnull=True).order_by("-created_at").first()
+    session = await ChatSession.filter(profile_id=profile_id).order_by("-created_at").first()
     return session.id if session else None
 
 
@@ -183,7 +182,7 @@ async def dispatch_for_recall(recall: Any) -> int:
         return 0
 
     name_filter = Q(medicine_name__in=candidate_names) | Q(medicine_name__icontains=recall.product_name)
-    medications = await Medication.filter(Q(deleted_at__isnull=True) & name_filter).all()
+    medications = await Medication.filter(name_filter).all()
 
     inserted = 0
     for med in medications:

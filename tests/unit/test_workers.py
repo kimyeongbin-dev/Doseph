@@ -42,7 +42,7 @@ class TestGenerateTodayIntakeLogs:
 
             await generate_today_intake_logs()
 
-            mock_med_model.filter.assert_called_once_with(is_active=True, deleted_at__isnull=True)
+            mock_med_model.filter.assert_called_once_with(is_active=True)
 
     async def test_idempotent_on_rerun(self) -> None:
         """배치 재실행 시 중복 생성 없이 get_or_create를 사용해야 한다."""
@@ -82,6 +82,7 @@ class TestExpireMedications:
         ):
             mock_dt.now.return_value.date.return_value = date(2026, 4, 18)
             mock_med_model.filter.return_value.all = AsyncMock(return_value=[mock_medication])
+            mock_med_model.filter.return_value.delete = AsyncMock(return_value=0)
 
             from app.workers.medication_worker import expire_medications
 
@@ -90,23 +91,28 @@ class TestExpireMedications:
             assert mock_medication.is_active is False
             mock_medication.save.assert_called()
 
-    async def test_soft_deletes_medications_past_expiration_date(self) -> None:
-        """expiration_date가 지난 처방전은 deleted_at이 설정되어야 한다."""
-        mock_medication = MagicMock()
-        mock_medication.deleted_at = None
-        mock_medication.save = AsyncMock()
+    async def test_deletes_medications_past_expiration_date(self) -> None:
+        """expiration_date 가 지난 처방전은 **행 자체가 삭제**되어야 한다.
 
+        ⚠️ 2026-09-15(QA-01): 이 배치는 ``deleted_at=now()`` 로 장부만 남기던
+        soft delete 였다. 삭제 의미론이 hard delete 로 통일되면서 계약이 바뀌었다 —
+        "지운 표시를 했는가"가 아니라 **"지웠는가"**를 묻는다.
+        """
         with (
             patch("app.workers.medication_worker.Medication") as mock_med_model,
             patch("app.workers.medication_worker.datetime") as mock_dt,
         ):
-            now = MagicMock()
-            mock_dt.now.return_value = now
             mock_dt.now.return_value.date.return_value = date(2026, 4, 18)
-            mock_med_model.filter.return_value.all = AsyncMock(return_value=[mock_medication])
+            mock_med_model.filter.return_value.all = AsyncMock(return_value=[])
+            mock_med_model.filter.return_value.delete = AsyncMock(return_value=3)
 
             from app.workers.medication_worker import expire_medications
 
             await expire_medications()
 
-            assert mock_medication.deleted_at is not None
+            # pass 2 가 expiration_date 조건으로 delete() 를 호출했는가
+            mock_med_model.filter.assert_any_call(
+                expiration_date__lt=date(2026, 4, 18),
+                expiration_date__isnull=False,
+            )
+            mock_med_model.filter.return_value.delete.assert_awaited_once()

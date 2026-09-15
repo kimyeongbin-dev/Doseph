@@ -39,10 +39,10 @@ async def build_medical_context(profile_id: UUID) -> str:
 
 async def _load(profile_id: UUID) -> tuple[list[str], Profile | None]:
     """medication.medicine_name list + profile 단건 조회."""
-    profile = await Profile.filter(id=profile_id, deleted_at__isnull=True).first()
+    profile = await Profile.filter(id=profile_id).first()
     medications = (
         await Medication
-        .filter(profile_id=profile_id, is_active=True, deleted_at__isnull=True)
+        .filter(profile_id=profile_id, is_active=True)
         .order_by("created_at")
         .values_list("medicine_name", flat=True)
     )

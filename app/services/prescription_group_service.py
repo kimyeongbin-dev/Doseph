@@ -6,13 +6,11 @@ BE 책임 원칙 (사용자 합의): 정렬 / 필터 / 탭 같은 표시 정책�
 검색은 medication 테이블 join 이 필요해 BE 가 처리 (FE 가 약품 list 를 들고 있지 않음).
 """
 
-from datetime import datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from tortoise.transactions import in_transaction
 
-from app.core import config
 from app.dtos.prescription_group import (
     MedicationListItem,
     PrescriptionGroupCard,
@@ -75,10 +73,7 @@ class PrescriptionGroupService:
         BE 는 응답을 단순 created_at 내림차순으로만 반환. FE 가 사용자 의도에
         따라 정렬 / 탭 필터를 derived 로 적용한다.
         """
-        query = PrescriptionGroup.filter(
-            profile_id=profile_id,
-            deleted_at__isnull=True,
-        )
+        query = PrescriptionGroup.filter(profile_id=profile_id)
         if search:
             # 약품 이름 검색 — 그 약을 포함하는 group 만 필터 (medication join 필요).
             # ILIKE 부분일치 (대소문자 무시), 한글도 정상 매칭.
@@ -86,7 +81,6 @@ class PrescriptionGroupService:
                 await Medication
                 .filter(
                     profile_id=profile_id,
-                    deleted_at__isnull=True,
                     medicine_name__icontains=search,
                 )
                 .distinct()
@@ -100,13 +94,9 @@ class PrescriptionGroupService:
 
     async def _build_card(self, group: PrescriptionGroup) -> PrescriptionGroupCard:
         """그룹 한 개의 카드 view 빌드 — medication 수 + active 여부 집계."""
-        meds_count = await Medication.filter(
-            prescription_group_id=group.id,
-            deleted_at__isnull=True,
-        ).count()
+        meds_count = await Medication.filter(prescription_group_id=group.id).count()
         active_count = await Medication.filter(
             prescription_group_id=group.id,
-            deleted_at__isnull=True,
             is_active=True,
         ).count()
         return PrescriptionGroupCard(
@@ -143,15 +133,7 @@ class PrescriptionGroupService:
         if not group:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prescription group not found.")
         await self._verify_profile_ownership(group.profile_id, account_id)
-        meds = (
-            await Medication
-            .filter(
-                prescription_group_id=group.id,
-                deleted_at__isnull=True,
-            )
-            .order_by("medicine_name", "id")
-            .all()
-        )
+        meds = await Medication.filter(prescription_group_id=group.id).order_by("medicine_name", "id").all()
         return PrescriptionGroupDetail(
             id=group.id,
             hospital_name=group.hospital_name,
@@ -197,15 +179,13 @@ class PrescriptionGroupService:
         if not group:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prescription group not found.")
         await self._verify_profile_ownership(group.profile_id, account_id)
-        await Medication.filter(
-            prescription_group_id=group.id,
-            deleted_at__isnull=True,
-        ).update(is_active=False)
+        await Medication.filter(prescription_group_id=group.id).update(is_active=False)
         return await self.get_group_with_owner_check(group_id, account_id)
 
     # ── 그룹 단위 삭제 (cascade) ───────────────────────────────────────
-    # 흐름: 그룹 soft-delete -> medication 들 soft-delete -> 그 프로필의
-    #       active 가이드 cascade (가이드 안 챌린지 정책 자동 적용).
+    # 흐름: 그룹 행 삭제 -> medications.prescription_group_id 의 ON DELETE CASCADE
+    #       가 약을 함께 삭제 -> 그 프로필의 active 가이드 cascade
+    # medication 을 손으로 지우던 단계는 QA-01 에서 제거했다 — DB 가 이미 한다.
     async def delete_group_with_owner_check(
         self,
         group_id: UUID,
@@ -217,11 +197,8 @@ class PrescriptionGroupService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prescription group not found.")
         await self._verify_profile_ownership(group.profile_id, account_id)
 
+        # 가이드는 별도 테이블 계보(profile -> lifestyle_guides)라 FK 로 안 따라온다.
+        # 그룹 삭제와 가이드 삭제가 따로 놀지 않도록 한 트랜잭션에 묶는다.
         async with in_transaction():
-            now = datetime.now(tz=config.TIMEZONE)
-            await Medication.filter(
-                prescription_group_id=group.id,
-                deleted_at__isnull=True,
-            ).update(deleted_at=now, is_active=False)
             await self.repository.soft_delete(group)
             await self.lifestyle_guide_service.cascade_delete_active_guides_by_profile(group.profile_id)

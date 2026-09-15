@@ -82,7 +82,7 @@ async def _load_medication_names(profile_id: UUID) -> list[str]:
     """사용자의 활성 medication brand 이름 list."""
     rows = (
         await Medication
-        .filter(profile_id=profile_id, is_active=True, deleted_at__isnull=True)
+        .filter(profile_id=profile_id, is_active=True)
         .order_by("created_at")
         .values_list("medicine_name", flat=True)
     )
