@@ -50,6 +50,19 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
+      # UTF-8 방어 누락 검사 — 한글·이모지를 찍는 스크립트가 cp949 에서 죽지 않게
+      # 2026-09-15 하루에 같은 크래시를 세 번 밟았다(대장 D36). 이 크래시는 하려던
+      # 일을 다 끝낸 뒤 출력 단계에서 터져 **성공을 실패로 보이게** 만든다.
+      # stdout 과 stderr 는 서로를 지켜주지 않으므로 목적지별로 본다.
+      - id: utf8-output-guard
+        name: 🔤 UTF-8 출력 방어 검사
+        entry: uv run python scripts/check_utf8_guard.py
+        language: system
+        files: ^scripts/.*\.py$
+        require_serial: true
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+
       # 레이어 계약 검사 (import-linter) — 계약 정본은 pyproject.toml 의 [tool.importlinter]
       # CLAUDE.md 는 "Router -> Service -> Repository -> Model, 층 건너뛰기 금지" 를
       # 규칙으로 적어 뒀지만 **아무도 세지 않았다**. 문서로 적는 방식은 이 저장소에서
@@ -119,6 +132,20 @@ repos:
       - id: qa-anchor-parity
         name: 🔗 QA 앵커 유효성 검사
         entry: uv run python scripts/check_anchors.py
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # 에이전트 메모리 인덱스 ↔ 개별 메모리 정합 (pre-push)
+      # MEMORY.md 는 매 세션 전부 로드되고 개별 메모리는 회상될 때만 온다.
+      # 그래서 인덱스가 낡으면 **틀린 사본이 항상 읽히고 맞는 원본은 거의 안 읽힌다**
+      # (실제로 4건이 그 상태였다). dangling/orphan 만 차단하고 상태어 충돌은
+      # 검출률 50% 라 보고만 한다. 메모리가 없는 환경에서는 조용히 통과.
+      - id: memory-index-parity
+        name: 🧠 메모리 인덱스 정합 검사
+        entry: uv run python scripts/check_memory_index.py
         language: system
         require_serial: true
         pass_filenames: false
