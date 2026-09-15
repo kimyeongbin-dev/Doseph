@@ -157,6 +157,15 @@ flowchart TD
 
 - GitHub Actions로 push/PR 시 자동 lint · test 실행, main 머지 시 deploy 트리거
 
+### 품질 게이트
+
+규칙을 문서가 아니라 **실패하는 명령**으로 둔다. `commit-msg` · `pre-push` · CI 3층에
+배치하고, 게이트를 추가하기 전에 **과거 커밋을 표본으로 검출률을 먼저 잰다**
+(정밀도가 낮으면 게이트가 아니라 보고로 둔다 — 사람이 게이트를 끄면 옆의 정확한
+검사까지 죽기 때문).
+
+→ 전체 목록·설계 원칙·게이트가 실제로 잡은 사례: **[docs/QUALITY_GATES.md](docs/QUALITY_GATES.md)**
+
 ### 협업
 
 - PR 리뷰 → 모듈 책임 명확화 + 작은 단위 PR 운영으로 머지 충돌 최소화
