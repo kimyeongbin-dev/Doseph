@@ -113,6 +113,20 @@ repos:
         always_run: true
         stages: [commit-msg]
 
+      # 커밋 제목 앞머리 오염 차단 (commit-msg 스테이지)
+      # 2026-09-13 에 8개 커밋 제목이 '@ ' 로 시작한 채 박혔다. 두 글자지만
+      # HEAD~119 근처 + 원격 15개 브랜치라 되돌리려면 121커밋 재작성 + force push 다.
+      # 되돌릴 수 없으니 **다음 것을 막는다**. 이모지·[긴급] 스타일은 팀 시절 규약이라
+      # 소급 판정하지 않는다 — prefix 규약 전체는 후속(로드맵 `문서-3`)에서 정한다.
+      - id: commit-subject-hygiene
+        name: ✍️ 커밋 제목 앞머리 검사
+        entry: uv run python scripts/check_commit_subject.py
+        language: system
+        require_serial: true
+        pass_filenames: true
+        always_run: true
+        stages: [commit-msg]
+
       # 완료기록 ↔ PLAN 스냅샷 대조 (pre-push)
       # "완료기록과 아카이브는 한 동작" 규칙을 6회 어겼다(대장 D27).
       # 감각이 아니라 셈으로 잡는다. docs-private 이 없는 환경(CI)에서는 조용히 통과.
