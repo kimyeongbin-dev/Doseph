@@ -152,6 +152,19 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # 포트폴리오 문서가 근거보다 낡았는지 (pre-push)
+      # security-posture 가 **끝난 일 5건을 "진행 예정" 으로** 소개하고 있었다.
+      # 포트폴리오에서 그건 틀린 정보일 뿐 아니라 자기 성과를 깎아먹는다.
+      # 없는 근거 경로만 차단하고, draft·동기화 필요는 보고만 한다(근거는 자주 바뀐다).
+      - id: portfolio-sync
+        name: 🎯 포트폴리오 동기화 추적
+        entry: uv run python scripts/check_portfolio_sync.py
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       # 에이전트 메모리 인덱스 ↔ 개별 메모리 정합 (pre-push)
       # MEMORY.md 는 매 세션 전부 로드되고 개별 메모리는 회상될 때만 온다.
       # 그래서 인덱스가 낡으면 **틀린 사본이 항상 읽히고 맞는 원본은 거의 안 읽힌다**
