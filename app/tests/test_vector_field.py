@@ -1,7 +1,5 @@
 """Tests for VectorField and VectorQueryMixin functionality."""
 
-from unittest.mock import Mock
-
 import numpy as np
 import pytest
 from tortoise import fields
@@ -214,33 +212,13 @@ class TestVectorOperations:
         assert inner_product == expected_inner
 
 
-@pytest.fixture
-async def setup_test_db() -> None:
-    """Fixture to set up test database with pgvector extension."""
-    # This would be implemented when we have actual database testing
-    # For now, it's a placeholder
-
-
-class TestVectorDatabaseIntegration:
-    """Integration tests for vector database operations."""
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Requires database setup")
-    async def test_vector_storage_and_retrieval(self, setup_test_db: Mock) -> None:
-        """Test storing and retrieving vectors from database."""
-        # This test would require actual database connection
-        # Implementation would go here when database is set up
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Requires database setup")
-    async def test_hnsw_index_creation(self, setup_test_db: Mock) -> None:
-        """Test HNSW index creation for vector similarity search."""
-        # This test would verify HNSW index creation
-        # Implementation would go here when database is set up
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Requires database setup")
-    async def test_similarity_search_performance(self, setup_test_db: Mock) -> None:
-        """Test performance of similarity search with large dataset."""
-        # This test would measure search performance
-        # Implementation would go here when database is set up
+# ── DB 통합 검증은 DB 층으로 이관됐다 (QA-04, 2026-09-15) ────────────────────
+# 여기 있던 `TestVectorDatabaseIntegration` 3건과 빈 `setup_test_db` 픽스처는
+# **본문이 없는 자리표시자**였고 `@pytest.mark.skip("Requires database setup")` 로
+# 2026-04-17 부터 5개월간 초록이었다.
+#
+# 그 "database setup" 은 C12-b(QA-23)에서 만들었다(app/tests/db/). 전제가 사라졌으므로
+# 실제 테스트로 채워 **app/tests/db/test_db_vector.py** 로 옮겼다 —
+# DB 픽스처(`db`)와 `@pytest.mark.db` 분리가 그 디렉터리에만 있기 때문이다.
+#
+# 이 파일에는 **DB 없이 도는 것**(벡터 필드 정의·직렬화·순수 함수)만 남긴다.
