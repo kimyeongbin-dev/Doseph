@@ -358,20 +358,23 @@ class LifestyleGuideService:
         logger.info("[GUIDE] 가이드 삭제 완료 guide_id=%s account_id=%s", guide_id, account_id)
 
     async def _cascade_delete_guide(self, guide: LifestyleGuide) -> None:
-        """단일 가이드 cascade 삭제 — 챌린지 보존 정책 그대로.
+        """단일 가이드 삭제 — 그 가이드에서 나온 챌린지도 함께 사라진다.
 
-        - 활성/완료 챌린지: guide_id=None 으로 분리만 (사용자 진행분 보존)
-        - 미시작 챌린지: soft-delete
+        ⚠️ 2026-09-15 정책 변경(QA-01). 이전에는 **활성·완료 챌린지를
+        ``guide_id=None`` 으로 분리 보존**하고 미시작만 지웠다(사용자 진행분 유지).
+        사용자 결정으로 **진행분까지 삭제**하는 것으로 바꿨다 — 삭제 의미론을
+        hard delete 로 통일하는 흐름의 일부다.
+
+        구현은 **FK 에 맡긴다**: ``challenges.guide_id`` 가 ``ON DELETE CASCADE`` 라
+        가이드 행을 지우면 DB 가 자식 챌린지를 함께 지운다. 손으로 도는 루프는
+        같은 일을 두 번 하는 것이었고, 실제로 그 중복이 QA-01(soft delete 가 FK
+        cascade 에 덮이는 문제)의 원인이었다.
+
+        사용자가 직접 만든 챌린지는 ``guide_id`` 가 NULL 이라 영향받지 않는다.
 
         Args:
             guide: 삭제 대상 LifestyleGuide.
         """
-        challenges = await self.challenge_repo.get_by_guide_id(guide.id)
-        for c in challenges:
-            if not c.is_active:
-                await self.challenge_repo.soft_delete(c)
-            else:
-                await Challenge.filter(id=c.id).update(guide_id=None)
         await self.guide_repo.delete_by_id(guide.id)
 
     async def cascade_delete_active_guides_by_profile(self, profile_id: UUID) -> int:

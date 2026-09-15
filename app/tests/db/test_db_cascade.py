@@ -70,12 +70,19 @@ async def test_deleting_prescription_group_soft_deletes_its_medications(db: None
     assert await Medication.filter(id=medication.id).count() == 0, "처방전 그룹을 지웠는데 약 행이 남아 있다"
 
 
-# ── ⭐ 조건부 보존 정책 — 이 파일의 핵심 ─────────────────────────────
-# 흐름: 같은 가이드에 미시작 챌린지와 활성 챌린지를 하나씩 매달고 그룹을 삭제
-#       -> 미시작만 사라지고 활성은 남아야 한다
-# 두 갈래를 **한 테스트 안에서** 본다. 따로 두면 "전부 삭제" 구현이 한쪽만 통과시킨다.
-async def test_cascade_removes_unstarted_challenges_but_keeps_started_ones(db: None) -> None:
-    """Unstarted challenges are removed; started ones survive with guide detached."""
+# ── ⭐ 가이드 삭제 -> 그 가이드의 챌린지 전부 삭제 ──────────────────────────
+# 흐름: 같은 가이드에 미시작/활성 챌린지를 하나씩 매달고 그룹을 삭제 -> 둘 다 사라진다
+#
+# ⚠️ 2026-09-15 정책 변경(QA-01): 이전에는 **활성·완료 챌린지를 guide_id=None 으로
+#    분리 보존**했다(사용자 진행분 유지). 사용자 결정으로 **진행분까지 삭제**하는 것으로
+#    바꿨다 — 삭제 의미론을 hard delete 로 통일하는 흐름의 일부다.
+#    되돌릴 수 없는 방향이므로, 단계적 삭제(유예기간)를 도입할 때 이 지점을 가장 먼저 본다.
+#
+# 구현은 FK 에 맡긴다: `challenges.guide_id` 가 ON DELETE CASCADE 라 가이드를 지우면
+# 그 가이드에서 나온 챌린지는 DB 가 함께 지운다. 손으로 도는 루프가 필요 없다.
+# (사용자가 직접 만든 챌린지는 guide_id 가 NULL 이라 영향받지 않는다)
+async def test_deleting_guide_removes_all_its_challenges(db: None) -> None:
+    """Every challenge of a deleted guide is removed — started ones included."""
     account = await create_account()
     profile = await create_profile(account)
     group = await create_prescription_group(profile)
@@ -97,18 +104,34 @@ async def test_cascade_removes_unstarted_challenges_but_keeps_started_ones(db: N
         account_id=account.id,
     )
 
-    unstarted_rows = await Challenge.filter(id=unstarted.id).values("deleted_at", "guide_id")
-    started_rows = await Challenge.filter(id=started.id).values("deleted_at", "guide_id")
+    assert await Challenge.filter(id=unstarted.id).count() == 0, "미시작 챌린지가 남아 있다"
+    assert await Challenge.filter(id=started.id).count() == 0, (
+        "진행 중이던 챌린지가 남아 있다 — 진행분까지 삭제하는 정책이다(QA-01)"
+    )
 
-    # QA-01 해소(2026-09-15): 이제 주석과 실제가 일치한다.
-    # 전에는 `_cascade_delete_guide` 가 미시작 챌린지에 soft_delete 를 걸어놓고
-    # 바로 다음 줄에서 가이드를 hard delete 해, FK CASCADE 가 그 행을 물리 삭제했다
-    # (soft delete 가 한 줄 뒤에 덮임 — 잠금-불일치). 이제 **애초에 물리 삭제**한다.
-    assert unstarted_rows == [], "미시작 챌린지는 물리적으로 삭제돼야 한다"
 
-    assert len(started_rows) == 1, "사용자가 이미 시작한 챌린지가 지워졌다 — 진행분 보존 정책이 깨졌다"
-    assert started_rows[0]["deleted_at"] is None, "보존된 챌린지가 soft delete 됐다"
-    assert started_rows[0]["guide_id"] is None, "보존된 챌린지는 가이드와의 연결만 끊겨야 한다"
+# ── 사용자가 직접 만든 챌린지는 영향받지 않는가 ─────────────────────────────
+# 흐름: guide_id 가 NULL 인 챌린지는 가이드 삭제와 무관해야 한다
+# FK CASCADE 에 맡긴 뒤 "너무 많이 지우지 않는가"를 확인하는 짝 테스트다.
+async def test_deleting_guide_does_not_touch_user_created_challenges(db: None) -> None:
+    """A challenge with no source guide must survive guide deletion."""
+    account = await create_account()
+    profile = await create_profile(account)
+    group = await create_prescription_group(profile)
+    medication = await create_medication(profile, group)
+    await create_lifestyle_guide(profile)
+
+    standalone = await create_challenge(profile, guide=None, title="직접 만든 챌린지")
+
+    await MedicationService().delete_prescription_group_with_owner_check(
+        ids=[medication.id],
+        profile_id=profile.id,
+        account_id=account.id,
+    )
+
+    assert await Challenge.filter(id=standalone.id).count() == 1, (
+        "가이드에서 나오지 않은 챌린지까지 지워졌다 — cascade 범위가 너무 넓다"
+    )
 
 
 # ── 가이드 자체는 정리되는가 ──────────────────────────────────────────
