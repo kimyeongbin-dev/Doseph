@@ -4,10 +4,8 @@ This module provides data access layer for the messages table,
 handling chat message storage and retrieval operations.
 """
 
-from datetime import datetime
 from uuid import UUID, uuid4
 
-from app.core import config
 from app.models.messages import ChatMessage, SenderType
 
 
@@ -25,12 +23,11 @@ class MessageRepository:
         """
         return await ChatMessage.filter(
             id=message_id,
-            deleted_at__isnull=True,
         ).first()
 
     async def count_by_session(self, session_id: UUID) -> int:
         """세션의 살아있는(soft delete 제외) 메시지 수 — 옵션 D 의 compact trigger 입력."""
-        return await ChatMessage.filter(session_id=session_id, deleted_at__isnull=True).count()
+        return await ChatMessage.filter(session_id=session_id).count()
 
     async def get_by_session(self, session_id: UUID, limit: int | None = None) -> list[ChatMessage]:
         """Get all messages in a session (chronological order).
@@ -44,7 +41,6 @@ class MessageRepository:
         """
         query = ChatMessage.filter(
             session_id=session_id,
-            deleted_at__isnull=True,
         ).order_by("created_at")
 
         if limit:
@@ -66,7 +62,6 @@ class MessageRepository:
             await ChatMessage
             .filter(
                 session_id=session_id,
-                deleted_at__isnull=True,
             )
             .order_by("-created_at")
             .limit(limit)
@@ -137,31 +132,32 @@ class MessageRepository:
         return await self.create(session_id, SenderType.ASSISTANT, content, metadata=metadata)
 
     async def soft_delete(self, message: ChatMessage) -> ChatMessage:
-        """Soft delete message.
+        """Delete a message row.
+
+        ⚠️ 이름은 ``soft_delete`` 지만 **물리 삭제**다(QA-01, 2026-09-15).
 
         Args:
             message: Message to delete.
 
         Returns:
-            ChatMessage: Soft deleted message.
+            ChatMessage: The (now deleted) instance.
         """
-        message.deleted_at = datetime.now(tz=config.TIMEZONE)
-        await message.save()
+        await ChatMessage.filter(id=message.id).delete()
         return message
 
     async def bulk_soft_delete_by_session(self, session_id: UUID) -> int:
-        """세션의 모든 active 메시지를 일괄 soft delete.
+        """세션의 모든 메시지를 일괄 삭제한다.
 
-        ChatSession cascade soft-delete 흐름에서 호출. 이미 삭제된 row 는
-        자연스럽게 제외 (idempotent).
+        ⚠️ 이름과 달리 **물리 삭제**다(QA-01). 멱등하다.
+
+        세션을 지우는 경우에는 **부를 필요가 없다** — ``messages.session_id`` 가
+        ``ON DELETE CASCADE`` 라 DB 가 알아서 지운다. 세션은 남기고 메시지만
+        비우는 경우에만 쓴다.
 
         Args:
             session_id: 대상 세션 UUID.
 
         Returns:
-            새로 deleted_at 이 채워진 row 수.
+            삭제된 row 수.
         """
-        return await ChatMessage.filter(
-            session_id=session_id,
-            deleted_at__isnull=True,
-        ).update(deleted_at=datetime.now(tz=config.TIMEZONE))
+        return await ChatMessage.filter(session_id=session_id).delete()

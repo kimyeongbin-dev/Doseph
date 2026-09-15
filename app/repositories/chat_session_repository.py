@@ -7,7 +7,6 @@ handling conversation session management operations.
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from app.core import config
 from app.models.chat_sessions import ChatSession
 
 
@@ -25,7 +24,6 @@ class ChatSessionRepository:
         """
         return await ChatSession.filter(
             id=session_id,
-            deleted_at__isnull=True,
         ).first()
 
     async def get_all_by_account(self, account_id: UUID) -> list[ChatSession]:
@@ -41,7 +39,6 @@ class ChatSessionRepository:
             await ChatSession
             .filter(
                 account_id=account_id,
-                deleted_at__isnull=True,
             )
             .order_by("-created_at")
             .all()
@@ -60,7 +57,6 @@ class ChatSessionRepository:
             await ChatSession
             .filter(
                 profile_id=profile_id,
-                deleted_at__isnull=True,
             )
             .order_by("-created_at")
             .all()
@@ -112,51 +108,49 @@ class ChatSessionRepository:
         Returns:
             UPDATE 된 row 수 (정상이면 1, 세션 없으면 0).
         """
-        return await ChatSession.filter(id=session_id, deleted_at__isnull=True).update(
+        return await ChatSession.filter(id=session_id).update(
             summary=summary,
             summary_updated_at=datetime.now(UTC),
         )
 
     async def soft_delete(self, session: ChatSession) -> ChatSession:
-        """Soft delete chat session.
+        """Delete a chat session row — 메시지는 FK 가 함께 지운다.
+
+        ⚠️ 이름은 ``soft_delete`` 지만 **물리 삭제**다(QA-01, 2026-09-15).
+        ``messages.session_id`` 가 ``ON DELETE CASCADE`` 라 세션을 지우면 그 세션의
+        메시지도 DB 가 함께 지운다 — 호출자가 메시지를 따로 지울 필요가 없다.
 
         Args:
             session: Session to delete.
 
         Returns:
-            ChatSession: Soft deleted session.
+            ChatSession: The (now deleted) instance.
         """
-        session.deleted_at = datetime.now(tz=config.TIMEZONE)
-        await session.save()
+        await ChatSession.filter(id=session.id).delete()
         return session
 
     async def bulk_soft_delete_by_account(self, account_id: UUID) -> int:
-        """계정 소유의 모든 active chat session 을 일괄 soft delete.
+        """계정 소유의 모든 chat session 을 일괄 삭제한다.
 
-        회원탈퇴 흐름의 일부. account_id 컬럼을 직접 갖는 세션만 처리하며,
-        profile_id 만 가진 세션은 별도로 ``bulk_soft_delete_by_profile`` 호출.
+        ⚠️ 이름과 달리 **물리 삭제**다(QA-01). 메시지는 FK CASCADE 가 함께 지운다.
 
         Args:
             account_id: 대상 계정 UUID.
 
         Returns:
-            새로 deleted_at 이 채워진 row 수.
+            삭제된 row 수.
         """
-        return await ChatSession.filter(
-            account_id=account_id,
-            deleted_at__isnull=True,
-        ).update(deleted_at=datetime.now(tz=config.TIMEZONE))
+        return await ChatSession.filter(account_id=account_id).delete()
 
     async def bulk_soft_delete_by_profile(self, profile_id: UUID) -> int:
-        """프로필 단위 chat session 일괄 soft delete (Profile cascade 흐름).
+        """프로필 단위 chat session 일괄 삭제 (Profile cascade 흐름).
+
+        ⚠️ 이름과 달리 **물리 삭제**다(QA-01). 메시지는 FK CASCADE 가 함께 지운다.
 
         Args:
             profile_id: 대상 프로필 UUID.
 
         Returns:
-            새로 deleted_at 이 채워진 row 수.
+            삭제된 row 수.
         """
-        return await ChatSession.filter(
-            profile_id=profile_id,
-            deleted_at__isnull=True,
-        ).update(deleted_at=datetime.now(tz=config.TIMEZONE))
+        return await ChatSession.filter(profile_id=profile_id).delete()

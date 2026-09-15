@@ -12,11 +12,10 @@ QA-01(2026-09-15)로 삭제 의미론이 **hard delete 로 통일**되면서 이
 여전히 grep 으로는 알 수 없다 — 행을 만들어 지워봐야 한다.
 """
 
-from datetime import UTC, datetime
-
 import pytest
 
 from app.models.challenge import Challenge
+from app.models.chat_sessions import ChatSession
 from app.models.medication import Medication
 from app.models.prescription_group import PrescriptionGroup
 from app.repositories.challenge_repository import ChallengeRepository
@@ -96,21 +95,21 @@ async def test_deleted_challenge_row_is_gone(db: None) -> None:
 
 
 # ── 대화 세션 ─────────────────────────────────────────────────────────
-async def test_deleted_chat_session_disappears_from_list(db: None) -> None:
-    """A soft-deleted chat session must not appear in listings."""
+async def test_deleted_chat_session_row_is_gone(db: None) -> None:
+    """A deleted chat session must be physically removed."""
     account = await create_account()
     profile = await create_profile(account)
     kept = await create_chat_session(account, profile, title="살아있는대화")
     removed = await create_chat_session(account, profile, title="지워진대화")
 
-    removed.deleted_at = datetime.now(UTC)
-    await removed.save()
+    await ChatSessionRepository().soft_delete(removed)
 
     sessions = await ChatSessionRepository().get_by_profile(profile.id)
     ids = {session.id for session in sessions}
 
     assert kept.id in ids
-    assert removed.id not in ids, "soft delete 한 세션이 목록에 남아 있다 — 필터가 빠졌다"
+    assert removed.id not in ids, "삭제한 세션이 목록에 남아 있다"
+    assert await ChatSession.filter(id=removed.id).count() == 0, "행이 남아 있다"
 
 
 # ── 단건 조회도 같은 규칙을 따르는가 ──────────────────────────────────

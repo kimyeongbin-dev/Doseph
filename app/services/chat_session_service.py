@@ -7,7 +7,6 @@ including creation, updates, and ownership verification.
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from tortoise.transactions import in_transaction
 
 from app.models.chat_sessions import ChatSession
 from app.repositories.chat_session_repository import ChatSessionRepository
@@ -211,31 +210,29 @@ class ChatSessionService:
         session = await self.get_session_with_owner_check(session_id, account_id)
         return await self.repository.update(session, title=title)
 
-    # ── 세션 삭제 (cascade soft-delete) ────────────────────────────────
-    # 흐름: 세션 soft-delete -> 자식 ChatMessage 도 soft-delete (트랜잭션)
+    # ── 세션 삭제 (FK CASCADE) ─────────────────────────────────────────
+    # 흐름: 세션 행 삭제 -> messages.session_id 의 ON DELETE CASCADE 가 메시지 삭제
+    # 트랜잭션으로 묶던 2단계 처리는 QA-01 에서 제거됐다 — DB 가 원자적으로 한다.
 
     async def delete_session(self, session_id: UUID) -> None:
-        """Delete chat session (soft delete) — 자식 메시지 cascade.
-
-        세션 soft-delete 와 그 세션의 모든 ChatMessage soft-delete 를 단일
-        트랜잭션으로 처리한다.
+        """Delete a chat session — 자식 메시지는 FK 가 함께 지운다.
 
         Args:
             session_id: Session UUID to delete.
         """
         session = await self.get_session(session_id)
-        async with in_transaction():
-            await self.repository.soft_delete(session)
-            await self.message_repository.bulk_soft_delete_by_session(session_id)
+        # 메시지는 FK(messages.session_id ON DELETE CASCADE)가 함께 지운다.
+        # 손으로 한 번 더 지우던 코드를 제거했다(QA-01) — 같은 일을 두 번 하면
+        # 두 경로가 어긋날 때 조용한 불일치가 생긴다.
+        await self.repository.soft_delete(session)
 
     async def delete_session_with_owner_check(self, session_id: UUID, account_id: UUID) -> None:
-        """Delete chat session with ownership verification — 자식 메시지 cascade.
+        """Delete a chat session with ownership verification — 메시지는 FK 가 함께 지운다.
 
         Args:
             session_id: Session UUID to delete.
             account_id: Account UUID for ownership check.
         """
         session = await self.get_session_with_owner_check(session_id, account_id)
-        async with in_transaction():
-            await self.repository.soft_delete(session)
-            await self.message_repository.bulk_soft_delete_by_session(session_id)
+        # 메시지는 FK CASCADE 가 함께 지운다(위 delete_session 주석 참조).
+        await self.repository.soft_delete(session)

@@ -200,7 +200,7 @@ async def test_deleting_profile_cascades_to_children(db: None) -> None:
     assert await Medication.filter(id=medication.id).count() == 0, "프로필을 지웠는데 약 행이 남아 있다"
     # 챌린지는 QA-01 에서 hard delete 로 전환됐다 — "표시됐나"가 아니라 "없는가"를 본다.
     assert await Challenge.filter(id=challenge.id).count() == 0, "프로필을 지웠는데 챌린지 행이 남아 있다"
-    assert await _deleted_at_of(ChatSession, session.id) is not None, "프로필을 지웠는데 세션이 남아 있다"
+    assert await ChatSession.filter(id=session.id).count() == 0, "프로필을 지웠는데 세션 행이 남아 있다"
 
     profile_rows = await Profile.filter(id=family.id).values("deleted_at")
     assert profile_rows[0]["deleted_at"] is not None, "프로필 자신이 삭제 표시되지 않았다"
@@ -229,7 +229,8 @@ async def test_deleting_chat_session_cascades_to_messages(db: None) -> None:
 
     await ChatSessionService().delete_session_with_owner_check(session.id, account.id)
 
-    assert await _deleted_at_of(ChatMessage, message.id) is not None, "세션을 지웠는데 메시지가 남아 있다"
+    # 메시지는 FK(messages.session_id ON DELETE CASCADE)가 지운다 — 손으로 돌지 않는다.
+    assert await ChatMessage.filter(id=message.id).count() == 0, "세션을 지웠는데 메시지 행이 남아 있다"
 
 
 # ── 계정 탈퇴 -> 전부 ─────────────────────────────────────────────────
@@ -263,8 +264,8 @@ async def test_account_withdrawal_cascades_everything(db: None) -> None:
     assert await _deleted_at_of(Profile, self_profile.id) is not None, "SELF 프로필이 남아 있다"
     assert await Medication.filter(id=medication.id).count() == 0, "약 행이 남아 있다"
 
-    assert await _deleted_at_of(ChatSession, session.id) is not None, "계정 직속 세션이 남아 있다"
-    assert await _deleted_at_of(ChatMessage, message.id) is not None, "세션 메시지가 남아 있다"
+    assert await ChatSession.filter(id=session.id).count() == 0, "계정 직속 세션 행이 남아 있다"
+    assert await ChatMessage.filter(id=message.id).count() == 0, "세션 메시지 행이 남아 있다"
 
     account_rows = await Account.filter(id=account.id).values("is_active", "deleted_at")
     assert account_rows[0]["is_active"] is False, "탈퇴한 계정이 아직 활성이다"
