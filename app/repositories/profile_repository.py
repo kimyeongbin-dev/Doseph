@@ -25,7 +25,6 @@ class ProfileRepository:
         """
         return await Profile.filter(
             id=profile_id,
-            deleted_at__isnull=True,
         ).first()
 
     async def get_all_by_account(self, account_id: UUID) -> list[Profile]:
@@ -39,7 +38,6 @@ class ProfileRepository:
         """
         return await Profile.filter(
             account_id=account_id,
-            deleted_at__isnull=True,
         ).all()
 
     async def get_self_profile(self, account_id: UUID) -> Profile | None:
@@ -54,7 +52,6 @@ class ProfileRepository:
         return await Profile.filter(
             account_id=account_id,
             relation_type=RelationType.SELF,
-            deleted_at__isnull=True,
         ).first()
 
     async def create(
@@ -101,16 +98,21 @@ class ProfileRepository:
         return profile
 
     async def soft_delete(self, profile: Profile) -> Profile:
-        """Soft delete profile.
+        """Delete a profile row — 자식은 FK CASCADE 가 함께 지운다.
+
+        ⚠️ 이름은 ``soft_delete`` 지만 **물리 삭제**다(QA-01, 2026-09-15).
+        ``profiles`` 를 참조하는 FK 8개(medications · challenges · chat_sessions ·
+        prescription_groups · intake_logs · daily_symptom_logs · lifestyle_guides ·
+        ocr_drafts)가 전부 ``ON DELETE CASCADE`` 라, 이 한 줄이 자식 전부를 정리한다
+        (messages 는 chat_sessions 를 통해 연쇄).
 
         Args:
             profile: Profile to delete.
 
         Returns:
-            Profile: Soft deleted profile.
+            Profile: The (now deleted) instance.
         """
-        profile.deleted_at = datetime.now(tz=config.TIMEZONE)
-        await profile.save()
+        await Profile.filter(id=profile.id).delete()
         return profile
 
     async def bulk_soft_delete_by_account(self, account_id: UUID) -> int:
@@ -127,5 +129,4 @@ class ProfileRepository:
         """
         return await Profile.filter(
             account_id=account_id,
-            deleted_at__isnull=True,
         ).update(deleted_at=datetime.now(tz=config.TIMEZONE))

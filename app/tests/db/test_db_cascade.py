@@ -24,6 +24,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 import pytest
+from tortoise import connections
 from tortoise.models import Model
 
 from app.models.accounts import Account
@@ -32,6 +33,7 @@ from app.models.chat_sessions import ChatSession
 from app.models.lifestyle_guide import LifestyleGuide
 from app.models.medication import Medication
 from app.models.messages import ChatMessage, SenderType
+from app.models.prescription_group import PrescriptionGroup
 from app.models.profiles import Profile, RelationType
 from app.models.refresh_tokens import RefreshToken
 from app.services.chat_session_service import ChatSessionService
@@ -181,11 +183,18 @@ async def test_cascade_does_not_touch_another_profile(db: None) -> None:
     assert survivors[0]["deleted_at"] is None, "다른 프로필의 챌린지가 삭제 표시됐다"
 
 
-# ── 프로필 삭제 -> 자식 전부 ──────────────────────────────────────────
-# 흐름: 가족 프로필에 약/챌린지/세션을 매달고 삭제 -> 전부 정리됐는지
-# SELF 프로필은 계정 탈퇴로만 지울 수 있으므로 가족 프로필로 검증한다.
-async def test_deleting_profile_cascades_to_children(db: None) -> None:
-    """Deleting a profile must clean up its medications, challenges and sessions."""
+# ── ⭐ 프로필 삭제 -> 자식 8종 전부 (FK CASCADE 에 위임) ────────────────────
+# 흐름: 가족 프로필에 자식을 8종 다 매달고 삭제 -> 프로필 행과 자식 전부가 사라진다
+#
+# ⚠️ 왜 8종을 **전수** 확인하나: QA-01 S4 에서 손수 돌던 cascade 호출 8개를 지우고
+#    FK 에 맡겼다. 수동 호출을 지우는 만큼 **검증 범위를 넓혀야** 한다 —
+#    "하나라도 FK 가 안 닿으면 고아 행이 남는다"가 이 변경의 유일한 위험이다.
+#    (실측 2026-09-15: profiles 를 참조하는 FK 8개가 전부 ON DELETE CASCADE,
+#     messages 는 chat_sessions 를 통해 연쇄)
+#
+# 팩토리가 없는 3종(intake_log · daily_symptom_log · ocr_draft)은 raw SQL 로 최소 행만 만든다.
+async def test_deleting_profile_removes_every_child_row(db: None) -> None:
+    """Deleting a profile must remove the row and every child row."""
     account = await create_account()
     await create_profile(account)  # SELF — 삭제 대상이 아님
     family = await create_profile(account, relation_type=RelationType.MOTHER, name="가족")
@@ -194,16 +203,45 @@ async def test_deleting_profile_cascades_to_children(db: None) -> None:
     medication = await create_medication(family, group)
     challenge = await create_challenge(family)
     session = await create_chat_session(account, family)
+    message = await ChatMessage.create(session=session, sender_type=SenderType.USER, content="안녕")
+    guide = await create_lifestyle_guide(family)
+
+    connection = connections.get("default")
+    await connection.execute_query(
+        "insert into intake_logs (id, scheduled_date, scheduled_time, medication_id, profile_id) "
+        "values (gen_random_uuid(), '2026-09-01', '08:00+00', $1, $2)",
+        [medication.id, family.id],
+    )
+    await connection.execute_query(
+        "insert into daily_symptom_logs (id, log_date, symptoms, profile_id) "
+        "values (gen_random_uuid(), '2026-09-01', '[]'::jsonb, $1)",
+        [family.id],
+    )
+    await connection.execute_query(
+        "insert into ocr_drafts (id, image_hash, profile_id) values (gen_random_uuid(), 'qa01-hash', $1)",
+        [family.id],
+    )
 
     await ProfileService().delete_profile_with_owner_check(family.id, account.id)
 
-    assert await Medication.filter(id=medication.id).count() == 0, "프로필을 지웠는데 약 행이 남아 있다"
-    # 챌린지는 QA-01 에서 hard delete 로 전환됐다 — "표시됐나"가 아니라 "없는가"를 본다.
-    assert await Challenge.filter(id=challenge.id).count() == 0, "프로필을 지웠는데 챌린지 행이 남아 있다"
-    assert await ChatSession.filter(id=session.id).count() == 0, "프로필을 지웠는데 세션 행이 남아 있다"
+    assert await Profile.filter(id=family.id).count() == 0, "프로필 행이 남아 있다"
+    assert await PrescriptionGroup.filter(id=group.id).count() == 0, "처방전 그룹이 남아 있다"
+    assert await Medication.filter(id=medication.id).count() == 0, "약이 남아 있다"
+    assert await Challenge.filter(id=challenge.id).count() == 0, "챌린지가 남아 있다"
+    assert await ChatSession.filter(id=session.id).count() == 0, "세션이 남아 있다"
+    assert await ChatMessage.filter(id=message.id).count() == 0, "메시지가 남아 있다"
+    assert await LifestyleGuide.filter(id=guide.id).count() == 0, "가이드가 남아 있다"
 
-    profile_rows = await Profile.filter(id=family.id).values("deleted_at")
-    assert profile_rows[0]["deleted_at"] is not None, "프로필 자신이 삭제 표시되지 않았다"
+    # 팩토리 없는 3종 — profile_id 로 직접 센다.
+    # 테이블명을 f-string 으로 끼워넣지 않는다(정적 분석이 SQL 주입으로 본다).
+    orphan_counts = {
+        "intake_logs": (await _count_by_profile(connection, "intake_logs", family.id)),
+        "daily_symptom_logs": (await _count_by_profile(connection, "daily_symptom_logs", family.id)),
+        "ocr_drafts": (await _count_by_profile(connection, "ocr_drafts", family.id)),
+    }
+    assert orphan_counts == {"intake_logs": 0, "daily_symptom_logs": 0, "ocr_drafts": 0}, (
+        f"FK 가 닿지 않아 고아 행이 남았다: {orphan_counts}"
+    )
 
 
 # ── SELF 프로필은 일반 삭제로 지워지지 않는다 ────────────────────────
@@ -261,7 +299,7 @@ async def test_account_withdrawal_cascades_everything(db: None) -> None:
     assert await RefreshToken.filter(account_id=account.id).count() == 0, (
         "탈퇴했는데 refresh token 행이 남아 있다 — token_hash 가 DB 에 잔존한다"
     )
-    assert await _deleted_at_of(Profile, self_profile.id) is not None, "SELF 프로필이 남아 있다"
+    assert await Profile.filter(id=self_profile.id).count() == 0, "SELF 프로필 행이 남아 있다"
     assert await Medication.filter(id=medication.id).count() == 0, "약 행이 남아 있다"
 
     assert await ChatSession.filter(id=session.id).count() == 0, "계정 직속 세션 행이 남아 있다"
@@ -286,3 +324,25 @@ async def _deleted_at_of(model: type[Model], row_id: Any) -> Any:
     """
     rows = await model.filter(id=row_id).values("deleted_at")
     return rows[0]["deleted_at"] if rows else None
+
+
+async def _count_by_profile(connection: Any, table: str, profile_id: Any) -> int:
+    """profile_id 로 자식 테이블의 행 수를 센다.
+
+    테이블명은 이 파일 안의 **고정 리터럴**만 들어온다(외부 입력 아님).
+
+    Args:
+        connection: Tortoise connection.
+        table: 자식 테이블 이름.
+        profile_id: 대상 프로필 UUID.
+
+    Returns:
+        남아 있는 행 수.
+    """
+    queries = {
+        "intake_logs": "select count(*) as n from intake_logs where profile_id = $1",
+        "daily_symptom_logs": "select count(*) as n from daily_symptom_logs where profile_id = $1",
+        "ocr_drafts": "select count(*) as n from ocr_drafts where profile_id = $1",
+    }
+    _, rows = await connection.execute_query(queries[table], [profile_id])
+    return int(rows[0]["n"])

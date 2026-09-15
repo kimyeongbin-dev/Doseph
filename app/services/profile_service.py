@@ -7,7 +7,6 @@ including creation, updates, and ownership verification.
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from tortoise.transactions import in_transaction
 
 from app.dtos.profile import ProfileCreate, ProfileUpdate
 from app.models.profiles import RELATION_DEFAULT_GENDER, Gender, Profile, RelationType
@@ -220,34 +219,24 @@ class ProfileService:
     # 단일 트랜잭션. 회원탈퇴(account_service) 도 이 helper 를 호출.
 
     async def cascade_delete_profile(self, profile: Profile) -> None:
-        """Profile soft-delete 시 모든 자식 row 도 함께 정리 (service 간 호출 허용).
+        """Profile 삭제 — 자식 row 는 FK CASCADE 가 함께 정리한다.
 
-        - deleted_at 보유 자식: medication / challenge / chat_session / messages → soft
-        - deleted_at 미보유 자식: intake_log / daily_symptom_log / lifestyle_guide
-          / ocr_draft → hard
+        ⚠️ 2026-09-15(QA-01): 자식을 손수 지우던 **8번의 호출을 제거**했다.
+        ``profiles`` 를 참조하는 FK 8개가 전부 ``ON DELETE CASCADE`` 이므로
+        DB 가 같은 일을 이미 원자적으로 한다(messages 는 chat_sessions 를 통해 연쇄).
+
+        같은 일을 두 곳에서 하면 두 경로가 어긋날 때 **조용한 불일치**가 생긴다 —
+        그게 QA-01 의 형태였다(soft delete 를 걸어놓고 FK cascade 가 덮음).
+        트랜잭션으로 묶던 것도 불필요해졌다(단일 DELETE 라 원자적).
 
         SELF guard 는 호출자(public delete_*)가 책임. 본 helper 는 가드 통과
-        가정 — 회원탈뒤(account_service)는 SELF 도 통과시켜야 하므로 본 메서드를
+        가정 — 회원탈퇴(oauth)는 SELF 도 통과시켜야 하므로 본 메서드를
         직접 호출한다 (router 에서는 호출 금지).
 
         Args:
             profile: 삭제 대상 Profile 인스턴스.
         """
-        # 자식 chat_sessions 의 messages 까지 cascade — 세션 ID 먼저 수집
-        sessions_for_messages = await self.chat_session_repository.get_by_profile(profile.id)
-
-        async with in_transaction():
-            await self.repository.soft_delete(profile)
-            await self.medication_repository.bulk_soft_delete_by_profile(profile.id)
-            await self.challenge_repository.bulk_soft_delete_by_profile(profile.id)
-            await self.chat_session_repository.bulk_soft_delete_by_profile(profile.id)
-            for session in sessions_for_messages:
-                await self.message_repository.bulk_soft_delete_by_session(session.id)
-            # deleted_at 미보유 — 부모와 함께 hard delete
-            await self.intake_log_repository.bulk_delete_by_profile(profile.id)
-            await self.daily_symptom_log_repository.bulk_delete_by_profile(profile.id)
-            await self.lifestyle_guide_repository.bulk_delete_by_profile(profile.id)
-            await self.ocr_draft_repository.bulk_delete_by_profile(profile.id)
+        await self.repository.soft_delete(profile)
 
     async def delete_profile(self, profile_id: UUID) -> None:
         """Delete profile (soft delete) — 자식 cascade.
