@@ -382,7 +382,10 @@ class OAuthService:
     # ── 회원탈퇴 (cascade 물리 삭제) ──────────────────────────────────
     # 흐름: accounts 행 1건 DELETE -> FK ON DELETE CASCADE 가 나머지를 원자적 정리
     #       (refresh_tokens · profiles · chat_sessions -> 그 자식들까지 연쇄)
-    # ⚠️ 유예 없이 즉시 사라진다 — 유예 도입은 QA-29 의 다음 회차 대상이다.
+    # ⚠️ 유예 없이 즉시 사라진다. **이것은 미착수가 아니라 결정이다**(2026-09-15).
+    #    배치 자동 삭제에는 유예를 뒀지만(QA-29) 탈퇴는 두지 않는다 — 사용자가
+    #    직접 누른 명시적 의사표시이고, 되돌릴 창을 두려면 계정·세션·재가입 경로가
+    #    함께 얽혀 표면이 크게 늘어난다. 나중에 필요해지면 그때 새로 설계한다.
 
     async def delete_account(self, account: Account) -> bool:
         """회원 탈퇴 — 자식 모두 cascade.
