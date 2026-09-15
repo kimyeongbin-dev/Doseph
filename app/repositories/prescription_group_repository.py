@@ -6,10 +6,9 @@ Tortoise ORM 기반 처방전 그룹 CRUD. 그룹 자체는 OCR confirm / 수동
 도메인 service 가 책임.
 """
 
-from datetime import date, datetime
+from datetime import date
 from uuid import UUID, uuid4
 
-from app.core import config
 from app.models.prescription_group import PrescriptionGroup, PrescriptionGroupSource
 
 
@@ -50,7 +49,6 @@ class PrescriptionGroupRepository:
         """Get group by ID (excluding soft deleted)."""
         return await PrescriptionGroup.filter(
             id=group_id,
-            deleted_at__isnull=True,
         ).first()
 
     async def get_all_by_profile(self, profile_id: UUID) -> list[PrescriptionGroup]:
@@ -62,7 +60,6 @@ class PrescriptionGroupRepository:
             await PrescriptionGroup
             .filter(
                 profile_id=profile_id,
-                deleted_at__isnull=True,
             )
             .order_by("-dispensed_date", "-created_at")
             .all()
@@ -94,7 +91,15 @@ class PrescriptionGroupRepository:
         return group
 
     async def soft_delete(self, group: PrescriptionGroup) -> PrescriptionGroup:
-        """Soft delete prescription group (cascade FK 정리는 호출 측 책임)."""
-        group.deleted_at = datetime.now(tz=config.TIMEZONE)
-        await group.save()
+        """Delete a prescription group row.
+
+        ⚠️ 이름은 ``soft_delete`` 지만 **물리 삭제**다(QA-01, 2026-09-15).
+
+        Args:
+            group: Prescription group to delete.
+
+        Returns:
+            PrescriptionGroup: The (now deleted) instance.
+        """
+        await PrescriptionGroup.filter(id=group.id).delete()
         return group

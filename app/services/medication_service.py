@@ -454,8 +454,9 @@ class MedicationService:
         """
         profiles = await self.profile_repository.get_all_by_account(account_id)
         profile_ids = [p.id for p in profiles]
+        deletable_ids = await self.repository.find_deletable_ids(ids, profile_ids)
         deleted_count = await self.repository.bulk_soft_delete(ids, profile_ids)
-        skipped = await self._collect_skipped_ids(ids, profile_ids) if deleted_count < len(ids) else []
+        skipped = await self._collect_skipped_ids(ids, deletable_ids) if deleted_count < len(ids) else []
         return MedicationBulkDeleteResponse(deleted_count=deleted_count, skipped_ids=skipped)
 
     # ── 처방전 그룹 단위 삭제 (cascade — 가이드 + 챌린지) ──────────────
@@ -485,8 +486,9 @@ class MedicationService:
         await self._verify_profile_ownership(profile_id, account_id)
 
         async with in_transaction():
+            deletable_ids = await self.repository.find_deletable_ids(ids, [profile_id])
             deleted_count = await self.repository.bulk_soft_delete(ids, [profile_id])
-            skipped = await self._collect_skipped_ids(ids, [profile_id]) if deleted_count < len(ids) else []
+            skipped = await self._collect_skipped_ids(ids, deletable_ids) if deleted_count < len(ids) else []
             await self.lifestyle_guide_service.cascade_delete_active_guides_by_profile(profile_id)
 
         return MedicationBulkDeleteResponse(deleted_count=deleted_count, skipped_ids=skipped)
@@ -494,18 +496,23 @@ class MedicationService:
     async def _collect_skipped_ids(
         self,
         requested_ids: list[UUID],
-        profile_ids: list[UUID],
+        deletable_ids: list[UUID],
     ) -> list[UUID]:
-        """삭제 요청 중 본인 소유 + 미삭제 조건을 만족하지 못한 ids 를 모은다."""
-        if not profile_ids:
-            return list(requested_ids)
-        owned_alive = await Medication.filter(
-            id__in=requested_ids,
-            profile_id__in=profile_ids,
-            deleted_at__isnull=False,  # 방금 삭제된 row 들 (UPDATE 후 deleted_at 채워짐)
-        ).values_list("id", flat=True)
-        owned_set = set(owned_alive)
-        return [rid for rid in requested_ids if rid not in owned_set]
+        """요청된 ids 중 실제로 지우지 못한 것을 고른다.
+
+        ⚠️ hard delete 로 바뀌면서 계산 시점이 **삭제 전**으로 옮겨졌다(QA-01).
+        전에는 삭제 후 ``deleted_at IS NOT NULL`` 로 "방금 지운 것"을 되짚었는데,
+        행이 물리적으로 사라지면 **사후에 알아낼 방법이 없다.**
+
+        Args:
+            requested_ids: 사용자가 삭제를 요청한 ID 목록.
+            deletable_ids: 삭제 직전에 확정한 "존재 + 본인 소유" ID 목록.
+
+        Returns:
+            소유가 아니거나 이미 없어서 건너뛴 ID 목록.
+        """
+        deletable = set(deletable_ids)
+        return [rid for rid in requested_ids if rid not in deletable]
 
     async def get_drug_info_with_owner_check(self, medication_id: UUID, account_id: UUID) -> DrugInfoResponse:
         """Get drug information from MedicineInfo DB with ownership verification.

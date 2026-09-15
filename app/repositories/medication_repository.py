@@ -6,6 +6,7 @@ handling prescription medication management operations.
 
 from collections import defaultdict
 from datetime import date, datetime
+from typing import cast
 from uuid import UUID, uuid4
 
 from tortoise.expressions import Q
@@ -29,7 +30,6 @@ class MedicationRepository:
         """
         return await Medication.filter(
             id=medication_id,
-            deleted_at__isnull=True,
         ).first()
 
     async def get_all_by_profile(self, profile_id: UUID) -> list[Medication]:
@@ -43,7 +43,6 @@ class MedicationRepository:
         """
         return await Medication.filter(
             profile_id=profile_id,
-            deleted_at__isnull=True,
         ).all()
 
     async def get_all_by_profiles(self, profile_ids: list[UUID]) -> list[Medication]:
@@ -59,7 +58,6 @@ class MedicationRepository:
             return []
         return await Medication.filter(
             profile_id__in=profile_ids,
-            deleted_at__isnull=True,
         ).all()
 
     async def get_active_by_prescription_group(self, group_id: UUID) -> list[Medication]:
@@ -81,7 +79,6 @@ class MedicationRepository:
             .filter(
                 prescription_group_id=group_id,
                 is_active=True,
-                deleted_at__isnull=True,
             )
             .filter(Q(end_date__isnull=True) | Q(end_date__gte=today))
             .order_by("medicine_name", "id")
@@ -109,7 +106,6 @@ class MedicationRepository:
             .filter(
                 profile_id=profile_id,
                 is_active=True,
-                deleted_at__isnull=True,
             )
             .filter(Q(end_date__isnull=True) | Q(end_date__gte=today))
             .order_by("medicine_name", "id")
@@ -130,7 +126,6 @@ class MedicationRepository:
             await Medication
             .filter(
                 profile_id=profile_id,
-                deleted_at__isnull=True,
             )
             .filter(Q(is_active=False) | Q(end_date__lt=today, end_date__isnull=False))
             .all()
@@ -150,7 +145,6 @@ class MedicationRepository:
         """
         medications = await Medication.filter(
             profile_id=profile_id,
-            deleted_at__isnull=True,
         ).all()
 
         counts: defaultdict[tuple[date, str | None], int] = defaultdict(int)
@@ -248,16 +242,18 @@ class MedicationRepository:
         return medication
 
     async def soft_delete(self, medication: Medication) -> Medication:
-        """Soft delete medication.
+        """Delete a medication row.
+
+        ⚠️ 이름은 ``soft_delete`` 지만 **물리 삭제**다(QA-01, 2026-09-15).
+        호출처가 많아 이름만 남기고 동작을 통일했다.
 
         Args:
             medication: Medication to delete.
 
         Returns:
-            Medication: Soft deleted medication.
+            Medication: The (now deleted) instance.
         """
-        medication.deleted_at = datetime.now(tz=config.TIMEZONE)
-        await medication.save()
+        await Medication.filter(id=medication.id).delete()
         return medication
 
     async def bulk_soft_delete(
@@ -265,40 +261,52 @@ class MedicationRepository:
         ids: list[UUID],
         profile_ids: list[UUID],
     ) -> int:
-        """Soft delete 다건 — 단일 UPDATE 로 처리하고 affected rows 를 반환.
+        """다건 삭제 — 단일 DELETE 로 처리하고 삭제된 row 수를 반환.
 
-        ownership 은 ``profile_ids`` 로 좁혀 강제한다 (호출자가 계정 소유
-        프로필 목록을 미리 계산해 전달). 이미 deleted 인 row 는 자연스럽게
-        제외 (deleted_at IS NULL 필터).
+        ⚠️ 이름과 달리 **물리 삭제**다(QA-01). ownership 은 ``profile_ids`` 로 좁혀
+        강제한다(호출자가 계정 소유 프로필 목록을 미리 계산해 전달).
 
         Args:
             ids: 삭제할 medication ID 목록.
             profile_ids: 계정이 소유한 프로필 ID 목록 (ownership scope).
 
         Returns:
-            실제 deleted_at 이 새로 채워진 row 수.
+            삭제된 row 수.
         """
         if not ids or not profile_ids:
             return 0
-        return await Medication.filter(
-            id__in=ids,
-            profile_id__in=profile_ids,
-            deleted_at__isnull=True,
-        ).update(deleted_at=datetime.now(tz=config.TIMEZONE))
+        return await Medication.filter(id__in=ids, profile_id__in=profile_ids).delete()
+
+    async def find_deletable_ids(self, ids: list[UUID], profile_ids: list[UUID]) -> list[UUID]:
+        """삭제 가능한(존재 + 본인 소유) id 만 골라 돌려준다.
+
+        hard delete 로 바뀌면서 필요해졌다. 전에는 삭제 **후** ``deleted_at IS NOT NULL``
+        로 "방금 지운 것"을 되짚었는데, **행이 사라지면 사후에 알아낼 수 없다.**
+        그래서 지우기 **전에** 대상을 확정한다(QA-01).
+
+        Args:
+            ids: 요청된 medication ID 목록.
+            profile_ids: 요청자가 소유한 프로필 ID 목록.
+
+        Returns:
+            실제로 지울 수 있는 ID 목록.
+        """
+        if not ids or not profile_ids:
+            return []
+        rows = await Medication.filter(id__in=ids, profile_id__in=profile_ids).values_list("id", flat=True)
+        # flat=True 라 실제로는 UUID 의 평평한 목록이지만, Tortoise 의 반환 타입은
+        # tuple 목록으로 선언돼 있어 그대로는 타입이 맞지 않는다.
+        return [cast("UUID", row) for row in rows]
 
     async def bulk_soft_delete_by_profile(self, profile_id: UUID) -> int:
-        """프로필의 모든 active medication 을 일괄 soft delete.
+        """프로필의 모든 medication 을 일괄 삭제한다.
 
-        Profile cascade soft-delete 흐름에서 호출. 이미 deleted_at 이 set
-        된 row 는 자연스럽게 제외 (idempotent).
+        ⚠️ 이름과 달리 **물리 삭제**다(QA-01). 멱등하다 — 이미 없는 행은 0건으로 센다.
 
         Args:
             profile_id: 대상 프로필 UUID.
 
         Returns:
-            새로 deleted_at 이 채워진 row 수.
+            삭제된 row 수.
         """
-        return await Medication.filter(
-            profile_id=profile_id,
-            deleted_at__isnull=True,
-        ).update(deleted_at=datetime.now(tz=config.TIMEZONE))
+        return await Medication.filter(profile_id=profile_id).delete()

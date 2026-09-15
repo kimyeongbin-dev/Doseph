@@ -66,9 +66,8 @@ async def test_deleting_prescription_group_soft_deletes_its_medications(db: None
         account_id=account.id,
     )
 
-    refreshed = await Medication.filter(id=medication.id).first()
-    assert refreshed is not None, "hard delete 되면 안 된다 — soft delete 정책이다"
-    assert refreshed.deleted_at is not None, "처방전 그룹을 지웠는데 약이 살아 있다"
+    # QA-01: soft delete 폐지 — "삭제 표시"가 아니라 **행이 없는가**를 본다.
+    assert await Medication.filter(id=medication.id).count() == 0, "처방전 그룹을 지웠는데 약 행이 남아 있다"
 
 
 # ── ⭐ 조건부 보존 정책 — 이 파일의 핵심 ─────────────────────────────
@@ -175,7 +174,7 @@ async def test_deleting_profile_cascades_to_children(db: None) -> None:
 
     await ProfileService().delete_profile_with_owner_check(family.id, account.id)
 
-    assert await _deleted_at_of(Medication, medication.id) is not None, "프로필을 지웠는데 약이 남아 있다"
+    assert await Medication.filter(id=medication.id).count() == 0, "프로필을 지웠는데 약 행이 남아 있다"
     # 챌린지는 QA-01 에서 hard delete 로 전환됐다 — "표시됐나"가 아니라 "없는가"를 본다.
     assert await Challenge.filter(id=challenge.id).count() == 0, "프로필을 지웠는데 챌린지 행이 남아 있다"
     assert await _deleted_at_of(ChatSession, session.id) is not None, "프로필을 지웠는데 세션이 남아 있다"
@@ -239,7 +238,7 @@ async def test_account_withdrawal_cascades_everything(db: None) -> None:
         "탈퇴했는데 refresh token 행이 남아 있다 — token_hash 가 DB 에 잔존한다"
     )
     assert await _deleted_at_of(Profile, self_profile.id) is not None, "SELF 프로필이 남아 있다"
-    assert await _deleted_at_of(Medication, medication.id) is not None, "약이 남아 있다"
+    assert await Medication.filter(id=medication.id).count() == 0, "약 행이 남아 있다"
 
     assert await _deleted_at_of(ChatSession, session.id) is not None, "계정 직속 세션이 남아 있다"
     assert await _deleted_at_of(ChatMessage, message.id) is not None, "세션 메시지가 남아 있다"

@@ -1,12 +1,15 @@
-"""Prove the soft-delete filters actually hide deleted rows.
+"""Prove that deleting a row actually removes it.
 
-``app/CLAUDE.md`` 의 코드리뷰 체크리스트가 **"Soft delete 필터 적용 여부"** 를
-필수 항목으로 못 박고 있는데, 지금까지 그걸 검사하는 수단은 **사람 눈뿐**이었다.
-리포지토리 메서드가 늘어날수록 ``deleted_at__isnull=True`` 를 **하나만 빠뜨려도**
-삭제된 데이터가 다시 노출된다. 그리고 그건 조용히 일어난다.
+QA-01(2026-09-15)로 삭제 의미론이 **hard delete 로 통일**되면서 이 파일의 질문도 바뀌었다.
 
-이 파일은 "필터가 코드에 적혀 있는가"가 아니라 **"삭제한 행이 실제로 안 나오는가"** 를
-묻는다. 전자는 grep 으로 되지만 후자는 행을 만들어 지워봐야만 알 수 있다.
+    전: "soft delete 필터가 지워진 행을 가리는가"
+    후: **"삭제한 행이 정말 사라졌는가"**
+
+왜 바뀌었나: FK 20개가 전부 ``ON DELETE CASCADE`` 라 부모를 지우면 자식은 DB 가
+물리 삭제했다. 그 위에 얹힌 soft delete 장부는 **한 줄 뒤에 덮이는** 반쪽이었고,
+주석과 실제가 달랐다(잠금-불일치).
+
+여전히 grep 으로는 알 수 없다 — 행을 만들어 지워봐야 한다.
 """
 
 from datetime import UTC, datetime
@@ -14,6 +17,8 @@ from datetime import UTC, datetime
 import pytest
 
 from app.models.challenge import Challenge
+from app.models.medication import Medication
+from app.models.prescription_group import PrescriptionGroup
 from app.repositories.challenge_repository import ChallengeRepository
 from app.repositories.chat_session_repository import ChatSessionRepository
 from app.repositories.medication_repository import MedicationRepository
@@ -32,40 +37,40 @@ pytestmark = [pytest.mark.db, pytest.mark.asyncio(loop_scope="session")]
 
 # ── 처방전 그룹 ───────────────────────────────────────────────────────
 # 흐름: 2건 생성 -> 1건 soft delete -> 목록 조회에 살아 있는 1건만
-async def test_deleted_prescription_group_disappears_from_list(db: None) -> None:
-    """A soft-deleted prescription group must not appear in listings."""
+async def test_deleted_prescription_group_row_is_gone(db: None) -> None:
+    """A deleted prescription group must be physically removed."""
     account = await create_account()
     profile = await create_profile(account)
     kept = await create_prescription_group(profile, hospital_name="살아있는의원")
     removed = await create_prescription_group(profile, hospital_name="지워진의원")
 
-    removed.deleted_at = datetime.now(UTC)
-    await removed.save()
+    await PrescriptionGroupRepository().soft_delete(removed)
 
     groups = await PrescriptionGroupRepository().get_all_by_profile(profile.id)
     ids = {group.id for group in groups}
 
     assert kept.id in ids, "삭제하지 않은 처방전은 계속 보여야 한다"
-    assert removed.id not in ids, "soft delete 한 처방전이 목록에 남아 있다 — 필터가 빠졌다"
+    assert removed.id not in ids, "삭제한 처방전이 목록에 남아 있다"
+    assert await PrescriptionGroup.filter(id=removed.id).count() == 0, "행이 남아 있다"
 
 
 # ── 복약 ──────────────────────────────────────────────────────────────
-async def test_deleted_medication_disappears_from_list(db: None) -> None:
-    """A soft-deleted medication must not appear in listings."""
+async def test_deleted_medication_row_is_gone(db: None) -> None:
+    """A deleted medication must be physically removed."""
     account = await create_account()
     profile = await create_profile(account)
     group = await create_prescription_group(profile)
     kept = await create_medication(profile, group, medicine_name="살아있는정")
     removed = await create_medication(profile, group, medicine_name="지워진정")
 
-    removed.deleted_at = datetime.now(UTC)
-    await removed.save()
+    await MedicationRepository().soft_delete(removed)
 
     medications = await MedicationRepository().get_all_by_profile(profile.id)
     ids = {medication.id for medication in medications}
 
     assert kept.id in ids
-    assert removed.id not in ids, "soft delete 한 복약이 목록에 남아 있다 — 필터가 빠졌다"
+    assert removed.id not in ids, "삭제한 복약이 목록에 남아 있다"
+    assert await Medication.filter(id=removed.id).count() == 0, "행이 남아 있다"
 
 
 # ── 챌린지 — hard delete 로 전환됨 (QA-01, 2026-09-15) ────────────────
@@ -112,15 +117,14 @@ async def test_deleted_chat_session_disappears_from_list(db: None) -> None:
 # 흐름: 목록만 거르고 단건 조회는 안 거르는 경우가 실제로 흔하다
 #       -> 삭제한 행을 id 로 직접 집어도 안 나와야 한다
 async def test_deleted_rows_are_not_reachable_by_id(db: None) -> None:
-    """Fetching a soft-deleted row by id must not return it either."""
+    """Fetching a deleted row by id must not return it either."""
     account = await create_account()
     profile = await create_profile(account)
     group = await create_prescription_group(profile)
     medication = await create_medication(profile, group)
 
-    medication.deleted_at = datetime.now(UTC)
-    await medication.save()
+    await MedicationRepository().soft_delete(medication)
 
     found = await MedicationRepository().get_by_id(medication.id)
 
-    assert found is None, "삭제한 복약이 id 직접 조회로 되살아난다 — 단건 경로에 필터가 빠졌다"
+    assert found is None, "삭제한 복약이 id 직접 조회로 되살아난다"
