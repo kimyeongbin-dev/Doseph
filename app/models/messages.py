@@ -28,7 +28,6 @@ class ChatMessage(models.Model):
         sender_type: Type of message sender (USER or ASSISTANT).
         content: Message content text.
         created_at: Message creation timestamp.
-        deleted_at: Soft deletion timestamp.
     """
 
     id = fields.UUIDField(pk=True)
@@ -40,7 +39,6 @@ class ChatMessage(models.Model):
         description="RAG debug/audit metadata (intent, medicine_names, scores, token usage)",
     )
     created_at = fields.DatetimeField(auto_now_add=True)
-    deleted_at = fields.DatetimeField(null=True)
 
     class Meta:
         table = "messages"

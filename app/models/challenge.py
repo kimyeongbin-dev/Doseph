@@ -33,7 +33,6 @@ class Challenge(models.Model):
         started_date: Challenge start date.
         created_at: Record creation timestamp.
         updated_at: Last update timestamp.
-        deleted_at: Soft deletion timestamp.
     """
 
     id = fields.UUIDField(pk=True)
@@ -92,7 +91,6 @@ class Challenge(models.Model):
 
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
-    deleted_at = fields.DatetimeField(null=True)
 
     class Meta:
         table = "challenges"

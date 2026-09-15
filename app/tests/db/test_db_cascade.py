@@ -25,7 +25,6 @@ from uuid import uuid4
 from fastapi import HTTPException
 import pytest
 from tortoise import connections
-from tortoise.models import Model
 
 from app.models.accounts import Account
 from app.models.challenge import Challenge
@@ -178,9 +177,9 @@ async def test_cascade_does_not_touch_another_profile(db: None) -> None:
     assert await LifestyleGuide.filter(id=other_guide.id).first() is not None, (
         "다른 프로필의 가이드까지 지워졌다 — cascade 범위가 너무 넓다"
     )
-    survivors = await Challenge.filter(id=other_challenge.id).values("deleted_at")
-    assert len(survivors) == 1, "다른 프로필의 챌린지가 사라졌다 — cascade 범위가 너무 넓다"
-    assert survivors[0]["deleted_at"] is None, "다른 프로필의 챌린지가 삭제 표시됐다"
+    assert await Challenge.filter(id=other_challenge.id).count() == 1, (
+        "다른 프로필의 챌린지가 사라졌다 — cascade 범위가 너무 넓다"
+    )
 
 
 # ── ⭐ 프로필 삭제 -> 자식 8종 전부 (FK CASCADE 에 위임) ────────────────────
@@ -336,22 +335,6 @@ async def test_rejoin_after_withdrawal_is_possible(db: None) -> None:
 
     assert rejoined.id != account.id, "재가입은 새 계정이어야 한다"
     assert await Account.filter(id=account.id).count() == 0, "탈퇴한 계정 행이 남아 있다"
-
-
-async def _deleted_at_of(model: type[Model], row_id: Any) -> Any:
-    """Read a row's ``deleted_at`` straight from the database.
-
-    ORM 객체 속성 대신 행 값을 읽는다 — 디스크립터 타입 추론에 기대지 않기 위해.
-
-    Args:
-        model: Tortoise model class.
-        row_id: Primary key of the row.
-
-    Returns:
-        The stored ``deleted_at`` value, or ``None`` when the row is gone.
-    """
-    rows = await model.filter(id=row_id).values("deleted_at")
-    return rows[0]["deleted_at"] if rows else None
 
 
 async def _count_by_profile(connection: Any, table: str, profile_id: Any) -> int:

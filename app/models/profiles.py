@@ -64,7 +64,6 @@ class Profile(models.Model):
             conditions, allergies 등). gender 는 본 컬럼에서 분리됨.
         created_at: Profile creation timestamp.
         updated_at: Last update timestamp.
-        deleted_at: Soft deletion timestamp.
     """
 
     id = fields.UUIDField(primary_key=True)
@@ -75,7 +74,6 @@ class Profile(models.Model):
     health_survey = fields.JSONField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
-    deleted_at = fields.DatetimeField(null=True)
 
     class Meta:
         table = "profiles"

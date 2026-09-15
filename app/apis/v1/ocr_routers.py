@@ -70,7 +70,6 @@ async def get_owned_profile_or_self(
         profile = await Profile.filter(
             id=profile_id,
             account_id=current_account.id,
-            deleted_at__isnull=True,
         ).first()
         if profile is None:
             raise HTTPException(
@@ -82,7 +81,6 @@ async def get_owned_profile_or_self(
     profile = await Profile.filter(
         account_id=current_account.id,
         relation_type=RelationType.SELF,
-        deleted_at__isnull=True,
     ).first()
     if profile is None:
         raise HTTPException(

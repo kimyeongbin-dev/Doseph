@@ -39,7 +39,6 @@ class PrescriptionGroup(models.Model):
         dispensed_date: 처방 조제일 — 그룹 매핑 키.
         source: 생성 경로 (OCR / MANUAL / MIGRATED).
         created_at: 그룹 생성 시각.
-        deleted_at: Soft delete 시각.
     """
 
     id = fields.UUIDField(primary_key=True)
@@ -57,11 +56,7 @@ class PrescriptionGroup(models.Model):
         description="생성 경로 (OCR/MANUAL/MIGRATED)",
     )
     created_at = fields.DatetimeField(auto_now_add=True)
-    deleted_at = fields.DatetimeField(null=True)
 
     class Meta:
         table = "prescription_groups"
-        indexes = (
-            ("profile_id", "dispensed_date"),
-            ("profile_id", "deleted_at"),
-        )
+        indexes = (("profile_id", "dispensed_date"),)

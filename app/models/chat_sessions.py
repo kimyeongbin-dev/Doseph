@@ -17,7 +17,6 @@ class ChatSession(models.Model):
         title: Optional session title.
         created_at: Session creation timestamp.
         updated_at: Last update timestamp.
-        deleted_at: Soft deletion timestamp.
     """
 
     id = fields.UUIDField(pk=True)
@@ -30,7 +29,6 @@ class ChatSession(models.Model):
     summary_updated_at = fields.DatetimeField(null=True, description="Last successful compact run timestamp")
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
-    deleted_at = fields.DatetimeField(null=True)
 
     class Meta:
         table = "chat_sessions"
