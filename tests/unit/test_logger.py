@@ -37,7 +37,8 @@ class TestSetupLoggerHandlers:
 
         handler_types = {type(h).__name__ for h in log.handlers}
         assert "StreamHandler" in handler_types
-        assert "RotatingFileHandler" in handler_types
+        # 로깅 정비(B0~B6)에서 시간(3h)+크기(10MB) **병행** 회전으로 교체됐다.
+        assert "SizeTimedRotatingFileHandler" in handler_types
 
     def test_idempotent_no_duplicate_handlers(self) -> None:
         name = _unique_name()
@@ -99,7 +100,11 @@ class TestJsonFormatter:
 
 
 class TestFileWritesJsonLines:
-    def test_info_log_appears_as_json_line(self, isolated_log_dir: Path) -> None:
+    def test_info_log_appears_as_json_line(self, isolated_log_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        # ⚠️ JSON 포맷은 **prod 전용**이다(로컬 기본은 사람이 읽는 형식).
+        #    이 클래스의 의도가 "파일에 JSON 라인이 쌓인다" 이므로 prod 를 강제한다.
+        #    이 줄이 없던 탓에 로컬 포맷을 json.loads 로 파싱하다 실패하고 있었다(QA-27).
+        monkeypatch.setenv("ENV", "prod")
         name = _unique_name()
         log = logger_module.setup_logger(name)
 

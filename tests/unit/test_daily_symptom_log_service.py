@@ -66,7 +66,7 @@ async def test_create_log_success(service: DailySymptomLogService) -> None:
     created_log = _make_log()
 
     service.profile_repo.get_by_id = AsyncMock(return_value=profile)
-    service.log_repo.create = AsyncMock(return_value=created_log)
+    service.log_repo.upsert = AsyncMock(return_value=created_log)
 
     result = await service.create_log_with_owner_check(profile.id, account_id, data)
 
@@ -76,19 +76,24 @@ async def test_create_log_success(service: DailySymptomLogService) -> None:
 async def test_create_log_calls_repo_with_correct_args(
     service: DailySymptomLogService,
 ) -> None:
-    """log_repo.create가 올바른 인자로 호출되어야 한다."""
+    """log_repo.upsert 가 올바른 인자로 호출되어야 한다.
+
+    ⚠️ 2026-09-15 현행화(QA-27): 서비스가 ``create`` -> ``upsert`` 로 바뀌었다.
+       증상 로그는 (profile_id, log_date) 단위로 **하루 1건**이어야 정합성이 유지되므로,
+       같은 날 다시 기록하면 덮어쓴다. 이 파일이 CI 에서 돌지 않아 반영이 누락돼 있었다.
+    """
     account_id = uuid4()
     profile = _make_profile(account_id=account_id)
     data = _make_create_data(profile_id=profile.id)
     created_log = _make_log()
 
     service.profile_repo.get_by_id = AsyncMock(return_value=profile)
-    service.log_repo.create = AsyncMock(return_value=created_log)
+    service.log_repo.upsert = AsyncMock(return_value=created_log)
 
     await service.create_log_with_owner_check(profile.id, account_id, data)
 
-    service.log_repo.create.assert_called_once()
-    call_kwargs = service.log_repo.create.call_args.kwargs
+    service.log_repo.upsert.assert_called_once()
+    call_kwargs = service.log_repo.upsert.call_args.kwargs
     assert call_kwargs["profile_id"] == profile.id
     assert call_kwargs["log_date"] == data.log_date
     assert call_kwargs["symptoms"] == data.symptoms
