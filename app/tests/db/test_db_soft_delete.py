@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from app.models.challenge import Challenge
 from app.repositories.challenge_repository import ChallengeRepository
 from app.repositories.chat_session_repository import ChatSessionRepository
 from app.repositories.medication_repository import MedicationRepository
@@ -67,22 +68,26 @@ async def test_deleted_medication_disappears_from_list(db: None) -> None:
     assert removed.id not in ids, "soft delete 한 복약이 목록에 남아 있다 — 필터가 빠졌다"
 
 
-# ── 챌린지 ────────────────────────────────────────────────────────────
-async def test_deleted_challenge_disappears_from_list(db: None) -> None:
-    """A soft-deleted challenge must not appear in listings."""
+# ── 챌린지 — hard delete 로 전환됨 (QA-01, 2026-09-15) ────────────────
+# 흐름: 2건 생성 -> 1건 삭제 -> 목록에 없고 **행 자체가 사라졌는지**까지 확인
+# soft delete 를 폐지했으므로 "필터가 거르는가"가 아니라 "정말 없는가"를 묻는다.
+async def test_deleted_challenge_row_is_gone(db: None) -> None:
+    """A deleted challenge must be physically removed, not just filtered."""
     account = await create_account()
     profile = await create_profile(account)
     kept = await create_challenge(profile, title="살아있는챌린지")
     removed = await create_challenge(profile, title="지워진챌린지")
 
-    removed.deleted_at = datetime.now(UTC)
-    await removed.save()
+    await ChallengeRepository().soft_delete(removed)
 
     challenges = await ChallengeRepository().get_all_by_profile(profile.id)
     ids = {challenge.id for challenge in challenges}
 
-    assert kept.id in ids
-    assert removed.id not in ids, "soft delete 한 챌린지가 목록에 남아 있다 — 필터가 빠졌다"
+    assert kept.id in ids, "삭제하지 않은 챌린지는 계속 보여야 한다"
+    assert removed.id not in ids, "삭제한 챌린지가 목록에 남아 있다"
+    assert await Challenge.filter(id=removed.id).count() == 0, (
+        "행이 남아 있다 — soft delete 가 아직 살아 있다(QA-01 은 hard delete 통일)"
+    )
 
 
 # ── 대화 세션 ─────────────────────────────────────────────────────────

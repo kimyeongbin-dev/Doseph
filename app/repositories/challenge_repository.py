@@ -70,7 +70,6 @@ class ChallengeRepository:
         """
         return await Challenge.filter(
             id=challenge_id,
-            deleted_at__isnull=True,
         ).first()
 
     async def get_all_by_profile(self, profile_id: UUID) -> list[Challenge]:
@@ -90,7 +89,6 @@ class ChallengeRepository:
             await Challenge
             .filter(
                 profile_id=profile_id,
-                deleted_at__isnull=True,
             )
             .order_by("target_days", "title", "id")
             .all()
@@ -109,7 +107,6 @@ class ChallengeRepository:
             return []
         return await Challenge.filter(
             profile_id__in=profile_ids,
-            deleted_at__isnull=True,
         ).all()
 
     async def get_by_guide_id(
@@ -137,7 +134,6 @@ class ChallengeRepository:
         # 가 항상 신규 row(0~14) 뒤로 가게 두고, 그 안에서 target_days 로 보조 정렬.
         query = Challenge.filter(
             guide_id=guide_id,
-            deleted_at__isnull=True,
         ).order_by("slot_index", "target_days", "title", "id")
         if limit is not None:
             query = query.limit(limit)
@@ -155,7 +151,6 @@ class ChallengeRepository:
         return await Challenge.filter(
             profile_id=profile_id,
             challenge_status="IN_PROGRESS",
-            deleted_at__isnull=True,
         ).all()
 
     async def create(
@@ -259,31 +254,34 @@ class ChallengeRepository:
         return challenge
 
     async def soft_delete(self, challenge: Challenge) -> Challenge:
-        """Soft delete challenge.
+        """Delete a challenge row.
+
+        ⚠️ 이름은 ``soft_delete`` 지만 **행을 물리 삭제한다**(QA-01, 2026-09-15).
+        호출처가 많아 이름은 남기고 동작만 통일했다 — 이름 정리는 별건으로 둔다.
+
+        왜 hard delete 인가:
+            `challenges.guide_id` 의 FK 가 ``ON DELETE CASCADE`` 라, 가이드를 지우면
+            어차피 행이 물리 삭제됐다. soft delete 는 **한 줄 뒤에 덮이는 장부**였고
+            주석과 실제가 달랐다. 삭제 의미론을 hard delete 로 통일한다.
 
         Args:
             challenge: Challenge to delete.
 
         Returns:
-            Challenge: Soft deleted challenge.
+            Challenge: The (now deleted) challenge instance.
         """
-        challenge.deleted_at = datetime.now(tz=config.TIMEZONE)
-        await challenge.save()
+        await Challenge.filter(id=challenge.id).delete()
         return challenge
 
     async def bulk_soft_delete_by_profile(self, profile_id: UUID) -> int:
-        """프로필의 모든 active challenge 를 일괄 soft delete.
+        """프로필의 모든 challenge 를 일괄 삭제한다.
 
-        Profile cascade soft-delete 흐름에서 호출. 이미 deleted_at 이 set
-        된 row 는 자연스럽게 제외 (idempotent).
+        ⚠️ 이름과 달리 **물리 삭제**다(QA-01). 멱등하다 — 이미 없는 행은 0건으로 센다.
 
         Args:
             profile_id: 대상 프로필 UUID.
 
         Returns:
-            새로 deleted_at 이 채워진 row 수.
+            삭제된 row 수.
         """
-        return await Challenge.filter(
-            profile_id=profile_id,
-            deleted_at__isnull=True,
-        ).update(deleted_at=datetime.now(tz=config.TIMEZONE))
+        return await Challenge.filter(profile_id=profile_id).delete()

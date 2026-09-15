@@ -101,15 +101,11 @@ async def test_cascade_removes_unstarted_challenges_but_keeps_started_ones(db: N
     unstarted_rows = await Challenge.filter(id=unstarted.id).values("deleted_at", "guide_id")
     started_rows = await Challenge.filter(id=started.id).values("deleted_at", "guide_id")
 
-    # 사용자가 신경 쓰는 계약: 미시작 챌린지는 더 이상 조회되지 않는다.
-    #
-    # ⚠️ 실측된 메커니즘은 코드 주석과 다르다(2026-09-15 발견, 후속 큐 **QA-01**).
-    #    `_cascade_delete_guide` 는 미시작 챌린지에 soft_delete 를 걸지만, 바로 다음 줄에서
-    #    가이드를 **hard delete** 하고 `challenges.guide_id` 가 ON DELETE CASCADE 라
-    #    그 행이 **물리적으로 사라진다**. 즉 soft delete 는 한 줄 뒤에 덮인다.
-    #    그래서 여기서는 `deleted_at is not None` 이 아니라 "행이 없다"로 단언한다.
-    #    정책을 진짜 soft delete 로 바꾸기로 하면 이 단언도 함께 조여야 한다.
-    assert unstarted_rows == [], "미시작 챌린지는 정리돼야 한다"
+    # QA-01 해소(2026-09-15): 이제 주석과 실제가 일치한다.
+    # 전에는 `_cascade_delete_guide` 가 미시작 챌린지에 soft_delete 를 걸어놓고
+    # 바로 다음 줄에서 가이드를 hard delete 해, FK CASCADE 가 그 행을 물리 삭제했다
+    # (soft delete 가 한 줄 뒤에 덮임 — 잠금-불일치). 이제 **애초에 물리 삭제**한다.
+    assert unstarted_rows == [], "미시작 챌린지는 물리적으로 삭제돼야 한다"
 
     assert len(started_rows) == 1, "사용자가 이미 시작한 챌린지가 지워졌다 — 진행분 보존 정책이 깨졌다"
     assert started_rows[0]["deleted_at"] is None, "보존된 챌린지가 soft delete 됐다"
@@ -180,7 +176,8 @@ async def test_deleting_profile_cascades_to_children(db: None) -> None:
     await ProfileService().delete_profile_with_owner_check(family.id, account.id)
 
     assert await _deleted_at_of(Medication, medication.id) is not None, "프로필을 지웠는데 약이 남아 있다"
-    assert await _deleted_at_of(Challenge, challenge.id) is not None, "프로필을 지웠는데 챌린지가 남아 있다"
+    # 챌린지는 QA-01 에서 hard delete 로 전환됐다 — "표시됐나"가 아니라 "없는가"를 본다.
+    assert await Challenge.filter(id=challenge.id).count() == 0, "프로필을 지웠는데 챌린지 행이 남아 있다"
     assert await _deleted_at_of(ChatSession, session.id) is not None, "프로필을 지웠는데 세션이 남아 있다"
 
     profile_rows = await Profile.filter(id=family.id).values("deleted_at")
