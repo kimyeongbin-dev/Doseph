@@ -1,6 +1,6 @@
 """Medicine info raw XML 재파싱 CLI — API 호출 없이 기존 ee/ud/nb_doc_data 만 활용.
 
-PLAN_DRUG_DB_INGEST.md §7 — `MedicineInfo.precautions` (JSONB) /
+docs-private/PLAN_DRUG_DB_INGEST.md §7 — `MedicineInfo.precautions` (JSONB) /
 ``side_effects`` (JSONB list) / ``dosage`` (TEXT) 컬럼을 채우기 위한 1회성
 스크립트. 모든 row 의 보존된 raw XML 을 다시 파싱해 새 컬럼을 갱신한다.
 ``efficacy`` 도 함께 재파싱되어 누락 없이 동기화된다.

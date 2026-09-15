@@ -1,6 +1,6 @@
 """Unit tests for ai-worker OCR jobs — terminal failure 시 자동 consumed_at 롤백.
 
-PLAN_OCR_DRAFT.md §A — ai-worker 가 terminal failure 도달 시 consumed_at 을
+docs-private/PLAN_OCR_DRAFT.md §A — ai-worker 가 terminal failure 도달 시 consumed_at 을
 함께 설정하여 DB 정합성 자체로 실패 draft 를 활성 목록에서 자동 제외한다.
 """
 

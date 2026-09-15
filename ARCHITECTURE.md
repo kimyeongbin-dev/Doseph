@@ -504,9 +504,7 @@ registered only when `ENV=local` and additionally refuses to serve in any other 
 
 - [README.md](./README.md): Project overview and execution guide
 - [SYSTEM_DESIGN.md](./SYSTEM_DESIGN.md): Technical design specifications
-- [ROADMAP.md](./ROADMAP.md): Roadmap
 - [envs/README.md](./envs/README.md): Environment variables, local setup, deployment topology
-- [docs/migration설명.md](./docs/migration설명.md): Database migration guide
 - [docs/OCR_FLOW.md](./docs/OCR_FLOW.md): OCR processing flow
 - [docs/RAG_FLOW.md](./docs/RAG_FLOW.md): RAG pipeline flow
 - [docs/frontend/component-roles.md](./docs/frontend/component-roles.md): Frontend component/context roles

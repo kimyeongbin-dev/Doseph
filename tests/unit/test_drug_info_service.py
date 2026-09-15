@@ -1,6 +1,6 @@
 """Unit tests for MedicationService._get_drug_info — DB 검색 기반 (LLM 호출 없음).
 
-PLAN_DRUG_DB_INGEST.md — drug-info 응답이 MedicineInfo 의 JSONB precautions /
+docs-private/PLAN_DRUG_DB_INGEST.md — drug-info 응답이 MedicineInfo 의 JSONB precautions /
 list side_effects / TEXT dosage 컬럼을 그대로 매핑한다. NULL/miss 시 빈 응답,
 interactions 항상 빈 배열 (DB 컬럼 없음).
 """

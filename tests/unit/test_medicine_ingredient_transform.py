@@ -1,6 +1,6 @@
 """Unit tests for MedicineDataService._transform_ingredient_item (Mcpn07).
 
-PLAN_DRUG_DB_INGEST.md §3.2 — Mcpn07 응답을 medicine_ingredient UPSERT
+docs-private/PLAN_DRUG_DB_INGEST.md §3.2 — Mcpn07 응답을 medicine_ingredient UPSERT
 입력 dict 로 변환. medicine_info FK 미해석 / 필수 필드 누락 시 None 반환.
 """
 

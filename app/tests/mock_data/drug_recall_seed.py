@@ -1,7 +1,6 @@
 """§14.5 시드 데이터 (2026-04-27 KST 추출).
 
-인계 문서 [docs/plans/plan_recall_tool.md](../../../docs/plans/plan_recall_tool.md)
-§14.5.1 / §14.5.2 / §14.5.4 에서 추출한 raw API row 를 dict 로 임베드.
+인계 문서(비공개) 의 §14.5.1 / §14.5.2 / §14.5.4 에서 추출한 raw API row 를 dict 로 임베드.
 
 - ``SEED_RECALL_30``: §14.5.1 — 회수·판매중지 30건.
   * `202007244` 가 3건 / `201904809` 가 2건 — **복합 UNIQUE 검증용**

@@ -1,6 +1,6 @@
 """Unit tests for NB_DOC_DATA / UD_DOC_DATA 카테고리 파싱 (P5-B).
 
-PLAN_DRUG_DB_INGEST.md §2 — 식약처 NB_DOC_DATA 의 ARTICLE.title 을 10 카테고리로
+docs-private/PLAN_DRUG_DB_INGEST.md §2 — 식약처 NB_DOC_DATA 의 ARTICLE.title 을 10 카테고리로
 정규화해 dict 로 분류, "이상반응" 만 별도 list 로 분리.
 """
 

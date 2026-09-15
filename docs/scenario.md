@@ -801,4 +801,4 @@ RAG 의 `_build_system_prompt` 에 명시된 "# Rule — 반드시 참고 문서
 1. **커밋 정리** — 본 세션 누적 변경사항 6개 커밋으로 분리 (`ai-worker TTL` / `docker 정리 + 네트워크 + 메모리` / `FE 툴콜링 분기 + markdown` / `FE authStatus 로그인 UX` / `docs 시나리오 + merge_log` / `chore 진단 스크립트`).
 2. **백업 태그** — `git tag backup/integration-rag-main-YYYY-MM-DD integration/rag-main` 등 통합 시작 전 안전망 생성.
 3. **origin/main 진단** — 자동 배포 실패 원인 파악 (GitHub Actions 로그 + 로컬 prod 빌드 재현).
-4. **통합 시작** — `docs/merge_log.md` 의 Step 1 (Phase Y 머지) 부터 순차 진행. 모든 머지는 `--no-ff`, 충돌은 1:1 보고 루틴.
+4. **통합 시작** — `docs-private/_legacy/merge_log.md` 의 Step 1 (Phase Y 머지) 부터 순차 진행. 모든 머지는 `--no-ff`, 충돌은 1:1 보고 루틴.

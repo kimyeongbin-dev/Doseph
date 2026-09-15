@@ -25,7 +25,7 @@
 
 - 원본 팀 레포 (read-only): https://github.com/AI-HealthCare-02/AI_02_06
 - 팀 종료 시점 스냅샷: [v1.0.0-team-final Release](https://github.com/kimyeongbin-dev/Doseph/releases/tag/v1.0.0-team-final)
-- 개인 개선 로드맵 (v2.x): [ROADMAP.md](./ROADMAP.md)
+- 개인 개선 로드맵 (v2.x): [Releases](https://github.com/kimyeongbin-dev/Doseph/releases) 로 버전별 정리 (상세 로드맵 문서는 비공개)
 
 ### 기획 배경
 
@@ -329,7 +329,7 @@ flowchart TD
 - **v2.5 — 클린 코드.** 현재 `pyproject.toml` 에 ignore된 룰 점진 해제. 300줄 초과 파일 분할. per-file ignore 해소.
 - **v2.6 — FE UX.** SSE streaming UX, 모바일 반응형, 접근성(axe-core), Lighthouse mobile ≥ 90.
 
-> 상세 계획 · 체크박스 · DoD는 [ROADMAP.md](./ROADMAP.md), 매듭지은 버전은 [Releases](https://github.com/kimyeongbin-dev/Doseph/releases) 페이지에 정리.
+> 매듭지은 버전은 [Releases](https://github.com/kimyeongbin-dev/Doseph/releases) 페이지에 정리. (상세 계획 · 체크박스 · DoD 는 비공개 문서에서 관리)
 
 ---
 
