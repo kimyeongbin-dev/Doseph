@@ -164,14 +164,19 @@ E2E 로 관측 불가능하다는 사실 자체가 **"컴포넌트 층으로 내
 - [ ] `pytest app -m db` 가 **0건이 아니라** 실제로 선택되는가
 - [ ] 지키려는 것을 깨면(필터 한 줄 제거 · 분기 반전 · raw SQL 주석) **빨개지는가**
 - [ ] 실제 동작이 주석·docstring 과 다르면, **테스트는 실제를 잠그고 불일치를 명시**했는가
-      → 그리고 `docs/tech-debt/test-followup-queue.md` 에 등재했는가 (**놓치면 그 주석은 영원히 거짓**)
+      → 그리고 `docs-private/TEST_FOLLOWUP_QUEUE.md` 에 등재했는가 (**놓치면 그 주석은 영원히 거짓**)
 
 ---
 
 ## 관련 문서
 
+- **`docs-private/TEST_FOLLOWUP_QUEUE.md`** — **테스트 후속 큐 정본(`QA-##`)**.
+  테스트 관련 후속 항목은 전부 여기로 등재한다. 특히 **§A 잠금-불일치**
+  (테스트는 초록인데 코드 주석이 거짓인 상태)는 발견 즉시 등재할 것.
 - `medication-frontend/e2e/README.md` — 실행 절차·테스트 구성
 - `docs/tech-debt/frontend-react-hooks-effect-refactor.md` — 안전망을 토대로 진행 중인 리팩터
-- `docs/tech-debt/e2e-auth-strategy.md` — 인증 대역 전략
+- `docs/tech-debt/e2e-auth-strategy.md` — 인증 대역 전략 (QA-20)
 - `docs/tech-debt/vacuous-green-audit.md` — **헛된 초록 전수 원장**. V1~V7 교정 완료
-  (1-g-A, 2026-09-15) / 기존 스펙 **전수** 결핍 주입은 1-g-B 로 잔여.
+  (**QA-21**, 2026-09-15) / 기존 스펙 **전수** 결핍 주입은 **QA-26** 으로 잔여.
+- `docs/tech-debt/delete-semantics-mismatch.md` — **QA-01·QA-02** 상세
+  (DB 층이 찾아낸, 주석과 실제가 다른 삭제 의미론)

@@ -11,7 +11,7 @@
 //    따라서 **모델 교체·응답 스키마 드리프트는 이 테스트로 잡히지 않는다.**
 //    그쪽은 (a) 응답 Pydantic 스키마 강제 (b) 실 provider 계약 테스트(스케줄 실행)
 //    (c) 경계 계측·에러율 알림이 담당해야 한다. mock 은 우리 코드를 지킬 뿐이다.
-//    -> 후속 과제로 추적 중: **QA-07** (docs/tech-debt/test-followup-queue.md).
+//    -> 후속 과제로 추적 중: **QA-07** (docs-private/TEST_FOLLOWUP_QUEUE.md).
 //       같은 문서 §D 에 "의도적으로 검증하지 않는 것"으로도 등재돼 있다.
 
 import { test, expect } from '@playwright/test'

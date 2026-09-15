@@ -12,7 +12,7 @@
 //   invalidate 한다(PrescriptionGroupContext.jsx:116). 이 2차 조회가 주입 해제 뒤에
 //   도착하면 **버튼을 누르지도 않았는데 화면이 복구**돼 재시도 테스트가 흔들린다.
 //   그래서 주입 해제 전에 "더 이상 자동 재조회가 오지 않는다"를 먼저 확인한다.
-//   (자동 재조회 자체는 별건 부채 — **QA-03**, docs/tech-debt/test-followup-queue.md)
+//   (자동 재조회 자체는 별건 부채 — **QA-03**, docs-private/TEST_FOLLOWUP_QUEUE.md)
 
 import { expect } from '@playwright/test'
 
