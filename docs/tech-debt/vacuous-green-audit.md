@@ -1,5 +1,8 @@
 # 부채 원장 — 헛된 초록(vacuous green) 전수 정리
 
+> 🔗 **후속 큐 연결**: 교정 완료분 = **QA-21** / 전수 결핍 주입 잔여 = **QA-26**.
+> 테스트 관련 후속 항목의 정본은 `docs/tech-debt/test-followup-queue.md` 다.
+
 > 🗓️ 개설: 2026-09-14 · 갱신: 2026-09-15
 > 📊 상태: **1-g-A 완료** (V1~V7 교정 + 규칙 R10·R11·R12 제정) / **1-g-B 잔여**(전수 결핍 주입 · Stryker 스파이크)
 > 📌 대상: `medication-frontend/__tests__/**` · `medication-frontend/e2e/**`

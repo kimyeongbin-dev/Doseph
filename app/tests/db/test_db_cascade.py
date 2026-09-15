@@ -103,7 +103,7 @@ async def test_cascade_removes_unstarted_challenges_but_keeps_started_ones(db: N
 
     # 사용자가 신경 쓰는 계약: 미시작 챌린지는 더 이상 조회되지 않는다.
     #
-    # ⚠️ 실측된 메커니즘은 코드 주석과 다르다(2026-09-15 발견, 후속 큐 1-i).
+    # ⚠️ 실측된 메커니즘은 코드 주석과 다르다(2026-09-15 발견, 후속 큐 **QA-01**).
     #    `_cascade_delete_guide` 는 미시작 챌린지에 soft_delete 를 걸지만, 바로 다음 줄에서
     #    가이드를 **hard delete** 하고 `challenges.guide_id` 가 ON DELETE CASCADE 라
     #    그 행이 **물리적으로 사라진다**. 즉 soft delete 는 한 줄 뒤에 덮인다.
@@ -236,7 +236,7 @@ async def test_account_withdrawal_cascades_everything(db: None) -> None:
 
     # ⚠️ 코드 주석은 "refresh_tokens hard-delete (보안 우선)" 이라고 적혀 있지만,
     #    `revoke_all_for_account` 는 is_revoked=True 로 **soft revoke** 할 뿐이다
-    #    (2026-09-15 발견, 후속 큐 1-j). 사용 불가라는 점에서 기능은 충족하나,
+    #    (2026-09-15 발견, 후속 큐 **QA-02**). 사용 불가라는 점에서 기능은 충족하나,
     #    탈퇴한 계정의 token_hash 행이 그대로 남는다 — 보존 정책 관점의 판단이 필요하다.
     #    여기서는 실제 계약("쓸 수 있는 토큰이 남지 않는다")을 잠근다.
     assert await RefreshToken.filter(account_id=account.id, is_revoked=False).count() == 0, (

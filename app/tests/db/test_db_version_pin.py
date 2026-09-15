@@ -7,9 +7,22 @@
     이 테스트는 그 값을 **실행 가능한 형태**로 바꿔, 태그가 바뀌면 빨개지게 한다.
 
 무엇을 잠그고 무엇을 잠그지 않는가:
-    - 메이저(17)와 pgvector(0.8.0)는 잠근다. prod 와 맞춰야 할 축이다.
-    - 마이너(17.6 vs prod 17.11)는 잠그지 않는다. 고정 태그가 빌드된 시점에
-      따라 달라지는 값이고, 여기에 걸면 이미지가 갱신될 때마다 거짓 실패가 난다.
+    - **메이저(17)와 pgvector(0.8.0)는 잠근다.** 메이저는 데이터 디렉터리 포맷·문법·
+      플래너·확장 호환이 달라지는 축이고, pgvector 는 로컬이 앞서면 새 기능이
+      로컬에서만 통과한다.
+    - **마이너는 잠그지 않는다.** 이유 셋:
+        ① 애초에 일치시킬 수 없다 — Neon 의 마이너는 우리 통제 밖이고, 우리 쪽을
+           digest 로 박아도 "prod 와 같은 마이너"가 되지는 않는다. 달성 불가능한
+           것을 단언하면 거짓 실패 공장이 된다.
+        ② PostgreSQL 마이너 릴리스는 버그·보안 수정만 담고 카탈로그·디스크 포맷을
+           바꾸지 않는다(정책).
+        ③ 고정 태그가 빌드된 시점에 따라 달라지는 값이라, 이미지가 갱신될 때마다 빨개진다.
+
+    ⚠️ 그래도 "무해"는 아니다 — 마이너에서도 버그 수정은 곧 동작 변경이고,
+       플래너 수정은 실행 계획을 바꾸며, 드물게 REINDEX 같은 후속 조치를 요구한 전례가
+       있다(PG 14.4 의 CREATE INDEX CONCURRENTLY 건). 2026-09-15 기준 우리는 prod 보다
+       **5개 릴리스 뒤처져 있다**(17.6 vs 17.11). 벌어진 폭을 주기적으로 재측정하는 일은
+       이 테스트가 아니라 QA-25 의 몫이다.
 """
 
 from typing import Any
@@ -19,8 +32,9 @@ from tortoise import connections
 
 pytestmark = [pytest.mark.db, pytest.mark.asyncio(loop_scope="session")]
 
-#: prod(Neon) 실측값 — 2026-09-15.
-#: 로컬/CI 이미지 태그 `pgvector/pgvector:0.8.0-pg17` 가 이 값을 맞추도록 골라졌다.
+#: prod(Neon) 실측값 — 2026-09-15: **PostgreSQL 17.11** · pgvector 0.8.0 · pg_trgm 1.6.
+#: 로컬/CI 이미지 태그 `pgvector/pgvector:0.8.0-pg17` 가 이 값을 맞추도록 골라졌다
+#: (그 태그가 담고 있는 실제 PG 마이너는 17.6 — 위 docstring 참조).
 EXPECTED_POSTGRES_MAJOR = 17
 EXPECTED_PGVECTOR_VERSION = "0.8.0"
 EXPECTED_PG_TRGM_VERSION = "1.6"

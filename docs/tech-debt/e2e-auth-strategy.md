@@ -1,5 +1,7 @@
 # [TECH DEBT] E2E 인증 전략 부재 — dev 로그인 백도어 제거로 `auth.setup.js` 무효화
 
+> 🔗 후속 큐 **QA-20**(완료) — 정본 = `docs/tech-debt/test-followup-queue.md`
+
 > 🗓️ 발견: 2026-09-14 (6C 안전망 준비 중 Playwright setup 실행에서 드러남)
 > ✅ 상태: **해결 (2026-09-14)** — 채택안 A(mock IdP + 진짜 콜백)로 `auth.setup.js` 재작성(`067c25e`).
 > 인증이 필요한 Playwright 스펙이 정상 실행된다(현재 **55 passed · 0 skipped**).

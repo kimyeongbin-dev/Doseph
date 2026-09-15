@@ -4,7 +4,7 @@
 > 테스트로는 구조적으로 발견할 수 없던 것들이다 — mock 은 "그 메서드가 호출됐는가"만
 > 보는데, 두 건 모두 **호출은 정확히 일어났고 결과가 주석과 달랐다.**
 
-| 상태 | 2건 미해결 (후속 큐 **1-i** · **1-j**) |
+| 상태 | 2건 미해결 → **QA-01** · **QA-02** (정본 = `docs/tech-debt/test-followup-queue.md`) |
 |---|---|
 | 발견 경로 | `app/tests/db/test_db_cascade.py` — 진짜 행을 만들고 지워본 결과 |
 | 공통점 | **사용자에게 보이는 결과는 맞다.** 어긋난 것은 *메커니즘*과 *주석* |
@@ -22,7 +22,7 @@
 
 ---
 
-## 1-i. 미시작 챌린지는 soft delete 되지 않는다 (hard delete 된다)
+## QA-01 (구 1-i). 미시작 챌린지는 soft delete 되지 않는다 (hard delete 된다)
 
 **위치**: `app/services/lifestyle_guide_service.py` `_cascade_delete_guide`
 
@@ -70,7 +70,7 @@ await self.guide_repo.delete_by_id(guide.id)        # ← 가이드를 **hard de
 
 ---
 
-## 1-j. 탈퇴 시 refresh token 은 hard delete 가 아니라 soft revoke 다
+## QA-02 (구 1-j). 탈퇴 시 refresh token 은 hard delete 가 아니라 soft revoke 다
 
 **위치**: `app/services/oauth.py` `delete_account` / `refresh_token_repository.revoke_all_for_account`
 
