@@ -22,7 +22,8 @@
 막히고, 그러면 사람이 게이트를 끈다 — 옆의 정확한 검사까지 죽는다
 (`docs/QUALITY_GATES.md` §2-1).
 
-⚠️ `docs-private/` 는 git 밖이라 다른 머신·CI 에는 없다 → **없으면 조용히 통과**.
+⚠️ `docs-private/` 는 git 밖이지만 이 훅은 `pre-push` **로컬 전용**이라 CI 에서 돌지 않는다.
+→ 폴더가 없거나 대상이 0건이면 **실패**한다(fail-closed).
 """
 
 from datetime import UTC, date, datetime
@@ -97,14 +98,17 @@ def inspect(path: Path) -> tuple[list[str], list[str]]:
 # ── 게이트 본문 ─────────────────────────────────────────────────────────
 # 흐름: portfolio/*.md 순회 -> 문서별 판정 -> 오류는 차단, 경고는 보고
 def main() -> int:
+    # fail-closed: 폴더가 없거나 대상 0건이면 "동기화됐다"가 아니라 "검사하지 못했다"이다.
     if not PORTFOLIO_DIR.exists():
-        print("· 포트폴리오 폴더가 없는 환경 — 조용히 통과한다.")
-        return 0
+        print(f"❌ 포트폴리오 폴더가 없다 — {PORTFOLIO_DIR}")
+        print("   경로 규약이 바뀌었다. 검사가 무력화된 상태다(fail-closed).")
+        return 1
 
     docs = [p for p in sorted(PORTFOLIO_DIR.glob("*.md")) if p.name not in EXCLUDE]
     if not docs:
-        print("· 추적할 포트폴리오 문서가 없다.")
-        return 0
+        print(f"❌ 추적 대상 포트폴리오 문서가 0건이다 — {PORTFOLIO_DIR}")
+        print("   전부 옮겨졌거나 glob 이 어긋났다. 검사 대상 0건은 통과가 아니다(fail-closed).")
+        return 1
 
     all_errors: list[str] = []
     all_warnings: list[str] = []

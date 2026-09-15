@@ -183,9 +183,12 @@ def main() -> int:
     Returns:
         검출이 없으면 0, 있으면 1 (push 거부).
     """
+    # fail-closed: 금지 어휘가 0건이면 "깨끗하다"가 아니라 "사전을 못 읽었다"이다.
     banned, allow = load_vocabulary_rules(RULES_PATH)
     if not banned:
-        return 0
+        print(f"\n[거부] 폐기 어휘 사전에서 금지어를 한 건도 못 읽었다 — {RULES_PATH}", file=sys.stderr)
+        print("  사전이 비었거나 파서가 깨졌다. 검사가 무력화된 상태다(fail-closed).\n", file=sys.stderr)
+        return 1
 
     hits: list[Hit] = []
     for root in SCAN_ROOTS:

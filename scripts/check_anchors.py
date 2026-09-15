@@ -16,7 +16,9 @@
   아직 코드에 손대지 않았으므로 앵커가 없는 게 당연하다. 이건 게이트가 아니라
   ``defect_map.py`` 의 보고 대상이다.
 
-`docs-private/` 는 git 미추적이라 CI 에는 없다. 없으면 **조용히 통과**한다
+`docs-private/` 는 git 미추적이지만 이 훅은 `pre-push` **로컬 전용**이라 CI 에서 돌지 않는다.
+→ 대상이 없으면 **실패**한다(fail-closed). *"검사 대상이 없다"* 와 *"문제가 없다"* 는 다른 사실이고,
+구분하지 못하면 게이트가 **자기가 죽었다는 것을 초록으로 보고**한다(`docs/QUALITY_GATES.md` §2-5-1)
 (로컬 개발자용 게이트지, 파이프라인 게이트가 아니다 — `check_plan_archives.py` 와 같은 결).
 """
 
@@ -106,9 +108,18 @@ def main() -> int:
     Returns:
         끊어진 앵커가 없으면 0, 있으면 1 (push 거부).
     """
+    # fail-closed: 큐를 못 읽으면 "앵커가 깨끗하다"가 아니라 "검사하지 못했다"이다.
+    # 이 훅은 pre-push 로컬 전용이라 docs-private 이 없을 이유가 없다 — 없으면 이상 상황.
+    if not QUEUE_PATH.exists():
+        print(f"\n[거부] 후속 큐가 없다 — {QUEUE_PATH}", file=sys.stderr)
+        print("  검사 대상이 없는 것과 문제가 없는 것은 다르다(fail-closed).\n", file=sys.stderr)
+        return 1
+
     known = read_known_ids(QUEUE_PATH)
     if not known:
-        return 0  # CI 등 docs-private 이 없는 환경
+        print(f"\n[거부] 후속 큐에서 QA 아이디를 한 건도 못 읽었다 — {QUEUE_PATH}", file=sys.stderr)
+        print("  파서가 깨졌거나 큐 형식이 바뀌었다. 검사가 무력화된 상태다(fail-closed).\n", file=sys.stderr)
+        return 1
 
     unknown = find_unknown_anchors(find_anchors(Path()), known)
     if not unknown:

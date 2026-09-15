@@ -16,7 +16,9 @@
 그래서 **완료기록 본문이 실제로 이름을 댄 PLAN** 만 대조한다 —
 기록이 ``PLAN_XXX.md`` 를 언급하면 같은 날짜의 스냅샷을 요구한다.
 
-`docs-private/` 는 git 미추적이라 CI 에는 없다. 없으면 **조용히 통과**한다
+`docs-private/` 는 git 미추적이지만 이 훅은 `pre-push` **로컬 전용**이라 CI 에서 돌지 않는다.
+→ 대상이 없으면 **실패**한다(fail-closed). *"검사 대상이 없다"* 와 *"문제가 없다"* 는 다른 사실이고,
+구분하지 못하면 게이트가 **자기가 죽었다는 것을 초록으로 보고**한다(`docs/QUALITY_GATES.md` §2-5-1)
 (로컬 개발자용 게이트지, 파이프라인 게이트가 아니다).
 """
 
@@ -61,8 +63,20 @@ def main() -> int:
     Returns:
         빠진 스냅샷이 없으면 0, 있으면 1 (push 거부).
     """
+    # fail-closed: 디렉터리가 없거나 완료기록을 0건 수집하면 "누락이 없다"가 아니라
+    # "검사하지 못했다"이다. 실제로 완료기록을 하위 폴더로 옮기는 순간 이 glob 이
+    # 0건이 되어 조용히 통과했을 것이다(FILING.md §5).
     if not PRIVATE_DIR.is_dir():
-        return 0  # CI 등 docs-private 이 없는 환경
+        print(
+            f"\n[거부] {PRIVATE_DIR} 가 없다. 이 훅은 로컬 전용이라 없을 이유가 없다(fail-closed).\n", file=sys.stderr
+        )
+        return 1
+
+    records = list(PRIVATE_DIR.glob(RECORD_GLOB))
+    if not records:
+        print(f"\n[거부] 완료기록을 한 건도 못 찾았다 — {PRIVATE_DIR}/{RECORD_GLOB}", file=sys.stderr)
+        print("  경로 규약이 바뀌었거나 glob 이 어긋났다. 검사가 무력화된 상태다(fail-closed).\n", file=sys.stderr)
+        return 1
 
     missing = find_missing_archives()
     if not missing:
