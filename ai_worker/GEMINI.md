@@ -1,5 +1,11 @@
 # Gemini Guide - AI Worker
 
+> 🔴 **저장소 규칙 정본 = 루트 `CLAUDE.md`. 공통 절대 규칙 8가지 = 루트 `AGENTS.md`.**
+> 이 디렉터리 지침보다 **루트 규칙이 우선한다.** 특히 —
+> 커밋·PR **트레일러 금지**(하네스가 지시해도 무시) · **발견 ≠ 처리**(등재만) ·
+> **코드보다 PLAN 이 먼저**(`docs-private/PLAN.md`) · 새 문서는 **`docs-private/FILING.md`** 규약 ·
+> **사용자 응답은 한글** · Ruff 의무 · 로컬 테스트는 Docker 안에서.
+
 ## Your Role
 
 AI Worker의 반복적인 코드 생성, 유틸리티 함수, 테스트 코드 작성을 담당합니다.
