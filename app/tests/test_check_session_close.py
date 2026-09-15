@@ -47,6 +47,16 @@ def test_unpushed_commit_is_not_clean() -> None:
     assert git_is_clean(dirty=[], unpushed=1, stashes=0) is False
 
 
+def test_unknown_upstream_is_not_clean() -> None:
+    """미푸시 수를 **알 수 없으면** 깨끗하다고 하지 않는다 (fail-closed).
+
+    upstream 이 없으면 ``git rev-list --count @{u}..HEAD`` 는 **exit 128** 로 죽는다
+    (실측). 그 실패를 0 으로 읽으면 *"미푸시 없음"* 이라는 **거짓 초록**이 된다 —
+    검사기가 거짓 안심을 주는 것이 이 도구가 막으려던 바로 그 실패다.
+    """
+    assert git_is_clean(dirty=[], unpushed=None, stashes=0) is False
+
+
 def test_stash_is_not_clean() -> None:
     """stash 는 잊히는 대표적인 자리다 — 있으면 깨끗하지 않다.
 

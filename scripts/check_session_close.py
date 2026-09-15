@@ -72,22 +72,25 @@ class GitState:
     """git 이 답한 사실."""
 
     dirty: list[str]
-    unpushed: int
+    #: ``None`` = 알아내지 못했다 (upstream 미설정 등). **0 과 구별해야 한다.**
+    unpushed: int | None
     stashes: int
 
 
 # ── git 상태 판정 ─────────────────────────────────────────────────────
 # 흐름: 세 값 -> 하나라도 비어 있지 않으면 "잃을 것이 있다"
-def git_is_clean(dirty: list[str], unpushed: int, stashes: int) -> bool:
+# ⚠️ unpushed 가 None(알 수 없음)이면 **깨끗하다고 하지 않는다**(fail-closed).
+#    모르는 것을 0 으로 읽으면 그게 곧 거짓 초록이다.
+def git_is_clean(dirty: list[str], unpushed: int | None, stashes: int) -> bool:
     """Return whether nothing is left only on this machine.
 
     Args:
         dirty: Uncommitted paths from ``git status --porcelain``.
-        unpushed: Commits ahead of upstream.
+        unpushed: Commits ahead of upstream, or ``None`` when unknown.
         stashes: Entries in ``git stash list``.
 
     Returns:
-        True when all three are empty.
+        True only when all three are known and empty.
     """
     return not dirty and unpushed == 0 and stashes == 0
 
@@ -99,7 +102,7 @@ def read_git_state() -> GitState:
         Working tree, upstream and stash facts.
     """
 
-    def run(*args: str) -> str:
+    def run(*args: str) -> tuple[int, str]:
         result = subprocess.run(  # 인자가 전부 리터럴이라 셸 주입 여지가 없다.
             ["git", *args],  # noqa: S607
             capture_output=True,
@@ -108,16 +111,19 @@ def read_git_state() -> GitState:
             encoding="utf-8",
             errors="replace",
         )
-        return result.stdout.strip()
+        return result.returncode, result.stdout.strip()
 
-    dirty = [line for line in run("status", "--porcelain").splitlines() if line]
-    unpushed_raw = run("rev-list", "--count", "@{u}..HEAD")
-    stash_lines = [line for line in run("stash", "list").splitlines() if line]
-    return GitState(
-        dirty=dirty,
-        unpushed=int(unpushed_raw) if unpushed_raw.isdigit() else 0,
-        stashes=len(stash_lines),
-    )
+    _, status_out = run("status", "--porcelain")
+    dirty = [line for line in status_out.splitlines() if line]
+
+    # ⚠️ upstream 이 없으면 이 명령은 **exit 128** 로 죽고 stdout 은 비어 있다(실측).
+    #    종료 코드를 안 보고 출력만 읽으면 "0건" 으로 오해해 거짓 초록이 된다.
+    #    모르는 것은 0 이 아니라 **None** 으로 돌려준다.
+    code, unpushed_out = run("rev-list", "--count", "@{u}..HEAD")
+    unpushed = int(unpushed_out) if code == 0 and unpushed_out.isdigit() else None
+
+    _, stash_out = run("stash", "list")
+    return GitState(dirty=dirty, unpushed=unpushed, stashes=len([x for x in stash_out.splitlines() if x]))
 
 
 # ── 진행 중 PLAN 찾기 ─────────────────────────────────────────────────
@@ -192,7 +198,9 @@ def main() -> int:
         print("🔴 git — 이 기계에만 있는 작업이 있다")
         for path in state.dirty:
             print(f"     미커밋: {path}")
-        if state.unpushed:
+        if state.unpushed is None:
+            print("     미푸시 커밋: 알 수 없음 (upstream 미설정 — 모르는 것을 0 으로 읽지 않는다)")
+        elif state.unpushed:
             print(f"     미푸시 커밋: {state.unpushed}건")
         if state.stashes:
             print(f"     stash: {state.stashes}건  (git status 에는 안 보인다)")
