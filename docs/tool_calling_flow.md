@@ -83,7 +83,7 @@ Router LLM 이 (a) 자연어로 답했거나 (b) keyword-only 툴만 호출한 �
 ```json
 {
   "user_message": { "id": "...", "session_id": "...", "sender_type": "USER",
-                    "content": "강남역 약국", "created_at": "...", "deleted_at": null },
+                    "content": "강남역 약국", "created_at": "..." },
   "assistant_message": { "id": "...", "session_id": "...", "sender_type": "ASSISTANT",
                          "content": "가까운 약국은 강남스퀘어약국...", ... }
 }

@@ -16,7 +16,9 @@
 ### 코드 리뷰 시
 1. 레이어 분리 원칙 준수 여부
 2. 소유권 검증 누락 여부 (`_with_owner_check`)
-3. Soft delete 필터 적용 여부
+3. 삭제가 **물리 삭제**인지, 자식 정리를 FK CASCADE 에 맡겼는지
+   (⚠️ 2026-09-15 QA-01: soft delete 전면 폐지. `deleted_at` 필터를 새로 쓰면 안 된다 —
+    컬럼 자체가 없다)
 4. 에러 핸들링 적절성
 5. SQL Injection / XSS 취약점
 
@@ -66,7 +68,7 @@ async def get_paginated(
     size: int = 20,
     filters: dict = None
 ) -> tuple[list[Model], int]:
-    query = Model.filter(deleted_at__isnull=True)
+    query = Model.all()
     if filters:
         query = query.filter(**filters)
     total = await query.count()

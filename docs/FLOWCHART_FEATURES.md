@@ -116,7 +116,7 @@ flowchart TD
         D1["삭제할 프로필 선택"]
         D2{"내 프로필인가?<br />(소유권 확인)"}
         D3["⚠️ 권한 없음"]
-        D4["🗑️ Soft Delete 처리<br />(실제 삭제 안 함,<br />삭제 시각만 기록)"]
+        D4["🗑️ 프로필 행 삭제<br />(자식 8종은 FK CASCADE 가<br />함께 물리 삭제)"]
 
         D1 --> D2
         D2 -- "❌ 다른 사람 것" --> D3
@@ -167,7 +167,7 @@ flowchart TD
     subgraph DELETE_FLOW ["약품 삭제"]
         D1{"내 약품인가?<br />(소유권 확인)"}
         D2["⚠️ 권한 없음"]
-        D3["🗑️ Soft Delete 처리<br />(삭제 시각 기록)"]
+        D3["🗑️ 약품 행 삭제<br />(물리 삭제)"]
 
         D1 -- "❌" --> D2
         D1 -- "✅" --> D3
@@ -240,7 +240,7 @@ flowchart TD
     subgraph DELETE_FLOW ["🗑️ 그룹 일괄 삭제"]
         D1["삭제 확인 모달 표시<br />'정말 삭제하시겠어요?'"]
         D2{"취소 or 확인?"}
-        D3["모든 약품 병렬 DELETE<br />(Promise.all / Soft Delete)"]
+        D3["그룹 DELETE 1회<br />(약품은 FK CASCADE 가 함께 삭제)"]
         D4["✅ 삭제 완료<br />목록 새로고침 (서버 재조회)"]
         D5["모달 닫기 (취소)"]
 
@@ -403,7 +403,7 @@ flowchart TD
     subgraph DELETE_FLOW ["챌린지 삭제"]
         DL1{"내 챌린지인가?<br />(소유권 확인)"}
         DL2["⚠️ 권한 없음"]
-        DL3["🗑️ Soft Delete<br />(삭제 시각 기록)"]
+        DL3["🗑️ 챌린지 행 삭제<br />(물리 삭제 — 진행분 포함)"]
 
         DL1 -- "❌" --> DL2
         DL1 -- "✅" --> DL3

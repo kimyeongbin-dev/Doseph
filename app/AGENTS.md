@@ -89,18 +89,19 @@ class ItemService:
 
 ### 3. Repository (repositories/)
 - DB CRUD 추상화
-- Soft delete 필터 기본 적용
+- 삭제는 **물리 삭제** — 자식 정리는 FK `ON DELETE CASCADE` 에 맡긴다
 - 복잡한 쿼리 캡슐화
 
 ```python
 async def get_by_id(self, id: UUID) -> Model | None:
-    return await Model.filter(id=id, deleted_at__isnull=True).first()
+    return await Model.filter(id=id).first()
 ```
 
 ### 4. Model (models/)
 - Tortoise ORM 엔티티
-- 비즈니스 엔티티: UUID PK + soft-delete
-- 캐시/토큰: BigInt PK, soft-delete 없음
+- 비즈니스 엔티티: UUID PK
+- 캐시/토큰: BigInt PK
+- ⚠️ 2026-09-15(QA-01): `deleted_at` 컬럼은 **전 테이블에서 제거**됐다. 새로 만들지 말 것
 
 ### 5. DTO (dtos/)
 - Pydantic v2 스키마
@@ -179,12 +180,16 @@ async def _verify_profile_ownership(self, profile_id: UUID, account_id: UUID):
         raise HTTPException(status_code=403, detail="Access denied")
 ```
 
-### Soft Delete
+### 삭제 (hard delete + FK CASCADE)
 ```python
-async def soft_delete(self, item: Model) -> Model:
-    item.deleted_at = datetime.now(tz=config.TIMEZONE)
-    await item.save()
-    return item
+async def soft_delete(self, item: Model) -> None:
+    """⚠️ 이름은 과거 잔재 — 실제로는 행을 **물리 삭제**한다 (QA-01, 2026-09-15).
+
+    자식 행은 손으로 지우지 않는다. FK 가 ``ON DELETE CASCADE`` 라 DB 가
+    원자적으로 함께 지운다. 같은 일을 두 곳에서 하면 두 경로가 어긋날 때
+    조용한 불일치가 생긴다 — 그게 QA-01 이 고친 결함의 형태였다.
+    """
+    await item.delete()
 ```
 
 ### JWT 검증 (RS256) - 위조 + 만료 판별

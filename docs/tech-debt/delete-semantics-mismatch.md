@@ -4,7 +4,7 @@
 > 테스트로는 구조적으로 발견할 수 없던 것들이다 — mock 은 "그 메서드가 호출됐는가"만
 > 보는데, 두 건 모두 **호출은 정확히 일어났고 결과가 주석과 달랐다.**
 
-| 상태 | **QA-02 ✅해소(2026-09-15, `a84b227`)** / **QA-01 미해결** — 사용자 결정으로 *전체 hard delete 통일* 방향, 별도 PLAN 필요 (정본 = `docs-private/TEST_FOLLOWUP_QUEUE.md`) |
+| 상태 | **✅ 두 건 모두 해소 (2026-09-15)** — QA-02 `a84b227` / QA-01 S1~S7 (선택지 **A 확장판**: soft delete 전면 폐지). 후속 = **QA-29 단계적 삭제** (정본 = `docs-private/TEST_FOLLOWUP_QUEUE.md`) |
 |---|---|
 | 발견 경로 | `app/tests/db/test_db_cascade.py` — 진짜 행을 만들고 지워본 결과 |
 | 공통점 | **사용자에게 보이는 결과는 맞다.** 어긋난 것은 *메커니즘*과 *주석* |
@@ -68,6 +68,28 @@ await self.guide_repo.delete_by_id(guide.id)        # ← 가이드를 **hard de
 **잠금 상태**: `test_cascade_removes_unstarted_challenges_but_keeps_started_ones` 가
 현재 계약("행이 없다")을 잠그고 있다. 방향을 정하면 그 단언도 함께 조인다.
 
+### ✅ 해소 (2026-09-15) — 선택지 A 를 저장소 전체로 확장
+
+사용자 결정: **"진행분까지 지운다"** + **"전면 hard delete 통일"**.
+A(이 경로만 현실에 맞춤)가 아니라, **같은 불일치가 있는 모든 경로**를 함께 정리했다.
+
+| 단계 | 한 일 |
+|---|---|
+| S1~S5 | repository·service 7종에서 `deleted_at` 쓰기·필터를 제거. 손으로 돌던 cascade 를 FK 에 위임 (`_cascade_delete_guide` 20줄 → 1줄, `cascade_delete_profile` 의 자식 호출 8개 → 0, `delete_account` 4단계 → 1줄) |
+| S6 | `deleted_at` 컬럼 7개 + 복합 인덱스 1개 **드롭** (`2_20260915052644_drop_deleted_at`) |
+| S6 후속 | 컬럼 드롭 후에도 살아 있던 **질의 17곳**을 제거 (worker·ai_worker·router 계층 — 자세한 경위는 `docs-private/AGENT_실수-오류-기록.md` **D28**) |
+| S7 | 문서 동기화 (이 원장 · 에이전트 가이드 3종 · 플로차트 4곳) |
+
+**위임한 메커니즘은 잠갔다.** 손으로 하던 cascade 를 FK 에 맡겼으므로,
+`test_account_and_profile_children_cascade_on_delete` 가 `pg_constraint` 를 직접 읽어
+**FK 13개가 여전히 `ON DELETE CASCADE` 인지**를 단언한다.
+누가 하나를 `NO ACTION` 으로 바꾸면 그 순간 빨개진다.
+
+**남는 문제 → QA-29**: 이제 삭제는 **되돌릴 수 없다.** 특히
+① 가이드 삭제가 **진행 중인 챌린지까지** 지우고, ② `medication_worker` 배치가
+만료 복약을 **자동으로 물리 삭제**한다. 유예기간(soft → N일 → CASCADE hard → tombstone)
+설계는 QA-29 가 이어받는다 — 위 두 곳이 첫 대상이다.
+
 ---
 
 ## QA-02 (구 1-j). 탈퇴 시 refresh token 은 hard delete 가 아니라 soft revoke 다
@@ -103,6 +125,17 @@ updated = await RefreshToken.filter(account_id=account_id, is_revoked=False).upd
 **잠금 상태**: `test_account_withdrawal_cascades_everything` 이 실제 계약
 ("쓸 수 있는 토큰이 남지 않는다")을 잠그고 있다.
 
+### ✅ 해소 (2026-09-15, `a84b227`) — 선택지 A
+
+사용자 결정: **"탈퇴 시 보안 우선 — 토큰과 해시를 모두 hard 삭제"**.
+`revoke_all_for_account` → `delete_all_for_account` 로 바꿔 탈퇴 경로에서 행을 지운다.
+로그아웃 경로의 `is_revoked` revoke 는 **그대로 둔다** — 그건 운영상의 폐기지
+데이터 삭제 요청이 아니다. (GDPR Art.17 은 삭제, 토큰 폐기는 별개 관심사)
+
+부수 확인: 탈퇴 후 **재가입이 불가능**했다는 사실을 이때 증명했다 —
+`UNIQUE(auth_provider, provider_account_id)` 에 탈퇴한 행이 남아 `UniqueViolationError`.
+`test_rejoin_after_withdrawal_is_possible` 가 그 계약을 잠근다.
+
 ---
 
 ## 배운 것
@@ -110,6 +143,13 @@ updated = await RefreshToken.filter(account_id=account_id, is_revoked=False).upd
 > **mock 은 "우리가 호출한 것"을 검증하고, DB 는 "실제로 남은 것"을 검증한다.**
 > 두 건 모두 호출은 완벽했다. 어긋난 건 그 다음에 DB 가 한 일이다.
 > 소유한 시스템이라도 **경계 너머(FK 제약, 트리거, cascade)는 대역으로 대신할 수 없다.**
+
+**해소하면서 한 번 더 확인한 것** — 같은 맹점이 *스키마 제거*에서 훨씬 크게 터진다.
+`deleted_at` 컬럼을 드롭한 뒤에도 그 컬럼을 질의하는 코드 17곳이 살아 있었는데,
+`app/tests` 568건이 **한 건도 빨개지지 않았다.** 전부 모델을 통째 mock 한 단위테스트라
+질의가 DB 에 닿지 않았기 때문이다. 잡아낸 것은 mock 이 없는 층뿐이었다.
+> **컬럼을 지우고 테스트가 초록이면, 그건 "안전하다"가 아니라
+> "mock 이 그 질의를 대신 받아줬다"일 수 있다.**
 
 관련: `docs-private/study/schema-introspection-and-version-pinning.md` ·
 `docs-private/study/test-doubles-stubs-seeds.md` · `docs/TESTING_SAFETY_NET_RULES.md`

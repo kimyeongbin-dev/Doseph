@@ -28,7 +28,7 @@
 | 브라우저 주소 · 네트워크 · 여러 페이지 이동 · 실제 인증 | 흐름 | Playwright E2E |
 | 렌더 결과 · 내부 상태 · **참조 안정성** · 호출 인자 | 컴포넌트/컨텍스트 | Vitest + RTL |
 | 순수 함수 · 포맷터 · 파생 계산 | 유닛 | Vitest |
-| **DB 에 실제로 남은 것** — 스키마 정합 · soft delete · 소유권 · cascade · 제약 | **BE DB 층** | **pytest + 진짜 Postgres** (`app/tests/db/`, `@pytest.mark.db`) |
+| **DB 에 실제로 남은 것** — 스키마 정합 · 삭제 결과 · 소유권 · cascade · 제약 | **BE DB 층** | **pytest + 진짜 Postgres** (`app/tests/db/`, `@pytest.mark.db`) |
 | 서비스 로직 · 에러 변환 · 외부 경계 | BE 유닛 | pytest (+ mock) |
 
 **원칙**: 관측이 까다로운 내부 동작(참조·재계산·리렌더)을 E2E 로 억지로 잡지 않는다.

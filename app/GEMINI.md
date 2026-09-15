@@ -37,10 +37,10 @@ class ItemService:
 ```python
 class ItemRepository:
     async def get_all(self) -> list[Item]:
-        return await Item.filter(deleted_at__isnull=True).all()
+        return await Item.all()
 
     async def get_by_id(self, id: UUID) -> Item | None:
-        return await Item.filter(id=id, deleted_at__isnull=True).first()
+        return await Item.filter(id=id).first()
 
     async def create(self, data: ItemCreate) -> Item:
         return await Item.create(**data.model_dump())
@@ -73,7 +73,7 @@ class Item(models.Model):
     name = fields.CharField(max_length=128)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
-    deleted_at = fields.DatetimeField(null=True)
+    # ⚠️ deleted_at 을 추가하지 말 것 — 삭제는 물리 삭제로 통일됐다(QA-01, 2026-09-15)
 
     class Meta:
         table = "items"
