@@ -168,20 +168,26 @@ class RefreshTokenRepository:
         ).update(is_revoked=True)
         return updated > 0
 
-    async def revoke_all_for_account(self, account_id: UUID) -> int:
-        """Revoke all tokens for an account (logout all devices).
+    async def delete_all_for_account(self, account_id: UUID) -> int:
+        """Hard-delete every refresh token row of an account (withdrawal only).
+
+        ⚠️ 이름 그대로 **행을 지운다**. 이전에는 ``revoke_all_for_account`` 가
+        ``is_revoked=True`` 로 표시만 했는데, 호출처의 주석은 *"hard-delete (보안 우선)"*
+        이라 **주석과 실제가 달랐다**(QA-02, 2026-09-15 DB 테스트가 발견).
+
+        왜 탈퇴만 hard delete 인가:
+            **폐기(revocation)와 계정 삭제(erasure)는 다른 동작이다.**
+            운영 중 개별 토큰 폐기는 감사 추적이 필요해 행을 남기는 게 타당하다
+            (``revoke`` 는 그대로 둔다). 반면 탈퇴는 GDPR Art.17 "잊힐 권리" +
+            데이터 최소화의 영역이라, **재사용 가능한 비밀(token_hash)을 남기면 안 된다.**
 
         Args:
             account_id: Account UUID.
 
         Returns:
-            int: Number of tokens revoked.
+            int: Number of rows deleted.
         """
-        updated = await RefreshToken.filter(
-            account_id=account_id,
-            is_revoked=False,
-        ).update(is_revoked=True)
-        return updated
+        return await RefreshToken.filter(account_id=account_id).delete()
 
     async def cleanup_expired_tokens(self, days_old: int = 7) -> int:
         """Clean up expired tokens (prevent database bloat).

@@ -34,7 +34,7 @@ class TestAccountWithdrawalFailure:
     def _build_oauth_service(self, account: MagicMock) -> OAuthService:
         service = OAuthService()
         service.refresh_token_repo = MagicMock()
-        service.refresh_token_repo.revoke_all_for_account = AsyncMock(return_value=2)
+        service.refresh_token_repo.delete_all_for_account = AsyncMock(return_value=2)
 
         service.profile_repo = MagicMock()
         service.profile_repo.get_all_by_account = AsyncMock(return_value=[])
@@ -59,7 +59,7 @@ class TestAccountWithdrawalFailure:
         """cascade 도중 예외 → HTTPException 500 으로 변환."""
         account = MagicMock(id=uuid4(), deleted_at=None)
         service = self._build_oauth_service(account)
-        service.refresh_token_repo.revoke_all_for_account = AsyncMock(side_effect=RuntimeError("boom"))
+        service.refresh_token_repo.delete_all_for_account = AsyncMock(side_effect=RuntimeError("boom"))
 
         with (
             patch("app.services.oauth.in_transaction", _fake_transaction),

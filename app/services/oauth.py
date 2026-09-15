@@ -406,8 +406,9 @@ class OAuthService:
             profiles = await self.profile_repo.get_all_by_account(account.id)
 
             async with in_transaction():
-                # 1) refresh_tokens hard-delete (보안 우선)
-                await self.refresh_token_repo.revoke_all_for_account(account.id)
+                # 1) refresh_tokens **행 자체를 삭제** (보안 우선)
+                #    탈퇴는 폐기가 아니라 erasure 다 — token_hash 를 남기지 않는다.
+                await self.refresh_token_repo.delete_all_for_account(account.id)
 
                 # 2) profiles cascade — SELF 포함 모두 (회원탈퇴는 SELF guard 우회)
                 for profile in profiles:

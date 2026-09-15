@@ -234,13 +234,12 @@ async def test_account_withdrawal_cascades_everything(db: None) -> None:
 
     await OAuthService().delete_account(account)
 
-    # ⚠️ 코드 주석은 "refresh_tokens hard-delete (보안 우선)" 이라고 적혀 있지만,
-    #    `revoke_all_for_account` 는 is_revoked=True 로 **soft revoke** 할 뿐이다
-    #    (2026-09-15 발견, 후속 큐 **QA-02**). 사용 불가라는 점에서 기능은 충족하나,
-    #    탈퇴한 계정의 token_hash 행이 그대로 남는다 — 보존 정책 관점의 판단이 필요하다.
-    #    여기서는 실제 계약("쓸 수 있는 토큰이 남지 않는다")을 잠근다.
-    assert await RefreshToken.filter(account_id=account.id, is_revoked=False).count() == 0, (
-        "탈퇴했는데 사용 가능한 refresh token 이 남아 있다"
+    # QA-02 해소(2026-09-15): 전에는 is_revoked=True 로 표시만 해서 탈퇴 계정의
+    # token_hash 행이 남았다(주석은 "hard-delete"라 적혀 있었다 — 잠금-불일치).
+    # 이제 **행 자체를 지운다** — 탈퇴는 폐기가 아니라 erasure 이고, 재사용 가능한
+    # 비밀을 남기지 않는 것이 데이터 최소화의 요구다.
+    assert await RefreshToken.filter(account_id=account.id).count() == 0, (
+        "탈퇴했는데 refresh token 행이 남아 있다 — token_hash 가 DB 에 잔존한다"
     )
     assert await _deleted_at_of(Profile, self_profile.id) is not None, "SELF 프로필이 남아 있다"
     assert await _deleted_at_of(Medication, medication.id) is not None, "약이 남아 있다"
