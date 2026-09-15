@@ -121,6 +121,12 @@ class Config(BaseSettings):
     RATE_LIMIT_MUTATION_MAX_REQUESTS: int = 30
     RATE_LIMIT_AUTH_MAX_REQUESTS: int = 10
 
+    # ── 만료 복약 삭제 유예기간 (QA-29) ───────────────────────────────
+    # 유효기간이 지난 복약을 배치가 **사용자 개입 없이** 물리 삭제한다.
+    # QA-01 로 soft delete 를 폐지해 되돌릴 수단이 0 이 됐으므로, 만료 즉시가
+    # 아니라 이 일수만큼 지난 뒤에 지운다. 값만 env 로 조정한다(12-factor III).
+    MEDICATION_PURGE_GRACE_DAYS: int = 7
+
     # External API settings
     OPENAI_API_KEY: str | None = None
     DATA_GO_KR_API_KEY: str | None = None

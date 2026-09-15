@@ -1,7 +1,10 @@
 """Unit tests for batch worker functions — intake_log_worker and medication_worker."""
 
-from datetime import date
+from datetime import date, timedelta
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
+
+from app.core import config
 
 
 class TestGenerateTodayIntakeLogs:
@@ -91,28 +94,68 @@ class TestExpireMedications:
             assert mock_medication.is_active is False
             mock_medication.save.assert_called()
 
-    async def test_deletes_medications_past_expiration_date(self) -> None:
-        """expiration_date 가 지난 처방전은 **행 자체가 삭제**되어야 한다.
+    async def test_delete_cutoff_subtracts_the_grace_period(self) -> None:
+        """pass 2 의 삭제 기준일은 **오늘이 아니라 오늘 - 유예일수**여야 한다.
 
-        ⚠️ 2026-09-15(QA-01): 이 배치는 ``deleted_at=now()`` 로 장부만 남기던
-        soft delete 였다. 삭제 의미론이 hard delete 로 통일되면서 계약이 바뀌었다 —
-        "지운 표시를 했는가"가 아니라 **"지웠는가"**를 묻는다.
+        ⚠️ 이 테스트가 보는 것은 **질의의 모양**뿐이다. "행이 실제로 남았는가"는
+        mock 으로 알 수 없어 ``app/tests/db/test_db_medication_purge.py`` 가 본다.
+        여기서는 **부호가 거꾸로면(오늘 + 7일) 즉시 드러나게** 하는 역할만 한다.
+
+        경위: QA-01 에서 soft delete 가 폐지되며 이 배치가 실제 삭제가 됐고,
+        QA-29 가 그 위에 유예기간을 얹었다.
         """
-        with (
-            patch("app.workers.medication_worker.Medication") as mock_med_model,
-            patch("app.workers.medication_worker.datetime") as mock_dt,
-        ):
-            mock_dt.now.return_value.date.return_value = date(2026, 4, 18)
+        today = date(2026, 4, 18)
+        expected_cutoff = today - timedelta(days=config.MEDICATION_PURGE_GRACE_DAYS)
+
+        with patch("app.workers.medication_worker.Medication") as mock_med_model:
             mock_med_model.filter.return_value.all = AsyncMock(return_value=[])
             mock_med_model.filter.return_value.delete = AsyncMock(return_value=3)
 
             from app.workers.medication_worker import expire_medications
 
-            await expire_medications()
+            await expire_medications(today=today)
 
-            # pass 2 가 expiration_date 조건으로 delete() 를 호출했는가
             mock_med_model.filter.assert_any_call(
-                expiration_date__lt=date(2026, 4, 18),
+                expiration_date__lt=expected_cutoff,
                 expiration_date__isnull=False,
             )
+            assert expected_cutoff < today, "유예를 더하고 있다 — 부호가 거꾸로다"
             mock_med_model.filter.return_value.delete.assert_awaited_once()
+
+    async def test_logs_deletion_receipt_without_personal_data(self, caplog) -> None:
+        """삭제 영수증(tombstone)은 건수·사유·기준일을 남기고 **개인정보는 안 남긴다**.
+
+        배치가 사용자 개입 없이 지우므로, 나중에 "무엇이 왜 사라졌나"를 물을 수
+        있어야 한다. 동시에 영수증에 약품명이 들어가면 그건 영수증이 아니라
+        백업이고 "지웠다"는 말이 거짓이 된다(로깅 규칙 §9-4).
+
+        ⚠️ ``caplog`` 은 루트 logger 에 핸들러를 붙이는데, 우리 앱 logger 는
+        ``propagate = False`` 다(``app/core/logger.py``). 그래서 로그가 콘솔에
+        멀쩡히 찍히는데도 ``caplog.text`` 는 비어 있다. 핸들러를 **그 logger 에
+        직접** 붙여야 잡힌다.
+        """
+        secret_name = "타이레놀정500mg"
+        worker_logger = logging.getLogger("app.workers.medication_worker")
+        worker_logger.addHandler(caplog.handler)
+
+        try:
+            with (
+                caplog.at_level(logging.INFO, logger="app.workers.medication_worker"),
+                patch("app.workers.medication_worker.Medication") as mock_med_model,
+            ):
+                mock_medication = MagicMock()
+                mock_medication.save = AsyncMock()
+                mock_medication.medicine_name = secret_name
+                mock_med_model.filter.return_value.all = AsyncMock(return_value=[mock_medication])
+                mock_med_model.filter.return_value.delete = AsyncMock(return_value=3)
+
+                from app.workers.medication_worker import expire_medications
+
+                await expire_medications(today=date(2026, 4, 18))
+        finally:
+            worker_logger.removeHandler(caplog.handler)
+
+        assert "deleted=3" in caplog.text, "몇 건을 지웠는지 남지 않았다"
+        assert "reason=batch_expiry" in caplog.text, "왜 지웠는지 남지 않았다"
+        assert f"grace_days={config.MEDICATION_PURGE_GRACE_DAYS}" in caplog.text
+        assert secret_name not in caplog.text, "영수증에 약품명이 들어갔다 — 개인정보 유출"
