@@ -44,6 +44,7 @@ app = [
 dev = [
     "bandit>=1.7.0",
     "coverage>=7.13.2",
+    "import-linter>=2.3",
     "mypy>=1.19.1",
     "mypy-baseline>=0.7.4",
     "pre-commit>=4.5.1",
@@ -455,3 +456,111 @@ allow_subclassing_any = true
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
+
+# ── import-linter 레이어 계약 ────────────────────────────────────────
+# 흐름: grimp 가 app·ai_worker 의 import 그래프를 만든다 -> 계약별 위반 탐색
+#       -> 위반이 있으면 pre-push / CI 가 빨개진다
+#
+# 원칙: **지금 통과하는 계약만 넣는다.**
+#   지금 위반 중인 경계(서비스->모델 31건, ai_worker->저장소 7건 등)는 고치지 않고
+#   `docs/tech-debt/layer-boundary-violations.md` 에 등재만 한다(발견≠처리).
+#   예외로 가득한 게이트는 사람이 끄고, 그러면 옆의 정확한 게이트까지 죽는다
+#   — S1.5 에서 식별자 검사를 게이트에서 뺀 것과 같은 이유.
+[tool.importlinter]
+root_packages = ["app", "ai_worker"]
+# ignore_imports 항목이 아무것도 매치하지 않으면 **실패**시킨다.
+# 예외가 낡아 무의미해진 것을 조용히 통과시키지 않기 위한 장치.
+unmatched_ignore_imports_alerting = "error"
+
+# 역방향 금지. 모델이 저장소를, 저장소가 서비스를, 서비스가 라우터를 import 하면 실패.
+# exhaustive = true: `app/` 에 새 하위 패키지가 생기면 여기에 분류될 때까지 실패한다
+#   — 계약 바깥에서 자라는 층을 막는다.
+[[tool.importlinter.contracts]]
+name = "계층 방향 — 라우터 > 서비스 > 저장소 > 모델 (역방향 금지)"
+type = "layers"
+containers = ["app"]
+layers = ["apis", "services", "repositories", "models"]
+exhaustive = true
+exhaustive_ignores = [
+    "core",
+    "db",
+    "dependencies",
+    "dtos",
+    "main",
+    "middlewares",
+    "tests",
+    "utils",
+    "validators",
+    "workers",
+]
+
+# 라우터가 서비스를 건너뛰고 DB 접근 계층을 직접 부르는 것을 막는다(현재 위반 0건).
+[[tool.importlinter.contracts]]
+name = "라우터는 저장소 계층을 건너뛰지 않는다"
+type = "forbidden"
+source_modules = ["app.apis"]
+forbidden_modules = ["app.repositories"]
+# 라우터 -> 서비스 -> 저장소 의 **간접** 경로는 정상이다. 직접 import 만 본다.
+allow_indirect_imports = true
+
+# 라우터의 ORM 모델 직접 접근 제한. 인증 주체(User) 타입은 DI 시그니처에 불가피해 허용,
+# 그 밖의 모델이 라우터로 새로 들어오면 실패한다.
+[[tool.importlinter.contracts]]
+name = "라우터는 인증 주체 외의 모델을 직접 다루지 않는다"
+type = "forbidden"
+source_modules = ["app.apis"]
+forbidden_modules = ["app.models"]
+# 서비스·DTO 를 거쳐 모델에 닿는 **간접** 경로는 정상이다. 직접 import 만 본다.
+allow_indirect_imports = true
+ignore_imports = [
+    # 사유: `Annotated[User, Depends(get_current_user)]` — FastAPI DI 시그니처에 필요.
+    "app.apis.v1.* -> app.models.accounts",
+    # 사유: OCR 저장 시 라우터가 프로필 소유권을 직접 조회한다. 서비스로 옮겨야 할
+    #       기존 위반이며 이 구간에서 고치지 않는다 — 등재 = tech-debt 문서.
+    "app.apis.v1.ocr_routers -> app.models.profiles",
+]
+
+# 설정·순수 유틸은 애플리케이션 계층을 몰라야 한다(현재 위반 0건).
+[[tool.importlinter.contracts]]
+name = "core·utils 는 상위 계층을 모른다"
+type = "forbidden"
+source_modules = ["app.core", "app.utils"]
+forbidden_modules = [
+    "app.apis",
+    "app.dependencies",
+    "app.dtos",
+    "app.middlewares",
+    "app.models",
+    "app.repositories",
+    "app.services",
+    "app.workers",
+    "ai_worker",
+]
+
+# 모델은 그래프의 잎이다. 어떤 상위 계층도 import 하지 않는다(현재 위반 0건).
+[[tool.importlinter.contracts]]
+name = "모델은 어떤 상위 계층도 모른다"
+type = "forbidden"
+source_modules = ["app.models"]
+forbidden_modules = [
+    "app.apis",
+    "app.dependencies",
+    "app.dtos",
+    "app.middlewares",
+    "app.repositories",
+    "app.services",
+    "app.workers",
+    "ai_worker",
+]
+
+# AI 워커는 별도 프로세스다. 데이터 계층은 공유하지만 HTTP 계층(라우터·미들웨어·
+# 요청 스코프 DI)은 공유하지 않는다 — 공유하는 순간 워커가 웹 요청 맥락에 묶인다.
+[[tool.importlinter.contracts]]
+name = "ai_worker 는 HTTP 계층을 모른다"
+type = "forbidden"
+source_modules = ["ai_worker"]
+forbidden_modules = [
+    "app.apis",
+    "app.dependencies",
+    "app.middlewares",
+]

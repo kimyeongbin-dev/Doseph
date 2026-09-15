@@ -117,6 +117,8 @@ To prevent Messy Data, strictly adhere to the following principles:
 * **HTTP Client**: All external API calls MUST use `httpx.AsyncClient` (no `requests` library). The `requests` library is synchronous and MUST NOT be used anywhere in the project.
 * **File Size Limit**: When a file exceeds **300 lines**, review and split into smaller modules before proceeding.
 * **Layered Architecture Enforcement**: Router -> Service -> Repository -> Model. Skipping layers is strictly prohibited.
+    * 🧱 **기계가 센다**: `scripts/check_layers.py` (import-linter, `pre-push` + CI). 계약 정본 = `pyproject.toml` 의 `[tool.importlinter]`.
+    * ⚠️ **현재 코드는 이 규칙을 완전히 지키고 있지 않다** — 2026-09-15 실측 위반 **72건**(서비스→모델 31 등). 계약에는 *지금 위반 0건인 경계만* 들어 있다. 나머지는 `docs/tech-debt/layer-boundary-violations.md` 에 등재만 했다(발견≠처리). **새 코드는 이 규칙을 지킨다.**
 * **Model Migration**: When any model is changed, `aerich migrate` + `docs/db_schema.dbml` update is mandatory.
 
 ### 4.3 Multilingual Processing & Documentation Rules

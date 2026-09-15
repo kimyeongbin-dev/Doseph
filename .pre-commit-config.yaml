@@ -50,6 +50,20 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
+      # 레이어 계약 검사 (import-linter) — 계약 정본은 pyproject.toml 의 [tool.importlinter]
+      # CLAUDE.md 는 "Router -> Service -> Repository -> Model, 층 건너뛰기 금지" 를
+      # 규칙으로 적어 뒀지만 **아무도 세지 않았다**. 문서로 적는 방식은 이 저장소에서
+      # 이미 반증됐다(거짓 57줄). 지금 통과하는 계약만 게이트로 만들고, 지금 위반 중인
+      # 경계는 고치지 않고 docs/tech-debt/layer-boundary-violations.md 에 등재한다.
+      - id: layer-contracts
+        name: 🧱 레이어 계약 검사 (import-linter)
+        entry: uv run python scripts/check_layers.py
+        language: system
+        types: [python]
+        require_serial: true
+        pass_filenames: false
+        stages: [pre-push]
+
       # Security scanning with Bandit
       - id: bandit
         name: 🔒 Bandit Security Check
