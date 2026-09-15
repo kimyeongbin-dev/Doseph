@@ -41,10 +41,16 @@ import sys
 import tomllib
 
 # Windows 콘솔 기본 코드페이지(cp949)에서 한글 출력이 깨지거나 죽지 않도록 고정한다.
+# 🔴 stdout 과 stderr 는 **서로를 보호하지 않는다** — 한쪽만 고정하면 다른 쪽이 크래시한다(대장 D36).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-RULES_PATH = Path("scripts/comment_vocabulary.toml")
+# stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
+from scripts.gates._root import REPO_ROOT
+
+RULES_PATH = REPO_ROOT / "scripts" / "comment_vocabulary.toml"
 SCAN_ROOTS = (Path("app"), Path("ai_worker"), Path("scripts"))
 
 SOURCE_SUFFIXES = frozenset({".py"})
@@ -191,11 +197,15 @@ def main() -> int:
         return 1
 
     hits: list[Hit] = []
+    scanned = 0
     for root in SCAN_ROOTS:
         if root.is_dir():
+            scanned += len(list(_iter_sources(root)))
             hits.extend(find_banned_vocabulary(root, banned, allow))
 
     if not hits:
+        # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다. 통과할 때도 **센 것**을 남긴다.
+        print(f"✅ 폐기 어휘 검사 — 금지어 {len(banned)}개 · 소스 {scanned}파일 · 허용 {len(allow)}건 · 검출 0.")
         return 0
 
     print("\n[거부] 폐기된 개념의 어휘가 아직 남아 있다\n", file=sys.stderr)

@@ -10,7 +10,7 @@
 
 from pathlib import Path
 
-from scripts.check_anchors import find_anchors, find_unknown_anchors, read_known_ids
+from scripts.gates.code.check_anchors import find_anchors, find_unknown_anchors, read_known_ids
 
 #: 다른 표본과 겹치지 않는 가짜 ID (헛된 초록 예방 — 실재 ID 를 쓰면 무엇을 세는지 흐려진다).
 #:

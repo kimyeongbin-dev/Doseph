@@ -87,10 +87,10 @@ jobs:
         run: uv run python scripts/mypy_gate.py
 
       # 레이어 계약 게이트: 계약 정본은 pyproject.toml 의 [tool.importlinter].
-      # 로컬 pre-push 와 동일 스크립트(scripts/check_layers.py) 호출(DRY).
+      # 로컬 pre-push 와 동일 스크립트(scripts/gates/code/check_layers.py) 호출(DRY).
       # 지금 통과하는 계약만 들어 있다 — 기존 위반은 docs/tech-debt/ 에 등재만 했다.
       - name: Layer contracts (import-linter)
-        run: uv run python scripts/check_layers.py
+        run: uv run python scripts/gates/code/check_layers.py
 
   # ── FE 게이트 (ESLint · npm audit · 정적 빌드) ───────────────────────
   # 흐름: npm ci -> eslint(보안룰 react/no-danger 포함) -> npm audit(blocking)

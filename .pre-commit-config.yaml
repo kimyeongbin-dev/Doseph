@@ -56,7 +56,7 @@ repos:
       # stdout 과 stderr 는 서로를 지켜주지 않으므로 목적지별로 본다.
       - id: utf8-output-guard
         name: 🔤 UTF-8 출력 방어 검사
-        entry: uv run python scripts/check_utf8_guard.py
+        entry: uv run python -m scripts.gates.tooling.check_utf8_guard
         language: system
         files: ^scripts/.*\.py$
         require_serial: true
@@ -70,7 +70,7 @@ repos:
       # 경계는 고치지 않고 docs/tech-debt/layer-boundary-violations.md 에 등재한다.
       - id: layer-contracts
         name: 🧱 레이어 계약 검사 (import-linter)
-        entry: uv run python scripts/check_layers.py
+        entry: uv run python -m scripts.gates.code.check_layers
         language: system
         types: [python]
         require_serial: true
@@ -106,7 +106,7 @@ repos:
       # 사본이 재주입됐다. 훅은 그 대결에서 빠져나온다 — 어떤 지시가 오든 거부된다.
       - id: no-ai-trailers
         name: 🚫 No AI attribution trailers
-        entry: uv run python scripts/check_commit_trailers.py
+        entry: uv run python -m scripts.gates.commit.check_commit_trailers
         language: system
         require_serial: true
         pass_filenames: true
@@ -120,7 +120,7 @@ repos:
       # 소급 판정하지 않는다 — prefix 규약 전체는 후속(로드맵 `문서-3`)에서 정한다.
       - id: commit-subject-hygiene
         name: ✍️ 커밋 제목 앞머리 검사
-        entry: uv run python scripts/check_commit_subject.py
+        entry: uv run python -m scripts.gates.commit.check_commit_subject
         language: system
         require_serial: true
         pass_filenames: true
@@ -132,7 +132,7 @@ repos:
       # 감각이 아니라 셈으로 잡는다. docs-private 이 없는 환경(CI)에서는 조용히 통과.
       - id: plan-archive-parity
         name: 📦 PLAN 아카이브 누락 검사
-        entry: uv run python scripts/check_plan_archives.py
+        entry: uv run python -m scripts.gates.doc.check_plan_archives
         language: system
         require_serial: true
         pass_filenames: false
@@ -145,12 +145,49 @@ repos:
       # docs-private 이 없는 환경(CI)에서는 조용히 통과.
       - id: qa-anchor-parity
         name: 🔗 QA 앵커 유효성 검사
-        entry: uv run python scripts/check_anchors.py
+        entry: uv run python -m scripts.gates.code.check_anchors
         language: system
         require_serial: true
         pass_filenames: false
         always_run: true
         stages: [pre-push]
+
+      # 문서 배치 규약 (pre-push) — 정본 = docs-private/FILING.md
+      # 직하 66건 중 57건이 규약 밖이었고, 파일명이 7가지 형태로 갈려 있었다.
+      # 규칙이 없어서가 아니라 기계가 센 적이 없어서 갈렸다(레이어 위반 72건과 같은 실패).
+      # 차단 = 직하 화이트리스트·축 폴더 파일명·접미사≠폴더·날짜↔위치↔status 3중 불일치.
+      # 보고 = study/portfolio 날짜 누락(정독 구간 몫)·_unfiled 잔량.
+      - id: doc-filing
+        name: 📂 문서 배치 규약
+        entry: uv run python -m scripts.gates.doc.check_doc_filing
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # doc-meta 가 말한 것이 사실인지 (pre-push) — 정본 = docs-private/FILING.md §9
+      # ⭐ affects 절 diff 가 핵심: docs-private 은 git 밖이라 절 단위 변경 이력이 없는데,
+      # 옛 판이 축 폴더에 파일로 남아 있으므로 **정본 §N ↔ 직전 스냅샷 §N** 을 비교할 수 있다.
+      # "고쳤다"고 사람이 적는 신뢰 단계가 없다 — 선언만 하고 안 고치면 잡힌다.
+      # 이것이 은퇴한 canon-sync 를 대체한다(아래 참조).
+      - id: doc-meta
+        name: 🏷️ doc-meta 정합
+        entry: uv run python -m scripts.gates.doc.check_doc_meta
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # ⛔ 은퇴 2026-09-16 — canon-sync (scripts/check_canon_sync.py)
+      # 전제가 무효화됐다. 그 게이트는 "축 폴더가 정본보다 새로우면 정본이 낡은 것"으로
+      # 판정했는데, 새 규약에서 축 폴더는 **정본의 옛 판이 내려앉는 곳**이라
+      # 정의상 언제나 정본보다 과거다 → 영원히 초록을 내는 통과 기계가 된다.
+      # 게다가 한 번도 회전하지 않은 정본의 축 폴더는 **비어 있는 게 정상**인데
+      # fail-closed 분기가 그걸 실패로 봤다(DEPLOYMENT.md 가 실제로 그랬다).
+      # 대체 = doc-meta 의 affects 가 선언한 절을 **직전 스냅샷과 diff** 한다(FILING §9-1).
+      # 그때까지 절 단위 신선도는 **검사되지 않는다** — 공백을 명시해 둔다.
 
       # 포트폴리오 문서가 근거보다 낡았는지 (pre-push)
       # security-posture 가 **끝난 일 5건을 "진행 예정" 으로** 소개하고 있었다.
@@ -158,7 +195,7 @@ repos:
       # 없는 근거 경로만 차단하고, draft·동기화 필요는 보고만 한다(근거는 자주 바뀐다).
       - id: portfolio-sync
         name: 🎯 포트폴리오 동기화 추적
-        entry: uv run python scripts/check_portfolio_sync.py
+        entry: uv run python -m scripts.gates.doc.check_portfolio_sync
         language: system
         require_serial: true
         pass_filenames: false
@@ -172,7 +209,7 @@ repos:
       # 검출률 50% 라 보고만 한다. 메모리가 없는 환경에서는 조용히 통과.
       - id: memory-index-parity
         name: 🧠 메모리 인덱스 정합 검사
-        entry: uv run python scripts/check_memory_index.py
+        entry: uv run python -m scripts.gates.doc.check_memory_index
         language: system
         require_serial: true
         pass_filenames: false
@@ -185,7 +222,7 @@ repos:
       # 그 57줄 중 47줄(82%)이 폐기 어휘만으로 검출된다 — 가장 싸고 잘 잡는 수단.
       - id: comment-staleness
         name: 🗣️ 폐기 어휘 잔존 검사
-        entry: uv run python scripts/check_comment_staleness.py
+        entry: uv run python -m scripts.gates.code.check_comment_staleness
         language: system
         require_serial: true
         pass_filenames: false

@@ -13,11 +13,18 @@ CI(Linux)와 로컬(Windows)이 같은 단일 스크립트를 호출한다(DRY �
 """
 
 import os
-from pathlib import Path
 import subprocess
 import sys
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+# Windows 콘솔 기본 코드페이지(cp949)에서 한글 출력이 깨지거나 죽지 않도록 고정한다.
+# 🔴 stdout 과 stderr 는 **서로를 보호하지 않는다** — 한쪽만 고정하면 다른 쪽이 크래시한다(대장 D36).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+# stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
+from scripts.gates._root import REPO_ROOT
 
 # 자식 프로세스 환경: 저장소 루트를 import 경로에 얹고 출력 인코딩을 UTF-8 로 고정.
 # (CI/Linux 는 이미 UTF-8 이라 무영향)

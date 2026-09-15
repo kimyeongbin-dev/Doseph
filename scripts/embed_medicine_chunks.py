@@ -35,6 +35,15 @@ import json
 import logging
 from pathlib import Path
 import re
+import sys
+
+# Windows 콘솔 기본 코드페이지(cp949)에서 한글 출력이 깨지거나 죽지 않도록 고정한다.
+# 🔴 stdout 과 stderr 는 **서로를 보호하지 않는다** — 한쪽만 고정하면 다른 쪽이 크래시한다(대장 D36).
+# 지금 비-ASCII 를 안 찍더라도 둔다: 나중에 한글 한 줄을 넣는 순간 조용히 죽는 자리다.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 import time
 from typing import Any
 

@@ -112,5 +112,5 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
 4. ⬜ 후속 큐(별도 작업): **조회 실패 표면화** — mypage 통계 0 무음 렌더 ·
    ChatModal 초기화 실패 UI 죽은 분기 · 로드맵 1-d 를 한 건으로 묶어 처리
 
-중간 기록: `docs-private/2026-09-14_fe-hooks-effect-6C-B-record.md`
+중간 기록: `docs-private/record/2026-09-14_fe-hooks-effect-6C-B-record.md`
 계획 정본: `docs-private/PLAN_FE_HOOKS_EFFECT.md`

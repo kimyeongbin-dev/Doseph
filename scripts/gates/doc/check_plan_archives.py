@@ -22,15 +22,19 @@
 (로컬 개발자용 게이트지, 파이프라인 게이트가 아니다).
 """
 
-from pathlib import Path
 import re
 import sys
 
 # Windows 콘솔 기본 코드페이지(cp949)에서 한글 출력이 깨지거나 죽지 않도록 고정한다.
+# 🔴 stdout 과 stderr 는 **서로를 보호하지 않는다** — 한쪽만 고정하면 다른 쪽이 크래시한다(대장 D36).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-PRIVATE_DIR = Path("docs-private")
+# stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
+from scripts.gates._root import PRIVATE as PRIVATE_DIR
+
 LEGACY_DIR = PRIVATE_DIR / "_legacy"
 
 RECORD_GLOB = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_*-record.md"
@@ -47,7 +51,7 @@ def find_missing_archives() -> list[tuple[str, str]]:
         (완료기록 파일명, 빠진 스냅샷 파일명) 목록.
     """
     missing: list[tuple[str, str]] = []
-    for record in sorted(PRIVATE_DIR.glob(RECORD_GLOB)):
+    for record in sorted(r for r in PRIVATE_DIR.rglob(RECORD_GLOB) if LEGACY_DIR not in r.parents):
         date = record.name[:10]
         body = record.read_text(encoding="utf-8", errors="replace")
         for plan in sorted(set(PLAN_REFERENCE.findall(body))):
@@ -72,7 +76,9 @@ def main() -> int:
         )
         return 1
 
-    records = list(PRIVATE_DIR.glob(RECORD_GLOB))
+    # rglob: 완료기록이 축별 폴더(`deploy/`·`record/` 등)로 흩어져도 전부 센다.
+    # `_legacy/` 는 제외 — 아카이브된 기록은 이미 닫힌 것이라 스냅샷을 다시 요구하지 않는다.
+    records = [r for r in PRIVATE_DIR.rglob(RECORD_GLOB) if LEGACY_DIR not in r.parents]
     if not records:
         print(f"\n[거부] 완료기록을 한 건도 못 찾았다 — {PRIVATE_DIR}/{RECORD_GLOB}", file=sys.stderr)
         print("  경로 규약이 바뀌었거나 glob 이 어긋났다. 검사가 무력화된 상태다(fail-closed).\n", file=sys.stderr)
@@ -80,6 +86,9 @@ def main() -> int:
 
     missing = find_missing_archives()
     if not missing:
+        # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다. 통과할 때도 **센 것**을 남긴다.
+        pairs = sum(len(set(PLAN_REFERENCE.findall(r.read_text(encoding="utf-8", errors="replace")))) for r in records)
+        print(f"✅ PLAN 스냅샷 정합 — 완료기록 {len(records)}건 · PLAN 참조 {pairs}쌍 · 빠진 스냅샷 0.")
         return 0
 
     print("\n[거부] 완료기록은 있는데 PLAN 스냅샷이 없다 (대장 D27)\n", file=sys.stderr)

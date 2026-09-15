@@ -16,18 +16,19 @@ r"""UTF-8 방어 누락 검사 — 한글·이모지를 찍는 스크립트가 c
 종료코드는 "위반"과 "크래시"를 구분하지 못하므로 **성공이 실패로 보인다**(거짓 빨강).
 반대로 출력만 깨지고 통과하는 경우엔 **아무도 눈치채지 못한다**.
 
-⚠️ 검사 대상은 `scripts/*.py` 뿐이다. `app/`·`ai_worker/` 는 `print` 가 금지돼 있고
-(CLAUDE.md §9) 로깅 핸들러가 인코딩을 따로 잡는다.
+⚠️ 검사 대상은 `scripts/` **전체**(하위 폴더 포함)다. `app/`·`ai_worker/` 는 `print` 가
+금지돼 있고(CLAUDE.md §9) 로깅 핸들러가 인코딩을 따로 잡는다.
 """
 
 import ast
-from pathlib import Path
 import sys
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+# stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
+from scripts.gates._root import REPO_ROOT  # noqa: E402
+
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 
 # 목적지별 방어. **stdout 과 stderr 는 서로를 지켜주지 않는다** —
@@ -70,13 +71,22 @@ def non_ascii_targets(source: str) -> set[str]:
 
 
 # ── 게이트 본문 ─────────────────────────────────────────────────────────
-# 흐름: scripts/*.py 순회 -> 비-ASCII 를 찍나 -> 방어가 있나 -> 없으면 실패
+# 흐름: scripts/**.py 순회 -> 비-ASCII 를 찍나 -> 방어가 있나 -> 없으면 실패
+#
+# 🔴 **rglob 이어야 한다.** 2026-09-16 게이트를 `scripts/gates/<분류>/` 로 재편했을 때
+# 이 함수가 `glob("*.py")`(직하만) 라서 **게이트 11개가 통째로 검사 범위에서 빠졌는데
+# "1건 전부 방어됨" 이라고 초록을 냈다.** 대상이 줄어든 것을 스스로 보고하지 못한 것이
+# 진짜 결함이다 — `check_plan_archives` 가 같은 glob 함정에 빠질 뻔했던 것과 같다.
+# 그래서 아래 하한선 검사를 함께 둔다.
+MIN_EXPECTED = 5
+
+
 def main() -> int:
     offenders: list[str] = []
     checked = 0
 
-    for path in sorted(SCRIPTS_DIR.glob("*.py")):
-        if path.name in EXCLUDE:
+    for path in sorted(SCRIPTS_DIR.rglob("*.py")):
+        if path.name in EXCLUDE or "__pycache__" in path.parts:
             continue
         source = path.read_text(encoding="utf-8")
         targets = non_ascii_targets(source)
@@ -88,10 +98,12 @@ def main() -> int:
             name = path.relative_to(REPO_ROOT).as_posix()
             offenders.append(f"{name}  (방어 없는 출력: {' · '.join(missing)})")
 
-    if checked == 0:
-        # 대상 0건은 통과가 아니라 실패다 — 검사기가 대상을 못 찾은 것과
-        # "문제가 없는 것"은 다르다(QUALITY_GATES §2-3).
-        print("❌ 검사 대상이 0건이다. 스크립트 경로나 판정 로직이 깨졌을 가능성이 높다.")
+    if checked < MIN_EXPECTED:
+        # 0건만이 아니라 **줄어든 것**도 실패로 본다. 폴더를 재편하거나 glob 을 좁히면
+        # 검사 범위가 조용히 사라지는데, 그때 게이트는 "깨끗하다"고 초록을 낸다.
+        # 실제로 이 게이트가 그렇게 눈이 멀었다(2026-09-16, 11건 → 1건).
+        print(f"❌ 검사 대상이 {checked}건뿐이다 (기대 최소 {MIN_EXPECTED}건).")
+        print("   경로·glob 이 좁아져 검사 범위가 사라졌을 가능성이 높다 — 줄어든 것도 실패다(fail-closed).")
         return 1
 
     if offenders:

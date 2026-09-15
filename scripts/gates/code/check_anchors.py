@@ -27,10 +27,16 @@ import re
 import sys
 
 # Windows 콘솔 기본 코드페이지(cp949)에서 한글 출력이 깨지거나 죽지 않도록 고정한다.
+# 🔴 stdout 과 stderr 는 **서로를 보호하지 않는다** — 한쪽만 고정하면 다른 쪽이 크래시한다(대장 D36).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-QUEUE_PATH = Path("docs-private/TEST_FOLLOWUP_QUEUE.md")
+# stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
+from scripts.gates._root import PRIVATE
+
+QUEUE_PATH = PRIVATE / "TEST_FOLLOWUP_QUEUE.md"
 
 #: 앵커는 **소스 코드**에서만 읽는다. 문서까지 훑으면 큐 문서 자신이 잡혀
 #: 모든 ID 가 "알려진 ID" 가 되고 게이트는 통과 기계가 된다.
@@ -121,8 +127,12 @@ def main() -> int:
         print("  파서가 깨졌거나 큐 형식이 바뀌었다. 검사가 무력화된 상태다(fail-closed).\n", file=sys.stderr)
         return 1
 
-    unknown = find_unknown_anchors(find_anchors(Path()), known)
+    anchors = find_anchors(Path())
+    unknown = find_unknown_anchors(anchors, known)
     if not unknown:
+        # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다 — 이 저장소가 반복해서
+        # 당한 실패 방식이라, 통과할 때도 **무엇을 셌는지** 한 줄로 남긴다.
+        print(f"✅ QA 앵커 정합 — 코드 앵커 {len(anchors)}종 · 큐 등재 {len(known)}건 · 끊어진 연결 0.")
         return 0
 
     print("\n[거부] 코드가 큐에 없는 QA 앵커를 가리킨다\n", file=sys.stderr)

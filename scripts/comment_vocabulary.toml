@@ -31,8 +31,8 @@ reason = "QA-01 에서 드롭된 컬럼. 이 이름을 쓰는 질의가 컬럼 �
 # ── 정당한 사용 (사유 필수) ──────────────────────────────────────────
 
 [[allow]]
-path = "scripts/check_comment_staleness.py"
-reason = "게이트 자신. 폐기어를 설명하는 문서열을 가질 수밖에 없다."
+path = "scripts/gates/code/check_comment_staleness.py"
+reason = "게이트 자신. 폐기어를 설명하는 문서열을 가질 수밖에 없다. ⚠️ 경로 조각 허용은 파일을 옮기면 조용히 깨진다 — 2026-09-16 게이트 폴더 재편에서 실제로 깨졌고, 게이트가 자기 자신을 잡아서 드러났다."
 
 [[allow]]
 path = "scripts/comment_vocabulary.toml"

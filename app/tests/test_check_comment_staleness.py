@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.check_comment_staleness import (
+from scripts.gates.code.check_comment_staleness import (
     find_banned_vocabulary,
     find_missing_identifiers,
     load_vocabulary_rules,

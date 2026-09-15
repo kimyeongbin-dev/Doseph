@@ -8,7 +8,7 @@
 |---|---|
 | 측정 방법 | `grimp` 로 `app`·`ai_worker` 의 import 그래프를 만들어 **직접 import 간선만** 셌다 (259파일 · 482의존) |
 | 측정 시점 | 2026-09-15, 커밋 `3feafe4` 기준 |
-| 다시 세는 법 | `uv run python scripts/check_layers.py --verbose` (계약에 들어간 것만) / 전수는 아래 §5 |
+| 다시 세는 법 | `uv run python scripts/gates/code/check_layers.py --verbose` (계약에 들어간 것만) / 전수는 아래 §5 |
 
 ---
 

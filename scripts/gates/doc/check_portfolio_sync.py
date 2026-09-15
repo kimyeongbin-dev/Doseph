@@ -15,8 +15,20 @@
 |---|---|---|
 | `portfolio-sync` 블록 자체가 없다 | 규약 위반(이분법) | 🔴 **실패** |
 | `sources` 가 **없는 경로**를 가리킨다 | 파일 실재 여부(이분법) | 🔴 **실패** |
-| `status: draft` | 아직 완료 아님 | 🟡 **보고** — 끝날 때까지 매번 |
+| `sync` 필드가 **없다** | 규약 위반 — 없으면 아래 검사가 조용히 건너뛰어진다 | 🔴 **실패**(fail-closed) |
+| `sync: draft` | 아직 완료 아님 | 🟡 **보고** — 끝날 때까지 매번 |
 | `sources` 중 하나가 `baseline` 보다 새롭다 | 동기화 필요 신호 | 🟡 **보고** |
+
+## 왜 `status` 가 아니라 `sync` 인가 (2026-09-16 개명)
+
+`status` 라는 이름을 **두 가지 다른 뜻**으로 쓰고 있었다:
+
+* `plan` 의 `status` = **생애주기** — 어디 있고 어떻게 닫혔나(`draft`·`active`·`done`·`suspended`…)
+* 포트폴리오의 `status` = **근거와 동기화됐나**(`draft`·`synced`)
+
+같은 이름의 다른 필드는 게이트가 `kind` 를 먼저 읽어야만 해석되고, 사람은 매번 헷갈린다.
+포트폴리오 쪽은 애초에 `baseline`·`sources` 와 한 묶음인 **동기화 개념**이므로 `sync` 로 바꿨다.
+→ 이제 `status` 는 저장소 전체에서 **생애주기 하나만** 뜻한다.
 
 **뒤의 둘을 차단하지 않는 이유**: 근거 문서는 자주 바뀐다. 차단하면 관계없는 작업이
 막히고, 그러면 사람이 게이트를 끈다 — 옆의 정확한 검사까지 죽는다
@@ -34,18 +46,23 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+# stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
+from scripts.gates._root import REPO_ROOT  # noqa: E402
+
 PORTFOLIO_DIR = REPO_ROOT / "docs-private" / "portfolio"
 
 BLOCK = re.compile(r"<!--\s*portfolio-sync\s*(.*?)-->", re.DOTALL)
-FIELD = re.compile(r"^(status|baseline|note):\s*(.+?)\s*$", re.MULTILINE)
+FIELD = re.compile(r"^(sync|baseline|note):\s*(.+?)\s*$", re.MULTILINE)
+
+#: `sync` 가 가질 수 있는 값. 오타가 조용히 "draft 아님"으로 통과하는 것을 막는다.
+SYNC_VALUES = frozenset({"draft", "synced"})
 SOURCE = re.compile(r"^\s*-\s*(\S+)\s*$", re.MULTILINE)
 
 EXCLUDE = {"README.md"}
 
 
 # ── 문서 하나의 동기화 상태 판정 ────────────────────────────────────────
-# 흐름: portfolio-sync 블록 파싱 -> status/baseline/sources 추출
+# 흐름: portfolio-sync 블록 파싱 -> sync/baseline/sources 추출
 #       -> source 실재·mtime 을 baseline 과 비교
 def inspect(path: Path) -> tuple[list[str], list[str]]:
     """Return (errors, warnings) for one portfolio document."""
@@ -88,7 +105,14 @@ def inspect(path: Path) -> tuple[list[str], list[str]]:
             + "".join(f"        · {s}\n" for s in stale).rstrip(),
         )
 
-    if fields.get("status") == "draft":
+    # fail-closed: 필드가 없으면 "draft 가 아니다"가 아니라 "판정하지 못했다"이다.
+    # 값이 오타여도 마찬가지 — 조용히 통과하면 게이트가 자기 침묵을 초록으로 보고한다.
+    sync = fields.get("sync")
+    if sync is None:
+        errors.append(f"{name}: `sync` 필드가 없다 — 없으면 draft 검사가 조용히 건너뛰어진다(fail-closed)")
+    elif sync not in SYNC_VALUES:
+        errors.append(f"{name}: `sync` 값이 {sorted(SYNC_VALUES)} 중 하나가 아니다 ({sync!r})")
+    elif sync == "draft":
         note = fields.get("note", "")
         warnings.append(f"{name}: **draft** — 아직 완료된 문서가 아니다" + (f"\n        · {note}" if note else ""))
 
