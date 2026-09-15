@@ -27,7 +27,7 @@ from fastapi import HTTPException, status
 from rq import Queue
 
 from app.core.redis_client import make_sync_redis
-from app.dtos.lifestyle_guide import LifestyleGuideStatus
+from app.dtos.lifestyle_guide import GuideDeleteImpactResponse, LifestyleGuideStatus
 from app.models.challenge import Challenge
 from app.models.lifestyle_guide import LifestyleGuide
 from app.models.medication import Medication
@@ -350,6 +350,39 @@ class LifestyleGuideService:
         """
         await self._verify_profile_ownership(profile_id, account_id)
         return await self.guide_repo.get_all_by_profile(profile_id)
+
+    # ── 가이드 삭제 영향 고지 (QA-29) ─────────────────────────────────────
+    # 흐름: 소유권 검증 -> 그 가이드의 챌린지를 상태별 집계 -> 건수만 반환
+    # 삭제 응답이 아니라 **별도 조회**인 이유: DELETE 는 204 라 본문을 실으면
+    # 이미 지운 뒤에 알려주는 꼴이 된다. 잃을 것은 누르기 전에 보여야 한다.
+    async def get_delete_impact_with_owner_check(
+        self,
+        guide_id: UUID,
+        account_id: UUID,
+    ) -> GuideDeleteImpactResponse:
+        """가이드를 지우면 함께 사라질 챌린지를 상태별로 센다.
+
+        사용자가 직접 만든 챌린지(``guide_id`` 가 NULL)는 영향받지 않으므로
+        집계에 들어오지 않는다.
+
+        Args:
+            guide_id: 삭제 예정 가이드 UUID.
+            account_id: 요청자 계정 UUID.
+
+        Returns:
+            상태별 동반 삭제 건수.
+
+        Raises:
+            HTTPException: 404 가이드 없음 / 403 소유자 불일치.
+        """
+        await self.get_guide_with_owner_check(guide_id, account_id)
+        in_progress, completed, not_started = await self.challenge_repo.count_by_state_for_guide(guide_id)
+        return GuideDeleteImpactResponse(
+            in_progress_count=in_progress,
+            completed_count=completed,
+            not_started_count=not_started,
+            total_count=in_progress + completed + not_started,
+        )
 
     async def delete_guide_with_owner_check(self, guide_id: UUID, account_id: UUID) -> None:
         """가이드 삭제 — 그 가이드에서 나온 챌린지도 진행 중·완료분까지 함께 사라진다."""

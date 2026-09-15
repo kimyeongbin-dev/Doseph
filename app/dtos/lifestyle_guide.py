@@ -115,6 +115,23 @@ class LifestyleGuidePendingResponse(BaseModel):
     status: LifestyleGuideStatus = Field(LifestyleGuideStatus.PENDING, description="enqueue 직후 상태 (=pending)")
 
 
+class GuideDeleteImpactResponse(BaseModel):
+    """가이드를 지우면 무엇이 함께 사라지는지 — 삭제 **전** 고지용.
+
+    가이드 삭제는 ``challenges.guide_id`` 의 ``ON DELETE CASCADE`` 로 진행 중·
+    완료 챌린지까지 함께 지운다(QA-01 결정). 사용자가 누르기 전에 잃을 것을
+    보여주기 위한 페이로드다.
+
+    최소 노출: **건수만** 담는다. 챌린지 목록은 이미 전용 엔드포인트가 있고,
+    확인 다이얼로그에 필요한 것은 숫자뿐이다(DTO 설계 규칙).
+    """
+
+    in_progress_count: int = Field(..., description="함께 삭제될 진행 중 챌린지 수")
+    completed_count: int = Field(..., description="함께 삭제될 완료 챌린지 수 (완료 기록이 사라진다)")
+    not_started_count: int = Field(..., description="함께 삭제될 미시작 챌린지 수")
+    total_count: int = Field(..., description="함께 삭제될 챌린지 총 수")
+
+
 # ── Daily symptom log schemas ───────────────────────────────────────────────
 
 

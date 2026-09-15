@@ -16,7 +16,11 @@ from fastapi.responses import StreamingResponse
 
 from app.dependencies.security import get_current_account
 from app.dtos.challenge import ChallengeResponse
-from app.dtos.lifestyle_guide import LifestyleGuidePendingResponse, LifestyleGuideResponse
+from app.dtos.lifestyle_guide import (
+    GuideDeleteImpactResponse,
+    LifestyleGuidePendingResponse,
+    LifestyleGuideResponse,
+)
 from app.models.accounts import Account
 from app.services.lifestyle_guide_service import LifestyleGuideService
 
@@ -155,6 +159,27 @@ async def get_guide(
     """단발 폴링 — SSE 안 쓰고 한 번만 status/content 를 받고 싶을 때."""
     guide = await service.get_guide_with_owner_check(guide_id, current_account.id)
     return LifestyleGuideResponse.model_validate(guide)
+
+
+# ── GET /lifestyle-guides/{guide_id}/delete-impact ───────────────────────
+# 흐름: 소유권 검증 -> 동반 삭제될 챌린지 상태별 집계 -> 건수 반환
+# 삭제 확인 다이얼로그가 "무엇을 잃는지"를 보여주기 위해 누르기 전에 호출한다.
+@router.get(
+    "/{guide_id}/delete-impact",
+    response_model=GuideDeleteImpactResponse,
+    summary="가이드 삭제 시 함께 사라질 챌린지 수",
+)
+async def get_guide_delete_impact(
+    guide_id: UUID,
+    current_account: CurrentAccount,
+    service: LifestyleGuideServiceDep,
+) -> GuideDeleteImpactResponse:
+    """가이드를 지우면 함께 삭제될 챌린지를 상태별로 센다.
+
+    진행 중·완료 챌린지도 함께 사라지므로(완료 날짜·streak 소실) 삭제 전에
+    이 값을 보여준다. 사용자가 직접 만든 챌린지는 영향받지 않아 집계 밖이다.
+    """
+    return await service.get_delete_impact_with_owner_check(guide_id, current_account.id)
 
 
 @router.delete(

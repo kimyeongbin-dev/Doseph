@@ -253,6 +253,24 @@ class ChallengeRepository:
         await challenge.update_from_dict(kwargs).save()
         return challenge
 
+    # ── 가이드 삭제 시 동반 삭제될 챌린지 집계 (QA-29) ────────────────────
+    # 흐름: guide_id 로 범위 한정 -> 상태별 count 3회 -> (진행 중, 완료, 미시작)
+    # 범위는 **그 가이드**다. profile 전체로 넓히면 숫자가 그럴듯하게 틀린다.
+    async def count_by_state_for_guide(self, guide_id: UUID) -> tuple[int, int, int]:
+        """Count challenges of ``guide_id`` grouped by user-visible state.
+
+        Args:
+            guide_id: Source guide UUID.
+
+        Returns:
+            (in_progress, completed, not_started) counts.
+        """
+        scoped = Challenge.filter(guide_id=guide_id)
+        completed = await scoped.filter(challenge_status="COMPLETED").count()
+        in_progress = await scoped.filter(is_active=True).exclude(challenge_status="COMPLETED").count()
+        not_started = await scoped.filter(is_active=False).exclude(challenge_status="COMPLETED").count()
+        return in_progress, completed, not_started
+
     async def soft_delete(self, challenge: Challenge) -> Challenge:
         """Delete a challenge row.
 
