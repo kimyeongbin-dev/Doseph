@@ -1,0 +1,83 @@
+"""완료기록이 참조하는 PLAN 의 `_legacy` 스냅샷이 실제로 있는지 센다.
+
+`pre-commit` 의 ``pre-push`` 스테이지에서 실행된다.
+
+왜 훅으로 세나
+--------------
+*"완료기록 + PLAN 아카이브는 한 동작"* 이라는 규칙이 있었는데도
+**한 세션에서 3번 연속** 완료기록만 쓰고 스냅샷을 빠뜨렸다(대장 D27).
+체크리스트 1번을 하면 2번을 한 것 같은 감각이 생기기 때문이다.
+
+> **"기록했다"는 감각을 점검 근거로 삼지 않는다. 센다.**
+
+오탐을 피하는 방법
+------------------
+모든 완료기록에 PLAN 이 있는 건 아니다(부채 원장에서 바로 처리한 QA-02/03 등).
+그래서 **완료기록 본문이 실제로 이름을 댄 PLAN** 만 대조한다 —
+기록이 ``PLAN_XXX.md`` 를 언급하면 같은 날짜의 스냅샷을 요구한다.
+
+`docs-private/` 는 git 미추적이라 CI 에는 없다. 없으면 **조용히 통과**한다
+(로컬 개발자용 게이트지, 파이프라인 게이트가 아니다).
+"""
+
+from pathlib import Path
+import re
+import sys
+
+# Windows 콘솔 기본 코드페이지(cp949)에서 한글 출력이 깨지거나 죽지 않도록 고정한다.
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+PRIVATE_DIR = Path("docs-private")
+LEGACY_DIR = PRIVATE_DIR / "_legacy"
+
+RECORD_GLOB = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_*-record.md"
+PLAN_REFERENCE = re.compile(r"(PLAN_[A-Z0-9_]+)\.md")
+
+
+# ── 완료기록 ↔ PLAN 스냅샷 대조 ───────────────────────────────────────
+# 흐름: 완료기록 수집 -> 본문에서 PLAN 이름 추출 -> 같은 날짜 스냅샷 존재 확인
+#       -> 없으면 목록으로 보고하고 exit 1
+def find_missing_archives() -> list[tuple[str, str]]:
+    """스냅샷이 없는 (완료기록, PLAN) 짝을 찾는다.
+
+    Returns:
+        (완료기록 파일명, 빠진 스냅샷 파일명) 목록.
+    """
+    missing: list[tuple[str, str]] = []
+    for record in sorted(PRIVATE_DIR.glob(RECORD_GLOB)):
+        date = record.name[:10]
+        body = record.read_text(encoding="utf-8", errors="replace")
+        for plan in sorted(set(PLAN_REFERENCE.findall(body))):
+            snapshot = LEGACY_DIR / f"{date}_{plan}.snapshot.md"
+            if not snapshot.exists():
+                missing.append((record.name, snapshot.name))
+    return missing
+
+
+def main() -> int:
+    """pre-push 훅 진입점.
+
+    Returns:
+        빠진 스냅샷이 없으면 0, 있으면 1 (push 거부).
+    """
+    if not PRIVATE_DIR.is_dir():
+        return 0  # CI 등 docs-private 이 없는 환경
+
+    missing = find_missing_archives()
+    if not missing:
+        return 0
+
+    print("\n[거부] 완료기록은 있는데 PLAN 스냅샷이 없다 (대장 D27)\n", file=sys.stderr)
+    for record, snapshot in missing:
+        print(f"  {record}\n    → 없음: docs-private/_legacy/{snapshot}", file=sys.stderr)
+    print(
+        "\n  완료기록과 PLAN 아카이브는 한 동작이다."
+        "\n  cp docs-private/<PLAN>.md docs-private/_legacy/<날짜>_<PLAN>.snapshot.md\n",
+        file=sys.stderr,
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
