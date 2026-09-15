@@ -113,15 +113,14 @@ export function PrescriptionGroupProvider({ children }) {
   const error = listQuery.error
   const isRefetching = listQuery.isFetching
 
-  // medication active count 변화 시 list query invalidate — 그룹 라벨 동기화.
-  const activeCount = medications.filter((m) => m.is_active).length
-  const [lastActiveCount, setLastActiveCount] = useState(activeCount)
-  if (activeCount !== lastActiveCount) {
-    setLastActiveCount(activeCount)
-    if (selectedProfileId) {
-      qc.invalidateQueries({ queryKey: qk.prescriptionGroups.all() })
-    }
-  }
+  // ⚠️ 여기 있던 "activeCount 변화 시 invalidate" 블록은 제거됐다(QA-03, 2026-09-15).
+  //    **렌더 단계에서** setState + invalidateQueries 를 하는 형태라, medications 가
+  //    처음 도착할 때(0 -> N) 에도 발동해 **/medication 첫 진입마다 그룹이 두 번 조회**됐다.
+  //    TanStack Query 권장은 "변경을 일으킨 자리(mutation onSuccess)에서 invalidate" 이고,
+  //    실제 변경 경로는 모두 그렇게 하고 있다:
+  //      · 약 수정/삭제/일괄삭제 -> MedicationContext 의 각 mutation onSuccess
+  //      · OCR 등록            -> app/ocr/result/page.jsx 저장 직후
+  //      · 프로필 전환          -> 쿼리키에 selectedProfileId 가 있어 자동 재조회
 
   // ── 클라이언트 sort ──────────────────────────────────────────────
   // 병원 정렬에선 NULL 그룹을 항상 맨 위로 partition.

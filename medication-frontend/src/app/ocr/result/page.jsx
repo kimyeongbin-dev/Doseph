@@ -2,6 +2,7 @@
 
 // /ocr/result — OCR 결과 확인 + 수정 + 저장 (react-hook-form + zod 표준 적용).
 import { useEffect, Suspense, useState, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
@@ -14,6 +15,7 @@ import api from '@/lib/api'
 import { streamSSE } from '@/lib/sseClient'
 import { useProfile } from '@/contexts/ProfileContext'
 import { useMedication } from '@/contexts/MedicationContext'
+import { qk } from '@/queries/keys'
 import { useOcrDraft } from '@/contexts/OcrDraftContext'
 import { medicationEditPatchSchema } from '@/schemas'
 import FormError from '@/components/form/FormError'
@@ -87,6 +89,7 @@ function OcrResultContent() {
   const draftId = searchParams.get('draft_id')
   const { selectedProfileId } = useProfile()
   const { refetchMedications } = useMedication()
+  const qc = useQueryClient()
   const { removeDraftLocally, refetchDrafts } = useOcrDraft()
 
   // 💡 스트림 제어와 재시도 쿨다운을 위한 상태 추가
@@ -318,6 +321,11 @@ function OcrResultContent() {
       if (draftId) removeDraftLocally(draftId)
       refetchDrafts()
       await refetchMedications()
+      // 약이 새로 등록되면 처방전 그룹의 라벨(약 종수)도 낡는다 → 여기서 함께 무효화.
+      // 변경을 일으킨 자리에서 invalidate 하는 것이 TanStack Query 권장 패턴이고,
+      // 전에는 PrescriptionGroupContext 가 **렌더 단계에서** activeCount 변화를 보고
+      // 대신 무효화했다 — 그 탓에 /medication 첫 진입마다 그룹이 두 번 조회됐다(QA-03).
+      qc.invalidateQueries({ queryKey: qk.prescriptionGroups.all() })
       toast.success('저장 완료! 복약 목록에서 확인해보세요.')
       router.push('/medication')
     } catch {
