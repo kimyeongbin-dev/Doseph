@@ -71,6 +71,12 @@ This document defines the **logical guidelines and coding rules** that all AI ag
 > ⚠️ 닫힌 PLAN 은 **정본이 아니다.** 거기 적힌 결정을 근거로 인용하지 말고,
 > 살아 있는 정본(코드·테스트·규칙 문서)을 인용한다.
 > **재개할 때도 되살리지 않는다** — 읽고 참고해서 **새 `PLAN.md` 를 쓴다**(`supersedes:` 로 잇는다).
+> 🔴 **그와 동시에 옛 PLAN 의 `status` 를 `superseded` 로 바꾼다 — 둘은 한 동작이다.**
+> 안 바꾸면 그것은 영원히 `pending`(= *아직 착수 안 한 **살아있는** 후보*)으로 남아
+> **거짓 재고**가 된다. `supersedes:` 는 뒤에서 앞으로만 가므로 **앞 문서를 연 사람은
+> 자기가 계승됐는지 모른다** — 이 절의 불변식이 막으려던 바로 그 실패다.
+> 본문은 *그때의 사실*이라 안 고치지만 **`status` 는 본문이 아니라 지금의 상태**다
+> (`done`·`suspended` 도 전부 나중에 적는 값이다). 기계 대조 = `check_doc_meta.py`(FILING §8-4).
 > 스냅샷은 *그때의 사실*이라 고치지 않는다.
 
 ### 1.2 TDD (Test-Driven Development)

@@ -9,6 +9,7 @@
 3. **``status`` 가 그 ``kind`` 에 허용된 값인가** (FILING §8-1)
 4. **``plan:`` 링크가 실재하는가** — 완료기록이 댄 PLAN 스냅샷이 실제로 있는가
 5. ⭐ **``affects`` 가 거짓말하지 않는가** — 선언한 절이 **직전 스냅샷과 실제로 다른가**
+6. **``supersedes`` 의 반대편** — 계승당한 PLAN 이 실제로 ``status: superseded`` 인가 (FILING §8-4)
 
 왜 ⑤ 가 핵심인가
 -----------------
@@ -48,7 +49,7 @@ DATED = re.compile(r"^(\d{4}-\d{2}-\d{2})_([a-z0-9-]+)-([a-z]+)\.md$")
 
 #: kind 별로 허용되는 status (FILING §8-1). 여기 없는 값은 오타이거나 규약 밖이다.
 ALLOWED_STATUS: dict[str, frozenset[str]] = {
-    "plan": frozenset({"draft", "active", "pending", "suspended", "done", "dropped"}),
+    "plan": frozenset({"draft", "active", "pending", "suspended", "done", "dropped", "superseded"}),
     "report": frozenset({"active", "done", "dropped"}),
     "record": frozenset({"active", "partial", "done"}),
     "architecture": frozenset({"active", "superseded"}),
@@ -147,6 +148,32 @@ def verify_affects(meta: dict[str, str], where: str, errors: list[Finding]) -> i
     return checked
 
 
+# ── ⑥ supersedes 의 반대편이 실제로 닫혔는가 ────────────────────────
+# 흐름: supersedes 파싱 -> plan/ 에서 대상 찾기 -> 그 문서의 status 확인
+# 왜: `supersedes:` 는 **뒤에서 앞으로만** 간다. 반대편을 사람이 고치게 두면 잊고,
+#     계승된 계획이 영원히 `pending`(= 살아있는 후보) 으로 남아 거짓 재고가 된다(FILING §8-4).
+def verify_supersedes(meta: dict[str, str], where: str, errors: list[Finding]) -> None:
+    """``supersedes`` 가 가리킨 PLAN 이 실제로 ``superseded`` 인지 대조한다."""
+    for item in (x.strip() for x in meta.get("supersedes", "").split(",") if x.strip()):
+        if item.startswith("("):
+            continue
+        target = PRIVATE / "plan" / (item if item.endswith(".md") else f"{item}.md")
+        if not target.exists():
+            errors.append(Finding(where, f"`supersedes:` 가 없는 스냅샷을 가리킨다 → `plan/{target.name}`"))
+            continue
+        older = parse_meta(target) or {}
+        was = older.get("status")
+        if was != "superseded":
+            errors.append(
+                Finding(
+                    where,
+                    f"`supersedes: {item}` 인데 그쪽 `status: {was}` 다 — "
+                    "계승당한 계획은 `superseded` 여야 한다 (FILING §8-4). "
+                    "안 바꾸면 계승된 계획이 미착수 재고로 남는다",
+                )
+            )
+
+
 def inspect(path: Path, axis: str | None, errors: list[Finding]) -> int:
     """문서 하나를 판정하고, affects 로 대조한 절 수를 돌려준다."""
     where = f"{axis}/{path.name}" if axis else path.name
@@ -179,6 +206,7 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> int:
         if not target.exists():
             errors.append(Finding(where, f"`plan:` 이 없는 스냅샷을 가리킨다 → `plan/{target.name}`"))
 
+    verify_supersedes(meta, where, errors)
     return verify_affects(meta, where, errors)
 
 
