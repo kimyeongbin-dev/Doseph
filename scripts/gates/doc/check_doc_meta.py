@@ -10,6 +10,8 @@
 4. **``plan:`` 링크가 실재하는가** — 완료기록이 댄 PLAN 스냅샷이 실제로 있는가
 5. ⭐ **``affects`` 가 거짓말하지 않는가** — 선언한 절이 **직전 스냅샷과 실제로 다른가**
 6. **계승 링크가 양방향으로 맞는가** — ``supersedes`` ↔ ``superseded_by`` (FILING §8-4)
+7. **``supersedes`` 를 아예 안 적었는가** — 계승 안 했으면 ``none`` 이라고 **명시**해야 한다
+8. ⭐ **보류가 고아가 아닌가** — ``pending``/``suspended`` 를 ``ROADMAP.md`` 가 이름으로 가리키는가 (FILING §8-5)
 
 왜 ⑤ 가 핵심인가
 -----------------
@@ -29,6 +31,7 @@ mtime 뿐이고, 그것으로는 *"§5 가 바뀌었나"* 를 **원리적으로 
 """
 
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 import re
 import sys
@@ -44,7 +47,9 @@ EXEMPT_DIRS = frozenset({"_legacy", "_unfiled", "aerich_backup_20260911", "__pyc
 CANONLESS = frozenset({"study", "portfolio"})
 
 BLOCK = re.compile(r"<!--\s*doc-meta\s*(.*?)-->", re.DOTALL)
-FIELD = re.compile(r"^\s*([a-z_]+):\s*(.+?)\s*$", re.MULTILINE)
+#: ``\s`` 는 줄바꿈을 포함하므로 값이 빈 필드가 **다음 줄을 값으로 삼킨다** —
+#: 실제로 `supersedes:` 를 비웠더니 값이 ``affects:  FILING`` 으로 읽혔다. 줄 안으로 가둔다.
+FIELD = re.compile(r"^[ 	]*([a-z_]+):[ 	]*(.+?)[ 	]*$", re.MULTILINE)
 DATED = re.compile(r"^(\d{4}-\d{2}-\d{2})_([a-z0-9-]+)-([a-z]+)\.md$")
 
 #: kind 별로 허용되는 status (FILING §8-1). 여기 없는 값은 오타이거나 규약 밖이다.
@@ -67,6 +72,15 @@ TOP_STATUS = frozenset({"draft", "active"})
 #: 이 값을 낮춰야 할 상황이 오면 그건 **의식적인 결정**이어야 한다 — 조용히 0이 되는 것과 다르다.
 MIN_AFFECTS = 1
 MIN_SUCCESSION = 1
+MIN_PLANS = 1
+
+#: 계승하지 않았음을 **명시**하는 값. 빈칸을 허용하면 *"계승 안 했다"* 와 *"적는 걸 잊었다"* 가
+#: 같은 모양이 되어, 게이트는 **선언이 사실인지**만 볼 뿐 **선언이 빠졌는지**를 못 본다.
+NO_SUCCESSION = "none"
+
+#: 보류를 **살려 두는** 문서. 여기서 이름이 불리지 않는 보류는 고아다(FILING §8-5).
+ROADMAP = "ROADMAP.md"
+RESUMABLE = frozenset({"pending", "suspended"})
 
 #: ``affects: DEPLOY#5``(절) 또는 ``affects: DEPLOY``(문서 전체).
 #: 절 단위가 기본이지만 **판을 통째로 새로 쓰는 경우**가 실재한다(규약 재작성 등) —
@@ -177,7 +191,7 @@ def resolve_plan(ref: str) -> Path:
 
 def links(meta: dict[str, str], field: str) -> list[str]:
     """쉼표로 나열된 링크 값. 괄호 주석은 값이 아니라 오류다(실제로 한 번 깨졌다)."""
-    return [x.strip() for x in meta.get(field, "").split(",") if x.strip()]
+    return [x.strip() for x in meta.get(field, "").split(",") if x.strip() and x.strip() != NO_SUCCESSION]
 
 
 def verify_supersedes(meta: dict[str, str], path: Path, axis: str | None, where: str, errors: list[Finding]) -> None:
@@ -255,6 +269,34 @@ def verify_supersedes(meta: dict[str, str], path: Path, axis: str | None, where:
     return checked
 
 
+@cache
+def roadmap_text() -> str:
+    """보류를 살려 두는 문서. 한 번만 읽는다."""
+    target = PRIVATE / ROADMAP
+    return target.read_text(encoding="utf-8", errors="replace") if target.exists() else ""
+
+
+# ── ⑧ 보류가 고아인가 ────────────────────────────────────────────────
+# 흐름: pending/suspended 인가 -> ROADMAP 이 그 파일명을 부르는가
+# 왜 나이로 판정하지 않나: *"오래된 보류"* 와 *"아직 유효한 보류"* 를 가르는 것은 **판단**이다.
+#     날짜 상수를 두면 살아 있는 계획을 죽었다고 말한다. 보류는 **죽지 않는다** —
+#     대신 **아무도 가리키지 않게 되는 것**을 막는다. 그건 판단 없이 셀 수 있다(FILING §8-5).
+def verify_not_orphaned(meta: dict[str, str], path: Path, axis: str | None, where: str, errors: list[Finding]) -> int:
+    """재개 가능한 보류가 ``ROADMAP.md`` 에서 불리는지 본다. 검사했으면 1."""
+    if meta.get("kind") != "plan" or meta.get("status") not in RESUMABLE or axis is None:
+        return 0
+    if path.stem not in roadmap_text():
+        errors.append(
+            Finding(
+                where,
+                f"`status: {meta.get('status')}` 인데 `{ROADMAP}` 이 이 파일을 이름으로 부르지 않는다 — "
+                "아무도 가리키지 않는 보류는 재개되지 않는다(고아). 로드맵 단계에 경로를 적거나, "
+                "되살릴 생각이 없으면 `dropped` 로 닫는다 (FILING §8-5)",
+            )
+        )
+    return 1
+
+
 def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, int]:
     """문서 하나를 판정하고, **(affects 절 대조 수, 계승 링크 대조 수)** 를 돌려준다."""
     where = f"{axis}/{path.name}" if axis else path.name
@@ -287,6 +329,15 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, i
         if not target.exists():
             errors.append(Finding(where, f"`plan:` 이 없는 스냅샷을 가리킨다 → `plan/{target.name}`"))
 
+    if kind == "plan" and "supersedes" not in meta:
+        errors.append(
+            Finding(
+                where,
+                f"`kind: plan` 인데 `supersedes:` 가 없다 — 계승하지 않았으면 `{NO_SUCCESSION}` 이라고 "
+                "명시한다. 빈칸이면 '계승 안 함' 과 '적는 걸 잊음' 이 구분되지 않는다 (FILING §8-4)",
+            )
+        )
+    verify_not_orphaned(meta, path, axis, where, errors)
     links_checked = verify_supersedes(meta, path, axis, where, errors)
     return verify_affects(meta, where, errors), links_checked
 
@@ -302,13 +353,14 @@ def main() -> int:
         return 1
 
     errors: list[Finding] = []
-    seen = affects_checked = links_checked = 0
+    seen = affects_checked = links_checked = plans_seen = 0
 
     for path in sorted(PRIVATE.glob("*.md")):
         seen += 1
         got_affects, got_links = inspect(path, None, errors)
         affects_checked += got_affects
         links_checked += got_links
+        plans_seen += "kind:     plan" in path.read_text(encoding="utf-8", errors="replace")[:600]
 
     for folder in sorted(p for p in PRIVATE.iterdir() if p.is_dir()):
         axis = folder.name
@@ -321,6 +373,7 @@ def main() -> int:
             got_affects, got_links = inspect(path, axis, errors)
             affects_checked += got_affects
             links_checked += got_links
+            plans_seen += axis == "plan"
 
     # fail-closed: 한 건도 못 모으면 "깨끗하다"가 아니라 "못 셌다"이다.
     if seen == 0:
@@ -333,6 +386,7 @@ def main() -> int:
     for label, count, floor, why in (
         ("affects 절 대조", affects_checked, MIN_AFFECTS, "affects 선언이 사라졌거나 비교할 스냅샷이 없다"),
         ("계승 링크 대조", links_checked, MIN_SUCCESSION, "supersedes/superseded_by 파싱이 깨졌거나 필드명이 바뀌었다"),
+        ("PLAN 모집단", plans_seen, MIN_PLANS, "plan/ 경로가 바뀌었거나 kind 파싱이 깨졌다"),
     ):
         if count < floor:
             print(f"❌ {label} 대상이 {count}건이다 (기대 최소 {floor}건) — {why}.")
@@ -349,7 +403,7 @@ def main() -> int:
 
     print(
         f"✅ doc-meta 정합 — 문서 {seen}건 · affects 절 대조 {affects_checked}건 · "
-        f"계승 링크 대조 {links_checked}건 · 위반 0."
+        f"계승 링크 대조 {links_checked}건 · PLAN {plans_seen}건(고아 0) · 위반 0."
     )
     return 0
 

@@ -31,6 +31,7 @@ This document defines the **logical guidelines and coding rules** that all AI ag
 * `PLAN.md` 가 **이미 있으면** 그것이 진행 중인 계획이다. 새 주제를 시작하려면
   **먼저 그것을 닫아야 한다**(③). 덮어쓰지 않는다.
 * 머리에 **`doc-meta`** 를 단다 — `kind` · `status` · `roadmap`(어느 트랙에서 나왔나) ·
+  **`supersedes`**(계승한 계획. 없으면 **`none`** 이라고 **적는다** — 빈칸은 *"잊었다"* 와 구분이 안 된다) ·
   **`affects`**(바꿀 정본을 **절 단위**로: `DEPLOY#5`) · **`closes`**(닫을 큐 항목).
 * BE 데이터 흐름·비즈니스 로직은 **Mermaid 흐름도**로 시각화한다.
 
@@ -48,6 +49,11 @@ This document defines the **logical guidelines and coding rules** that all AI ag
 | `suspended` | 착수했다가 **중단** | 가능 |
 | `pending` | `go` 를 못 받고 **보류** | 가능 |
 | `dropped` | **폐기** | 안 함 |
+
+> 🔴 **보류(`pending`·`suspended`)는 `ROADMAP.md` 가 파일 이름으로 불러야 한다**(`FILING.md` §8-5).
+> 보류는 폐기 결정으로 죽지 않고 **아무도 안 가리켜서** 죽는다. 나이로 판정하지 않는다 —
+> *"오래된 보류"* 와 *"유효한 보류"* 를 가르는 건 판단이다. 대신 **연결을 강제**한다:
+> 되살릴 생각이 있으면 **로드맵에 경로를 적고**, 없으면 **`dropped`** 로 닫는다. 게이트가 막는다.
 
 1. **사용자에게 승인을 요청한다.** 임의로 옮기지 않는다.
 2. `doc-meta` 의 `status` 와 `closed` 를 적고, 머리에 **왜 그렇게 닫는지**를 배너로 남긴다.
