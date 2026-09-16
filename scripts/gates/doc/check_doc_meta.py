@@ -9,7 +9,7 @@
 3. **``status`` 가 그 ``kind`` 에 허용된 값인가** (FILING §8-1)
 4. **``plan:`` 링크가 실재하는가** — 완료기록이 댄 PLAN 스냅샷이 실제로 있는가
 5. ⭐ **``affects`` 가 거짓말하지 않는가** — 선언한 절이 **직전 스냅샷과 실제로 다른가**
-6. **``supersedes`` 의 반대편** — 계승당한 PLAN 이 실제로 ``status: superseded`` 인가 (FILING §8-4)
+6. **계승 링크가 양방향으로 맞는가** — ``supersedes`` ↔ ``superseded_by`` (FILING §8-4)
 
 왜 ⑤ 가 핵심인가
 -----------------
@@ -148,28 +148,96 @@ def verify_affects(meta: dict[str, str], where: str, errors: list[Finding]) -> i
     return checked
 
 
-# ── ⑥ supersedes 의 반대편이 실제로 닫혔는가 ────────────────────────
-# 흐름: supersedes 파싱 -> plan/ 에서 대상 찾기 -> 그 문서의 status 확인
-# 왜: `supersedes:` 는 **뒤에서 앞으로만** 간다. 반대편을 사람이 고치게 두면 잊고,
-#     계승된 계획이 영원히 `pending`(= 살아있는 후보) 으로 남아 거짓 재고가 된다(FILING §8-4).
-def verify_supersedes(meta: dict[str, str], where: str, errors: list[Finding]) -> None:
-    """``supersedes`` 가 가리킨 PLAN 이 실제로 ``superseded`` 인지 대조한다."""
-    for item in (x.strip() for x in meta.get("supersedes", "").split(",") if x.strip()):
-        if item.startswith("("):
-            continue
-        target = PRIVATE / "plan" / (item if item.endswith(".md") else f"{item}.md")
+# ── ⑥ 계승 링크가 양방향으로 맞는가 ──────────────────────────────────
+# 흐름: supersedes 대조(앞→뒤) -> superseded_by 대조(뒤→앞) -> status 와의 정합
+# 왜: 한쪽 방향만 두면 반대편은 사람이 고쳐야 하고, 사람은 잊는다. 잊힌 결과는
+#     ①계승된 계획이 영원히 `pending`(살아있는 후보) 으로 남거나
+#     ②옛 계획을 연 사람이 **후속을 찾지 못하는** 것이다 — 추적이 끊긴다(FILING §8-4).
+#: 계승 시점에 새 PLAN 은 아직 직하라 파일명이 없다. 이 값이 그 구간의 유효한 좌표다.
+OPEN_PLAN = "PLAN.md"
+
+
+def plan_identity(path: Path, axis: str | None) -> str:
+    """다른 문서가 이 PLAN 을 가리킬 때 쓰는 이름."""
+    return OPEN_PLAN if axis is None else path.stem
+
+
+def resolve_plan(ref: str) -> Path:
+    """``supersedes``/``superseded_by`` 값이 가리키는 실제 파일."""
+    if ref == OPEN_PLAN:
+        return PRIVATE / OPEN_PLAN
+    return PRIVATE / "plan" / (ref if ref.endswith(".md") else f"{ref}.md")
+
+
+def links(meta: dict[str, str], field: str) -> list[str]:
+    """쉼표로 나열된 링크 값. 괄호 주석은 값이 아니라 오류다(실제로 한 번 깨졌다)."""
+    return [x.strip() for x in meta.get(field, "").split(",") if x.strip()]
+
+
+def verify_supersedes(meta: dict[str, str], path: Path, axis: str | None, where: str, errors: list[Finding]) -> None:
+    """계승 링크를 **양쪽에서** 대조한다.
+
+    ``kind: plan`` 에만 적용한다. **판 교체형 정본**(``filing/``·``deploy/`` …)은 후속이
+    **폴더 이름으로 결정된다** — ``filing/`` 의 다음 판은 언제나 직하 ``FILING.md`` 이고,
+    계보는 축 폴더를 날짜순으로 보면 된다(FILING §9-1). 도출되는 사실에 링크를 박으면
+    판이 한 번 더 바뀔 때마다 **과거 스냅샷 전부를 고쳐야 한다.**
+    역링크는 **후속이 결정론적으로 도출되지 않을 때만** 필요하다.
+    """
+    if meta.get("kind") != "plan":
+        return
+    me = plan_identity(path, axis)
+    status = meta.get("status")
+
+    # 앞 → 뒤: 내가 계승한 것들이 실제로 닫혔고 나를 도로 가리키는가
+    for item in links(meta, "supersedes"):
+        target = resolve_plan(item)
         if not target.exists():
-            errors.append(Finding(where, f"`supersedes:` 가 없는 스냅샷을 가리킨다 → `plan/{target.name}`"))
+            errors.append(Finding(where, f"`supersedes:` 가 없는 계획을 가리킨다 → `{item}`"))
             continue
         older = parse_meta(target) or {}
-        was = older.get("status")
-        if was != "superseded":
+        if older.get("status") != "superseded":
             errors.append(
                 Finding(
                     where,
-                    f"`supersedes: {item}` 인데 그쪽 `status: {was}` 다 — "
-                    "계승당한 계획은 `superseded` 여야 한다 (FILING §8-4). "
-                    "안 바꾸면 계승된 계획이 미착수 재고로 남는다",
+                    f"`supersedes: {item}` 인데 그쪽 `status: {older.get('status')}` 다 — "
+                    "계승당한 계획은 `superseded` 여야 한다. 안 바꾸면 미착수 재고로 남는다 (FILING §8-4)",
+                )
+            )
+        back = links(older, "superseded_by")
+        if me not in back:
+            errors.append(
+                Finding(
+                    where,
+                    f"`supersedes: {item}` 인데 그쪽 `superseded_by:` 가 나를 안 가리킨다 "
+                    f"(`{back or '없음'}` ≠ `{me}`) — 역링크가 없으면 그 문서를 연 사람이 "
+                    "후속을 찾지 못한다 (FILING §8-4)",
+                )
+            )
+
+    # 뒤 → 앞: 내가 계승당했으면 누가 가져갔는지 적혀 있고, 그게 실재하며 나를 가리키는가
+    back = links(meta, "superseded_by")
+    if status == "superseded" and not back:
+        errors.append(
+            Finding(where, "`status: superseded` 인데 `superseded_by:` 가 없다 — 후속을 찾을 길이 없다 (FILING §8-4)")
+        )
+    if back and status != "superseded":
+        errors.append(Finding(where, f"`superseded_by:` 가 있는데 `status: {status}` 다 — `superseded` 여야 한다"))
+    for item in back:
+        target = resolve_plan(item)
+        if not target.exists():
+            hint = (
+                " — 직하 `PLAN.md` 가 닫히면 이 값을 그 스냅샷 파일명으로 바꿔야 한다 (FILING §8-4 ④)"
+                if item == OPEN_PLAN
+                else ""
+            )
+            errors.append(Finding(where, f"`superseded_by:` 가 없는 계획을 가리킨다 → `{item}`{hint}"))
+            continue
+        newer = parse_meta(target) or {}
+        if me not in links(newer, "supersedes"):
+            errors.append(
+                Finding(
+                    where,
+                    f"`superseded_by: {item}` 인데 그쪽 `supersedes:` 가 나를 안 가리킨다 — 링크가 한쪽만 있다",
                 )
             )
 
@@ -206,7 +274,7 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> int:
         if not target.exists():
             errors.append(Finding(where, f"`plan:` 이 없는 스냅샷을 가리킨다 → `plan/{target.name}`"))
 
-    verify_supersedes(meta, where, errors)
+    verify_supersedes(meta, path, axis, where, errors)
     return verify_affects(meta, where, errors)
 
 
