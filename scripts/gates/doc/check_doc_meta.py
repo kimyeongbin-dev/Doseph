@@ -62,6 +62,12 @@ ALLOWED_STATUS: dict[str, frozenset[str]] = {
 }
 TOP_STATUS = frozenset({"draft", "active"})
 
+#: 하위 검사의 **바닥값**. 0건은 *"위반이 없다"* 가 아니라 *"대상이 사라져 아무것도 못 봤다"* 이다.
+#: 실제로 ``check_utf8_guard`` 가 경로 이동 뒤 대상 11건 → 1건이 되고도 초록을 냈다(대장 **D31**).
+#: 이 값을 낮춰야 할 상황이 오면 그건 **의식적인 결정**이어야 한다 — 조용히 0이 되는 것과 다르다.
+MIN_AFFECTS = 1
+MIN_SUCCESSION = 1
+
 #: ``affects: DEPLOY#5``(절) 또는 ``affects: DEPLOY``(문서 전체).
 #: 절 단위가 기본이지만 **판을 통째로 새로 쓰는 경우**가 실재한다(규약 재작성 등) —
 #: 그때 가짜 절 번호를 붙이게 하면 선언이 거짓이 된다. 절이 없으면 문서 전체를 대조한다.
@@ -182,14 +188,19 @@ def verify_supersedes(meta: dict[str, str], path: Path, axis: str | None, where:
     계보는 축 폴더를 날짜순으로 보면 된다(FILING §9-1). 도출되는 사실에 링크를 박으면
     판이 한 번 더 바뀔 때마다 **과거 스냅샷 전부를 고쳐야 한다.**
     역링크는 **후속이 결정론적으로 도출되지 않을 때만** 필요하다.
+
+    Returns:
+        대조한 링크 수. 호출자가 합산해 **0건이면 실패**로 본다(눈먼 검사 방지).
     """
     if meta.get("kind") != "plan":
-        return
+        return 0
     me = plan_identity(path, axis)
     status = meta.get("status")
+    checked = 0
 
     # 앞 → 뒤: 내가 계승한 것들이 실제로 닫혔고 나를 도로 가리키는가
     for item in links(meta, "supersedes"):
+        checked += 1
         target = resolve_plan(item)
         if not target.exists():
             errors.append(Finding(where, f"`supersedes:` 가 없는 계획을 가리킨다 → `{item}`"))
@@ -223,6 +234,7 @@ def verify_supersedes(meta: dict[str, str], path: Path, axis: str | None, where:
     if back and status != "superseded":
         errors.append(Finding(where, f"`superseded_by:` 가 있는데 `status: {status}` 다 — `superseded` 여야 한다"))
     for item in back:
+        checked += 1
         target = resolve_plan(item)
         if not target.exists():
             hint = (
@@ -240,15 +252,16 @@ def verify_supersedes(meta: dict[str, str], path: Path, axis: str | None, where:
                     f"`superseded_by: {item}` 인데 그쪽 `supersedes:` 가 나를 안 가리킨다 — 링크가 한쪽만 있다",
                 )
             )
+    return checked
 
 
-def inspect(path: Path, axis: str | None, errors: list[Finding]) -> int:
-    """문서 하나를 판정하고, affects 로 대조한 절 수를 돌려준다."""
+def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, int]:
+    """문서 하나를 판정하고, **(affects 절 대조 수, 계승 링크 대조 수)** 를 돌려준다."""
     where = f"{axis}/{path.name}" if axis else path.name
     meta = parse_meta(path)
     if meta is None:
         errors.append(Finding(where, "`doc-meta` 블록이 없다 (FILING §9)"))
-        return 0
+        return 0, 0
 
     kind, status = meta.get("kind"), meta.get("status")
     if not kind:
@@ -274,8 +287,8 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> int:
         if not target.exists():
             errors.append(Finding(where, f"`plan:` 이 없는 스냅샷을 가리킨다 → `plan/{target.name}`"))
 
-    verify_supersedes(meta, path, axis, where, errors)
-    return verify_affects(meta, where, errors)
+    links_checked = verify_supersedes(meta, path, axis, where, errors)
+    return verify_affects(meta, where, errors), links_checked
 
 
 def main() -> int:
@@ -289,11 +302,13 @@ def main() -> int:
         return 1
 
     errors: list[Finding] = []
-    seen = affects_checked = 0
+    seen = affects_checked = links_checked = 0
 
     for path in sorted(PRIVATE.glob("*.md")):
         seen += 1
-        affects_checked += inspect(path, None, errors)
+        got_affects, got_links = inspect(path, None, errors)
+        affects_checked += got_affects
+        links_checked += got_links
 
     for folder in sorted(p for p in PRIVATE.iterdir() if p.is_dir()):
         axis = folder.name
@@ -303,13 +318,26 @@ def main() -> int:
             if path.name == "README.md":
                 continue
             seen += 1
-            affects_checked += inspect(path, axis, errors)
+            got_affects, got_links = inspect(path, axis, errors)
+            affects_checked += got_affects
+            links_checked += got_links
 
     # fail-closed: 한 건도 못 모으면 "깨끗하다"가 아니라 "못 셌다"이다.
     if seen == 0:
         print(f"❌ `doc-meta` 검사 대상을 한 건도 수집하지 못했다 — {PRIVATE}")
         print("   경로 규약이 바뀌었거나 glob 이 어긋났다. 0건은 통과가 아니다(fail-closed).")
         return 1
+
+    # ⭐ 하위 검사도 각각 fail-closed 다. 전체 대상이 많아도 **특정 검사만 눈이 멀 수 있다** —
+    #    문서는 36건인데 계승 링크를 0건 봤다면 그 검사는 아무 일도 안 한 것이다.
+    for label, count, floor, why in (
+        ("affects 절 대조", affects_checked, MIN_AFFECTS, "affects 선언이 사라졌거나 비교할 스냅샷이 없다"),
+        ("계승 링크 대조", links_checked, MIN_SUCCESSION, "supersedes/superseded_by 파싱이 깨졌거나 필드명이 바뀌었다"),
+    ):
+        if count < floor:
+            print(f"❌ {label} 대상이 {count}건이다 (기대 최소 {floor}건) — {why}.")
+            print("   0건은 '위반이 없다' 가 아니라 '아무것도 못 봤다' 이다(fail-closed, 대장 D31).")
+            return 1
 
     if errors:
         print(f"❌ `doc-meta` 위반 {len(errors)}건 (정본 = docs-private/FILING.md §9):")
@@ -319,7 +347,10 @@ def main() -> int:
             print(f"   … 외 {len(errors) - 25}건")
         return 1
 
-    print(f"✅ doc-meta 정합 — 문서 {seen}건 · affects 절 대조 {affects_checked}건 · 위반 0.")
+    print(
+        f"✅ doc-meta 정합 — 문서 {seen}건 · affects 절 대조 {affects_checked}건 · "
+        f"계승 링크 대조 {links_checked}건 · 위반 0."
+    )
     return 0
 
 
