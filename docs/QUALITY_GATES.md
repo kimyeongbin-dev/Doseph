@@ -127,7 +127,7 @@ skip 은 *"검증하지 않았다"* 를 초록으로 보이게 만든다.
 | 게이트 | fail-open 이었던 분기 |
 |---|---|
 | `check_anchors` | 후속 큐를 못 읽으면 통과 |
-| `check_plan_archives` | `docs-private/` 없으면 통과 · **완료기록 0건이면 통과** |
+| `check_plan_archives` | `docs-private/` 없으면 통과 · **완료기록 0건이면 통과** (→ 둘 다 실패로 고침. 2026-09-20 에 **참조 쌍 바닥값**까지 추가 — 옛 규약 17쌍이 통째로 죽어도 새 2쌍이 남아 통과했다) |
 | `check_comment_staleness` | 금지 어휘 0건이면 통과 |
 | `check_memory_index` | 메모리 인덱스 없으면 통과 |
 | `check_portfolio_sync` | 폴더 없거나 문서 0건이면 통과 |
