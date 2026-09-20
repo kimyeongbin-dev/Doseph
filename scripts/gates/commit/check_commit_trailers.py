@@ -18,6 +18,12 @@ this replaces any earlier attribution guidance"* 라는 지시를 **새로** 주
 -----------
 dependabot 이 다는 ``Co-authored-by: dependabot[bot] ...`` 와 ``Signed-off-by:`` 는
 정상이므로 건드리지 않는다. 차단 대상은 **AI attribution** 뿐이다.
+
+✅ **음성 대조 표본** — 이것들은 **통과해야** 한다:
+  - dependabot 의 ``Signed-off-by:`` / ``Co-authored-by: dependabot[bot]``
+  - 본문에 ``claude`` 가 **산문으로** 등장하는 커밋 (트레일러 줄이 아니면 잡지 않는다)
+  🔴 전부 "차단"만 확인하면 dependabot PR 이 영영 못 들어온다. 실제로 이 게이트를
+  *fail-open* 이라 **오진**한 적이 있다 — 내가 주입한 것이 사실 음성 대조 표본이었다(D31).
 """
 
 from pathlib import Path

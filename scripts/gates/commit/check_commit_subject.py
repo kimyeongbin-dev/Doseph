@@ -32,6 +32,10 @@ force push 가 필요하다(2026-09-15 사용자 판단: **고치지 않는다**
 
 실측(2026-09-15, 전체 1057 커밋): 이 규칙에 걸리는 것 **60건** — 전부 팀 시절
 스타일이거나 붙여넣기 오염이다. 히스토리는 고치지 않는다(되돌리기 비용 > 이득).
+
+✅ **음성 대조 표본** — 이것들은 **통과해야** 한다:
+  - ``feat: ...`` · ``fix(fe): ...`` 처럼 ASCII 영문자로 시작하는 정상 제목
+  - 본문 첫 줄이 ``#`` 주석이고 그 다음 줄이 정상 제목인 경우 (주석은 건너뛴다)
 """
 
 from pathlib import Path
@@ -56,7 +60,15 @@ def main() -> int:
         print("[거부] 커밋 메시지 파일 경로가 없다.", file=sys.stderr)
         return 1
 
-    message = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+    # 🔴 fail-closed: 파일이 없거나 비어 있으면 *"위반이 없다"* 가 아니라 *"검사하지 못했다"* 이다.
+    #    훅 배선이 어긋나 빈 경로가 넘어와도 조용히 통과하면, 게이트가 있는 줄 알면서 없는 상태가 된다.
+    target = Path(sys.argv[1])
+    if not target.is_file():
+        print(f"[거부] 커밋 메시지 파일이 없다 — {target}", file=sys.stderr)
+        print("  훅 배선이 어긋났을 수 있다. 검사하지 못했으므로 통과시키지 않는다(fail-closed).", file=sys.stderr)
+        return 1
+
+    message = target.read_text(encoding="utf-8", errors="replace")
 
     subject = ""
     for line in message.split("\n"):

@@ -28,6 +28,11 @@
 상태어 충돌을 게이트로 만들지 않는 이유: 오늘의 4건 중 2건만 잡힌다.
 나머지 2건은 본문 `description` 자체가 상태를 말하지 않아 대조할 것이 없었다.
 80% 미만은 게이트가 아니라 보고다 — `docs/QUALITY_GATES.md` §2-1.
+
+✅ **음성 대조 표본** — 이것들은 **통과해야** 한다:
+  - 인덱스 줄과 파일이 1:1 로 맞는 정상 항목
+  - 아직 없는 메모리를 가리키는 ``[[위키링크]]`` 가 **본문에** 있는 경우
+    (링크는 "앞으로 쓸 것"을 표시할 수 있다 — 인덱스 항목만 dangling 으로 본다)
 """
 
 from pathlib import Path
@@ -39,6 +44,11 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 MEMORY_DIR = Path.home() / ".claude" / "projects" / "E--Project-Personal-Project-Doseph" / "memory"
 INDEX = MEMORY_DIR / "MEMORY.md"
+
+#: 바닥값 — *0건*만이 아니라 **줄어든 것도 실패**다(`CLAUDE.md` §6-1, 대장 D31).
+#: 실제로 `check_utf8_guard` 가 대상 11건 → 1건이 되고도 초록을 냈다.
+#: 이 값은 **손으로 올린다** — 대상이 늘면 그때 올리는 것이 의식적인 결정이 된다.
+MIN_MEMORIES = 35
 
 LINK = re.compile(r"\[[^\]]+\]\(([a-z0-9-]+\.md)\)")
 DESCRIPTION = re.compile(r"^description:\s*[\"']?(.+?)[\"']?\s*$", re.MULTILINE)
@@ -116,6 +126,13 @@ def main() -> int:
     if failed:
         return 1
 
+    if len(entries) < MIN_MEMORIES or len(files) < MIN_MEMORIES:
+        print(
+            f"❌ 대상이 줄었다 — 인덱스 항목 {len(entries)}건 · 파일 {len(files)}건 (기대 각 ≥{MIN_MEMORIES}).",
+            file=sys.stderr,
+        )
+        print("   메모리를 대량 삭제했거나 파싱이 깨졌다. 줄어든 것도 실패다(fail-closed).", file=sys.stderr)
+        return 1
     print(f"✅ 메모리 인덱스 정합 — 항목 {len(entries)}건 · 파일 {len(files)}건 · dangling 0 · orphan 0.")
     if not conflicts:
         print("   (상태어 충돌도 없음. 단 이 검사는 실측 검출률 50% 라 '깨끗함'의 증거가 아니다.)")

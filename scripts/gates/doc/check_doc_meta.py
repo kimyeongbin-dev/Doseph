@@ -12,7 +12,8 @@
 6. **계승 링크가 양방향으로 맞는가** — ``supersedes`` ↔ ``superseded_by`` (FILING §8-4)
 7. **``supersedes`` 를 아예 안 적었는가** — 계승 안 했으면 ``none`` 이라고 **명시**해야 한다
 8. ⭐ **보류가 고아가 아닌가** — ``pending``/``suspended`` 를 ``ROADMAP.md`` 가 이름으로 가리키는가 (FILING §8-5)
-9. 🔴 **``ROADMAP.md`` §지금 위치가 직하 ``PLAN.md`` 와 맞는가** — 진행 중인 계획이 있는데
+9. ⭐ **``partial`` 이 나머지를 가리키는가** — ``remainder:`` 존재 + 대상 실재 (FILING §8-6)
+10. 🔴 **``ROADMAP.md`` §지금 위치가 직하 ``PLAN.md`` 와 맞는가** — 진행 중인 계획이 있는데
    *"없다"* 라고 적혀 있으면(또는 그 반대) 다음 세션이 **거짓을 읽는다**
 
 왜 ⑤ 가 핵심인가
@@ -30,6 +31,12 @@ mtime 뿐이고, 그것으로는 *"§5 가 바뀌었나"* 를 **원리적으로 
 **정의상 언제나 정본보다 과거**라 영원히 초록을 내는 통과 기계였다.
 
 ⚠️ ``pre-push`` **로컬 전용**이다. 대상이 없으면 **실패**한다(fail-closed).
+
+✅ **음성 대조 표본** — 이것들은 **통과해야** 한다:
+  - ``done`` · ``dropped`` — **종결 상태라 아무것도 안 가리켜도 된다**
+  - 판 교체형 정본 스냅샷(``filing/`` 등)의 ``superseded`` — 후속이 폴더로 도출되므로 역링크가 없다
+  - ``_legacy/`` · ``_unfiled/`` · ``study/`` · ``portfolio/`` — ``doc-meta`` 를 요구하지 않는다
+  - PLAN 이 없을 때 §지금 위치가 *"없다"* 라고 말하는 정상 쌍
 """
 
 from dataclasses import dataclass
@@ -56,8 +63,8 @@ DATED = re.compile(r"^(\d{4}-\d{2}-\d{2})_([a-z0-9-]+)-([a-z]+)\.md$")
 
 #: kind 별로 허용되는 status (FILING §8-1). 여기 없는 값은 오타이거나 규약 밖이다.
 ALLOWED_STATUS: dict[str, frozenset[str]] = {
-    "plan": frozenset({"draft", "active", "pending", "suspended", "done", "dropped", "superseded"}),
-    "report": frozenset({"active", "done", "dropped"}),
+    "plan": frozenset({"draft", "active", "pending", "suspended", "done", "dropped", "superseded", "partial"}),
+    "report": frozenset({"active", "done", "dropped", "partial"}),
     "record": frozenset({"active", "partial", "done"}),
     "architecture": frozenset({"active", "superseded"}),
     "deploy": frozenset({"active", "superseded"}),
@@ -83,6 +90,14 @@ NO_SUCCESSION = "none"
 #: 보류를 **살려 두는** 문서. 여기서 이름이 불리지 않는 보류는 고아다(FILING §8-5).
 ROADMAP = "ROADMAP.md"
 RESUMABLE = frozenset({"pending", "suspended"})
+
+#: ``remainder:`` 가 가리킬 수 있는 곳. **살아서 갱신되는 자리**여야 한다 — 스냅샷을 가리키면
+#: 그 자체가 또 안 바뀌므로 추적이 한 칸 옮겨졌을 뿐이다(FILING §8-6).
+REMAINDER_TARGETS = (
+    (re.compile(r"^ROADMAP#(\S+)$"), ROADMAP),
+    (re.compile(r"^(QA-\d+)$"), "TEST_FOLLOWUP_QUEUE.md"),
+    (re.compile(r"^(문서-\d+)$"), "DOC_TRUTH_DRIFT.md"),
+)
 
 #: ``ROADMAP.md`` §지금 위치의 "진행 중인 계획" 줄. 이 한 줄이 *"어디까지 왔나"* 의 단일 답이다.
 POSITION_ROW = re.compile(r"^\|\s*\*\*진행 중인 계획\*\*\s*\|(.+?)\|\s*$", re.MULTILINE)
@@ -304,6 +319,10 @@ def verify_not_orphaned(meta: dict[str, str], path: Path, axis: str | None, wher
     return 1
 
 
+#: ``inspect`` 가 세는 ``partial`` 대조 건수. 모듈 수준 누산기(시그니처를 더 늘리지 않는다).
+remainder_checked = [0]
+
+
 def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, int]:
     """문서 하나를 판정하고, **(affects 절 대조 수, 계승 링크 대조 수)** 를 돌려준다."""
     where = f"{axis}/{path.name}" if axis else path.name
@@ -345,8 +364,58 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, i
             )
         )
     verify_not_orphaned(meta, path, axis, where, errors)
+    remainder_checked[0] += verify_remainder(meta, where, errors)
     links_checked = verify_supersedes(meta, path, axis, where, errors)
     return verify_affects(meta, where, errors), links_checked
+
+
+# ── ⑨ partial 이 나머지를 가리키는가 ─────────────────────────────────
+# 흐름: status == partial 인가 -> remainder: 가 있는가 -> 그 대상이 실재하는가
+# 왜: 스냅샷은 갱신되지 않는다. `partial` 을 그냥 허용하면 그 문서는 **영원히 미완**인 채
+#     남고 나머지가 어디 갔는지 아무도 모른다 — `pending` 이 고아가 되는 것과 같은 실패다.
+#     문제는 *"영원히 partial"* 이 아니라 ***"가리키는 데가 없는 partial"*** 이다(FILING §8-6).
+def verify_remainder(meta: dict[str, str], where: str, errors: list[Finding]) -> int:
+    """``partial`` 의 ``remainder:`` 를 대조한다. 검사했으면 1."""
+    if meta.get("status") != "partial":
+        if meta.get("remainder"):
+            errors.append(
+                Finding(where, f"`remainder:` 가 있는데 `status: {meta.get('status')}` 다 — `partial` 일 때만 쓴다")
+            )
+        return 0
+
+    target = (meta.get("remainder") or "").strip()
+    if not target:
+        errors.append(
+            Finding(
+                where,
+                "`status: partial` 인데 `remainder:` 가 없다 — 남은 범위가 어디로 갔는지 "
+                "가리키지 않으면 **영원히 미완인 채 잊힌다** (FILING §8-6)",
+            )
+        )
+        return 1
+
+    for pattern, canon in REMAINDER_TARGETS:
+        matched = pattern.match(target)
+        if not matched:
+            continue
+        body = (PRIVATE / canon).read_text(encoding="utf-8", errors="replace") if (PRIVATE / canon).exists() else ""
+        if matched.group(1) not in body:
+            errors.append(
+                Finding(where, f"`remainder: {target}` 가 `{canon}` 에 없다 — 살아 있는 자리를 가리켜야 한다")
+            )
+        return 1
+
+    # 남은 형태 = PLAN 슬러그
+    plan = resolve_plan(target)
+    if not plan.exists():
+        errors.append(
+            Finding(
+                where,
+                f"`remainder: {target}` 를 해석하지 못했다 — "
+                "`ROADMAP#단계` · `QA-##` · `문서-N` · PLAN 슬러그 중 하나여야 한다 (FILING §8-6)",
+            )
+        )
+    return 1
 
 
 # ── ⑨ ROADMAP §지금 위치 ↔ 직하 PLAN.md ──────────────────────────────
@@ -458,7 +527,8 @@ def main() -> int:
 
     print(
         f"✅ doc-meta 정합 — 문서 {seen}건 · affects 절 대조 {affects_checked}건 · "
-        f"계승 링크 대조 {links_checked}건 · PLAN {plans_seen}건(고아 0) · §지금 위치 ✅ · 위반 0."
+        f"계승 링크 대조 {links_checked}건 · PLAN {plans_seen}건(고아 0) · "
+        f"partial {remainder_checked[0]}건 · §지금 위치 ✅ · 위반 0."
     )
     return 0
 

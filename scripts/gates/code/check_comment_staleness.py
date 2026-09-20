@@ -31,6 +31,10 @@
    > 그러면 같이 걸려 있던 정확한 검사까지 죽는다. 그래서 분리했다.
 
 허용목록에는 **사유가 필수**다. 사유 없는 허용은 곧 통과 기계가 된다.
+
+✅ **음성 대조 표본** — 이것들은 **통과해야** 한다:
+  - ``[[allow]]`` 에 **사유와 함께** 등재된 경로의 금지어 (의도된 잔존)
+  - 폐기 어휘를 *설명하는* 문서·사전 자신 (자기 자신을 잡으면 안 된다)
 """
 
 from collections.abc import Iterator
@@ -49,6 +53,12 @@ if hasattr(sys.stderr, "reconfigure"):
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import REPO_ROOT
+
+#: 바닥값 — *0건*만이 아니라 **줄어든 것도 실패**다(`CLAUDE.md` §6-1, 대장 D31).
+#: 실제로 `check_utf8_guard` 가 대상 11건 → 1건이 되고도 초록을 냈다.
+#: 이 값은 **손으로 올린다** — 대상이 늘면 그때 올리는 것이 의식적인 결정이 된다.
+MIN_SOURCES = 200
+MIN_BANNED = 3
 
 RULES_PATH = REPO_ROOT / "scripts" / "comment_vocabulary.toml"
 SCAN_ROOTS = (Path("app"), Path("ai_worker"), Path("scripts"))
@@ -205,6 +215,13 @@ def main() -> int:
 
     if not hits:
         # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다. 통과할 때도 **센 것**을 남긴다.
+        if scanned < MIN_SOURCES or len(banned) < MIN_BANNED:
+            print(
+                f"❌ 대상이 줄었다 — 소스 {scanned}파일(기대 ≥{MIN_SOURCES}) · "
+                f"금지어 {len(banned)}개(기대 ≥{MIN_BANNED}). glob 이 좁아졌거나 사전이 비었다(fail-closed).",
+                file=sys.stderr,
+            )
+            return 1
         print(f"✅ 폐기 어휘 검사 — 금지어 {len(banned)}개 · 소스 {scanned}파일 · 허용 {len(allow)}건 · 검출 0.")
         return 0
 

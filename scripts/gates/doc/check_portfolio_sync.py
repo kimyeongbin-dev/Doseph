@@ -36,6 +36,10 @@
 
 ⚠️ `docs-private/` 는 git 밖이지만 이 훅은 `pre-push` **로컬 전용**이라 CI 에서 돌지 않는다.
 → 폴더가 없거나 대상이 0건이면 **실패**한다(fail-closed).
+
+✅ **음성 대조 표본** — 이것들은 **통과해야** 한다:
+  - ``sync: draft`` (🟡 보고이지 차단이 아니다 — 차단하면 작업이 막힌다)
+  - 근거가 ``baseline`` 보다 새로운 상태 (역시 보고. *"고쳐야 한다"* 는 사람이 판단한다)
 """
 
 from datetime import UTC, date, datetime
@@ -48,6 +52,11 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import REPO_ROOT  # noqa: E402
+
+#: 바닥값 — *0건*만이 아니라 **줄어든 것도 실패**다(`CLAUDE.md` §6-1, 대장 D31).
+#: 실제로 `check_utf8_guard` 가 대상 11건 → 1건이 되고도 초록을 냈다.
+#: 이 값은 **손으로 올린다** — 대상이 늘면 그때 올리는 것이 의식적인 결정이 된다.
+MIN_PORTFOLIO = 3
 
 PORTFOLIO_DIR = REPO_ROOT / "docs-private" / "portfolio"
 
@@ -153,6 +162,9 @@ def main() -> int:
             print(f"   - {item}")
         return 1
 
+    if len(docs) < MIN_PORTFOLIO:
+        print(f"❌ 포트폴리오 문서가 {len(docs)}건이다 (기대 ≥{MIN_PORTFOLIO}) — 경로·glob 이 좁아졌다(fail-closed).")
+        return 1
     print(f"✅ 포트폴리오 문서 {len(docs)}건 — 규약 준수 · 없는 근거 0.")
     return 0
 

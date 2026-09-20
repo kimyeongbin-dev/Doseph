@@ -20,6 +20,11 @@
 → 대상이 없으면 **실패**한다(fail-closed). *"검사 대상이 없다"* 와 *"문제가 없다"* 는 다른 사실이고,
 구분하지 못하면 게이트가 **자기가 죽었다는 것을 초록으로 보고**한다(`docs/QUALITY_GATES.md` §2-5-1)
 (로컬 개발자용 게이트지, 파이프라인 게이트가 아니다 — `check_plan_archives.py` 와 같은 결).
+
+✅ **음성 대조 표본** — 이것들은 **통과해야** 한다:
+  - 큐에 실재하는 ``QA-##`` 를 가리키는 코드 주석 (정상 앵커)
+  - ``QA-`` 가 문장 안에 그냥 등장하는 산문 (앵커 아님 — 잡으면 오탐)
+  전부 "끊김"으로만 확인하면 *"아무 주석이나 다 잡는"* 상태와 구분되지 않는다.
 """
 
 from pathlib import Path
@@ -35,6 +40,12 @@ if hasattr(sys.stderr, "reconfigure"):
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import PRIVATE
+
+#: 바닥값 — *0건*만이 아니라 **줄어든 것도 실패**다(`CLAUDE.md` §6-1, 대장 D31).
+#: 실제로 `check_utf8_guard` 가 대상 11건 → 1건이 되고도 초록을 냈다.
+#: 이 값은 **손으로 올린다** — 대상이 늘면 그때 올리는 것이 의식적인 결정이 된다.
+MIN_ANCHORS = 12
+MIN_QUEUE = 38
 
 QUEUE_PATH = PRIVATE / "TEST_FOLLOWUP_QUEUE.md"
 
@@ -132,6 +143,13 @@ def main() -> int:
     if not unknown:
         # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다 — 이 저장소가 반복해서
         # 당한 실패 방식이라, 통과할 때도 **무엇을 셌는지** 한 줄로 남긴다.
+        if len(anchors) < MIN_ANCHORS or len(known) < MIN_QUEUE:
+            print(
+                f"❌ 대상이 줄었다 — 코드 앵커 {len(anchors)}종(기대 ≥{MIN_ANCHORS}) · "
+                f"큐 등재 {len(known)}건(기대 ≥{MIN_QUEUE}). glob·경로가 좁아졌거나 큐 파싱이 깨졌다.",
+                file=sys.stderr,
+            )
+            return 1
         print(f"✅ QA 앵커 정합 — 코드 앵커 {len(anchors)}종 · 큐 등재 {len(known)}건 · 끊어진 연결 0.")
         return 0
 

@@ -31,6 +31,11 @@
 
 ⚠️ ``docs-private/`` 는 git 밖이지만 이 훅은 ``pre-push`` **로컬 전용**이라 CI 에서 돌지 않는다.
 → 대상이 없으면 **실패**한다(fail-closed). *"검사 대상이 없다"* 와 *"문제가 없다"* 는 다른 사실이다.
+
+✅ **음성 대조 표본** — 이것들은 **통과해야** 한다:
+  - ``_unfiled/`` · ``_legacy/`` 안의 파일 (``_`` 접두 = 규약 밖 구역)
+  - 직하 화이트리스트에 있는 작업 버퍼·상태 정본 (날짜 없는 것이 정상)
+  - ``study/`` · ``portfolio/`` 의 정상 이름 (정본 없는 축)
 """
 
 from dataclasses import dataclass
@@ -43,6 +48,11 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import PRIVATE  # noqa: E402
+
+#: 바닥값 — *0건*만이 아니라 **줄어든 것도 실패**다(`CLAUDE.md` §6-1, 대장 D31).
+#: 실제로 `check_utf8_guard` 가 대상 11건 → 1건이 되고도 초록을 냈다.
+#: 이 값은 **손으로 올린다** — 대상이 늘면 그때 올리는 것이 의식적인 결정이 된다.
+MIN_AXIS_DOCS = 80
 
 #: 규약 밖 구역 — 이름을 강제하지 않는다(FILING §11).
 #: ``_legacy`` 는 죽은 문서라 이름이 곧 역사이고, ``_unfiled`` 는 아직 분류 전이다.
@@ -220,6 +230,10 @@ def main() -> int:
             print(f"   … 외 {len(errors) - 25}건")
         return 1
 
+    if seen < MIN_AXIS_DOCS:
+        print(f"❌ 축 폴더 대상이 {seen}건이다 (기대 ≥{MIN_AXIS_DOCS}) — 경로 규약이 바뀌었거나 glob 이 좁아졌다.")
+        print("   줄어든 것도 실패다(fail-closed, 대장 D31).")
+        return 1
     print(f"✅ 문서 배치 — 직하 {len(ALLOWED_TOP)}종 규약 준수 · 축 폴더 {seen}건 이름 정합.")
     return 0
 
