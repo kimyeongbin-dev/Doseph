@@ -91,6 +91,26 @@ TOP_STATUS = frozenset({"draft", "in-progress", "current"})
 MIN_AFFECTS = 1
 MIN_SUCCESSION = 1
 MIN_PLANS = 1
+MIN_DONE_MARKS = 1
+
+#: 완료 판정 체크박스. ``- [ ]`` / ``- [x]`` 를 **줄 머리 앵커**로 센다 —
+#: 본문 산문에 섞인 대괄호를 줍지 않기 위해서다(대장 D47: 구조를 문자열로 세지 않는다).
+UNCHECKED = re.compile(r"^[ 	]*- \[ \]", re.MULTILINE)
+CHECKED = re.compile(r"^[ 	]*- \[[xX]\]", re.MULTILINE)
+
+#: ``status: done`` 인데 완료 판정을 **하나도** 안 채운 채 닫힌 과거 스냅샷.
+#: 🔴 면제는 *"괜찮다"* 가 아니라 **"정보가 이미 소실됐다"** 는 선언이다 — 무엇을 못 하고
+#: 닫았는지 복구할 길이 없어 지금 채우면 그게 거짓이 된다. 사유 없는 면제는 막는다.
+#: ⚠️ **이 표는 자라면 안 된다.** 새 이름이 여기 들어가려 하면 그건 면제가 아니라 규칙 위반이다.
+DONE_MARK_EXEMPT: dict[str, str] = {
+    "2026-09-08_gcp-login-mvp-plan.md": "2026-09-08 종료. 판정 5개 미체크 — 당시 실측이 남아 있지 않다.",
+    "2026-09-12_budget-autostop-plan.md": (
+        "2026-09-12 종료. 판정 4개 미체크. 킬스위치 자동배선은 org 정책으로 기각됐고 그 사실은 배너에만 남았다."
+    ),
+    "2026-09-12_schema-cleanup-dto-hardening-plan.md": "2026-09-12 종료. 판정 4개 미체크.",
+    "2026-09-15_qa04-vector-tests-plan.md": "2026-09-15 종료. 판정 5개 미체크.",
+    "2026-09-16_filing-convention-plan.md": "2026-09-16 종료. 판정 7개 미체크.",
+}
 
 #: 계승하지 않았음을 **명시**하는 값. 빈칸을 허용하면 *"계승 안 했다"* 와 *"적는 걸 잊었다"* 가
 #: 같은 모양이 되어, 게이트는 **선언이 사실인지**만 볼 뿐 **선언이 빠졌는지**를 못 본다.
@@ -331,6 +351,7 @@ def verify_not_orphaned(meta: dict[str, str], path: Path, axis: str | None, wher
 #: ``inspect`` 가 세는 ``partial`` 대조 건수. 모듈 수준 누산기(시그니처를 더 늘리지 않는다).
 remainder_checked = [0]
 parent_checked = [0]
+done_marks_checked = [0]
 
 
 def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, int]:
@@ -378,6 +399,7 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, i
     verify_not_orphaned(meta, path, axis, where, errors)
     remainder_checked[0] += verify_remainder(meta, where, errors)
     parent_checked[0] += verify_parent(meta, path, axis, where, errors)
+    done_marks_checked[0] += verify_done_marks(meta, path, where, errors)
     links_checked = verify_supersedes(meta, path, axis, where, errors)
     return verify_affects(meta, where, errors), links_checked
 
@@ -392,6 +414,45 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, i
 # 왜: 축소판·1단계는 상위를 **대신하지 않고 일부를 먼저 끝낸 것**이라 `supersedes` 로 적으면
 #     거짓이 된다. 역링크(`children:`)는 두지 않는다 — 1:N 이라 하위가 늘 때마다 상위가
 #     낡는다. 반대편은 `grep` 으로 도출된다(FILING §9-2).
+# ── ⑪ done 이 완료 판정을 통과한 결과인가 ────────────────────────────
+# 흐름: status == done 인가 -> 본문에 완료 판정 체크박스가 있나 -> 채운 것이 하나라도 있나
+# 왜: 닫기 절차가 요구하는 `doc-meta`·배너는 **문서 머리**에 있고 완료 판정은 **문서 끝**에 있다.
+#     머리를 고치면 닫은 것 같은 감각이 생겨 꼬리를 안 본다 — D27(완료기록을 쓰면 스냅샷도
+#     쓴 것 같다)과 같은 모양이고, 실측하니 **done 7건 중 6건이 체크 0개**였다(대장 **D51**).
+#     기존 검사는 전부 *필드*를 본다. 이것만이 **본문이 자기 메타와 모순인지**를 본다.
+# 🔑 일부만 채운 것은 **정상이다.** `qa01-hard-delete` 는 8/10 을 채우고 미체크 2건에
+#     *"달성 못 함 — soft_delete 13개가 이름을 유지한 채 남아 있다"* 를 적었다(→ QA-30).
+#     체크박스는 자랑하는 칸이 아니라 **"done 이지만 이건 못 했다"가 파일에 남는 유일한 자리**다.
+def verify_done_marks(meta: dict[str, str], path: Path, where: str, errors: list[Finding]) -> int:
+    """``status: done`` 인 PLAN 의 완료 판정이 채워졌는지 본다. 검사했으면 1.
+
+    Returns:
+        검사 대상이었으면 1, 아니면 0 (바닥값 입력).
+    """
+    if meta.get("kind") != "plan" or meta.get("status") != "done":
+        return 0
+    text = path.read_text(encoding="utf-8", errors="replace")
+    unchecked, checked = len(UNCHECKED.findall(text)), len(CHECKED.findall(text))
+    if unchecked + checked == 0:
+        return 0  # 완료 판정 절이 없는 PLAN — 검사 대상이 아니다
+    if checked:
+        return 1  # 하나라도 채웠으면 통과. 미체크는 "못 했다"를 남긴 정당한 형태다
+    reason = DONE_MARK_EXEMPT.get(path.name)
+    if reason is not None:
+        if not reason.strip():
+            errors.append(Finding(where, "`DONE_MARK_EXEMPT` 항목에 사유가 비었다 — 사유 없는 면제는 면제가 아니다"))
+        return 1
+    errors.append(
+        Finding(
+            where,
+            f"`status: done` 인데 완료 판정 {unchecked}개가 **하나도** 채워지지 않았다 — "
+            "메타는 완료라 하고 본문은 아무것도 안 했다고 한다. 한 줄씩 보고 `- [x]` 로 바꾸거나, "
+            "못 한 것은 `- [ ]` 로 두고 **왜 못 했는지 그 자리에 적는다** (대장 D51)",
+        )
+    )
+    return 1
+
+
 def verify_parent(meta: dict[str, str], path: Path, axis: str | None, where: str, errors: list[Finding]) -> int:
     """``parent:`` 가 실재하는 상위 PLAN 을 가리키는지 본다. 검사했으면 1."""
     target = (meta.get("parent") or "").strip()
@@ -543,6 +604,12 @@ def main() -> int:
         ("affects 절 대조", affects_checked, MIN_AFFECTS, "affects 선언이 사라졌거나 비교할 스냅샷이 없다"),
         ("계승 링크 대조", links_checked, MIN_SUCCESSION, "supersedes/superseded_by 파싱이 깨졌거나 필드명이 바뀌었다"),
         ("PLAN 모집단", plans_seen, MIN_PLANS, "plan/ 경로가 바뀌었거나 kind 파싱이 깨졌다"),
+        (
+            "done 완료 판정",
+            done_marks_checked[0],
+            MIN_DONE_MARKS,
+            "체크박스 정규식이 깨졌거나 done 스냅샷이 사라졌다 — 0건은 '위반 없음' 이 아니라 '아무것도 못 봤음' 이다",
+        ),
         ("§지금 위치 대조", position_checked, 1, "ROADMAP.md 가 없거나 §지금 위치 표 모양이 바뀌었다"),
     ):
         if count < floor:
@@ -561,7 +628,8 @@ def main() -> int:
     print(
         f"✅ doc-meta 정합 — 문서 {seen}건 · affects 절 대조 {affects_checked}건 · "
         f"계승 링크 대조 {links_checked}건 · PLAN {plans_seen}건(고아 0) · "
-        f"partial {remainder_checked[0]}건 · parent {parent_checked[0]}건 · §지금 위치 ✅ · 위반 0."
+        f"partial {remainder_checked[0]}건 · parent {parent_checked[0]}건 · "
+        f"done 판정 {done_marks_checked[0]}건(면제 {len(DONE_MARK_EXEMPT)}) · §지금 위치 ✅ · 위반 0."
     )
     return 0
 
