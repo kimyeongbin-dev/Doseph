@@ -107,7 +107,7 @@ flowchart TD
         EMB["1️⃣ 질문을 숫자 벡터로 변환<br />(텍스트 임베딩 — AI가 뜻을 수치로 표현)"]
         SEARCH["2️⃣ 약품 데이터베이스에서<br />가장 비슷한 정보 3개 찾기<br />(pgvector 코사인 유사도 검색)"]
         BUILD_CONTEXT["3️⃣ 찾은 정보를 묶어<br />'참고 자료'로 만들기"]
-        GPT_CALL["4️⃣ GPT-4o-mini 호출<br />참고 자료 + 질문을 함께 전달<br />'다약(Dayak)' 약사 캐릭터로 답변 생성"]
+        GPT_CALL["4️⃣ GPT-4o-mini 호출<br />참고 자료 + 질문을 함께 전달<br />'Doseph' 약사 캐릭터로 답변 생성"]
         GPT_ANSWER{"답변<br />생성 성공?"}
 
         EMB --> SEARCH
@@ -156,7 +156,7 @@ flowchart LR
     subgraph GENERATE ["③ 답변 만들기"]
         G1["시스템 프롬프트<br />+ 참고 자료<br />+ 사용자 질문"]
         G2["GPT-4o-mini 호출<br />temperature: 0.7"]
-        G3["🗣️ 다약(Dayak) 약사<br />말투로 최종 답변 생성<br />(최대 800 토큰)"]
+        G3["🗣️ Doseph 약사<br />말투로 최종 답변 생성<br />(최대 800 토큰)"]
         G1 --> G2 --> G3
     end
 

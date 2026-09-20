@@ -116,7 +116,7 @@ class IntentClassification(BaseModel):
 #### system prompt 6 섹션 (RAG_FLOW.md §2.4 의 lost-in-middle 회피 순서)
 
 ```
-1. persona ("Dayak" 약사 챗봇 + 해요체)
+1. persona ("Doseph" 약사 챗봇 + 해요체)
 2. output rule (한국어 GFM, 코드블록 금지, 출처 인라인)
 3. (의학 컨텍스트는 IntentClassifier 가 흡수 → 2nd LLM 에 별도 노출 X)
 4. 세션 요약 (chat_sessions.summary, 옵션 D)

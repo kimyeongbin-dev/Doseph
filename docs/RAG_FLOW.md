@@ -106,7 +106,7 @@ OpenAI Chat Completion API 의 message 구조에서 어떤 정보를 어디에 �
 
 ### 2.2 항목별 배치 분석
 
-#### A. 페르소나 ("Dayak 약사 챗봇, 따뜻한 어조") — **system** ★ 명확
+#### A. 페르소나 ("Doseph 약사 챗봇, 따뜻한 어조") — **system** ★ 명확
 
 | 근거 | 내용 |
 |---|---|
@@ -208,7 +208,7 @@ OpenAI Chat Completion API 의 message 구조에서 어떤 정보를 어디에 �
 |---|---|
 | 폐기 사유 ① | DB ↔ LLM 의 user content 가 다름 → 디버깅 복잡, 팀원 학습 비용 |
 | 폐기 사유 ② | history 가 6 messages 로 짧아 multi-turn 일관성은 다른 메커니즘 (summary) 이 흡수 |
-| 폐기 사유 ③ | canonical 의 formal 톤이 "Dayak 약사 — 따뜻한 해요체" 페르소나를 깨뜨릴 위험 |
+| 폐기 사유 ③ | canonical 의 formal 톤이 "Doseph 약사 — 따뜻한 해요체" 페르소나를 깨뜨릴 위험 |
 | 폐기 사유 ④ | 대명사 풀이의 핵심 가치는 referent_resolution 으로 더 작은 메커니즘으로 해결 |
 | 폐기 사유 ⑤ | system 의 [의학 컨텍스트] 와 의미 중복 → token 낭비 |
 | 결정 | **2nd LLM user role 은 raw query 그대로** |
@@ -224,7 +224,7 @@ messages = [
         "content": (
             # ── 1. 페르소나 ──
             "[persona]\n"
-            "당신은 'Dayak' 약사 챗봇입니다. 따뜻한 해요체로 답변하세요...\n\n"
+            "당신은 'Doseph' 약사 챗봇입니다. 따뜻한 해요체로 답변하세요...\n\n"
 
             # ── 2. 출력 포맷 룰 ──
             "[output rule]\n"

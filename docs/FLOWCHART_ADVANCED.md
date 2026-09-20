@@ -325,7 +325,7 @@ flowchart TD
         G2["② 최근 N턴 대화 기록 삽입<br />[{role:user,...}, {role:assistant,...}, ...]"]
         G3["③ RAG Context 삽입<br />관련 약품 정보 3개"]
         G4["④ 명확화된 현재 질의 추가<br />{role: user, content: 치환된 질문}"]
-        G5["GPT-4o-mini 호출<br />'다약(Dayak)' 약사 캐릭터<br />temperature: 0.7 / max_tokens: 800"]
+        G5["GPT-4o-mini 호출<br />'Doseph' 약사 캐릭터<br />temperature: 0.7 / max_tokens: 800"]
 
         G1 --> G2 --> G3 --> G4 --> G5
     end

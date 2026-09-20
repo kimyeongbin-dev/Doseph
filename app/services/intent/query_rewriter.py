@@ -27,7 +27,7 @@ _MODEL = "gpt-4o-mini"
 _client: AsyncOpenAI | None = None
 _initialised: bool = False
 
-SYSTEM_PROMPT = """당신은 'Dayak' 약사 챗봇의 Query Rewriter 입니다.
+SYSTEM_PROMPT = """당신은 'Doseph' 약사 챗봇의 Query Rewriter 입니다.
 사용자의 raw 질의 + history + 사용자 의학 컨텍스트 (DB 자동 prepend) 를
 입력받아 단일 호출로 다음을 모두 결정합니다.
 
