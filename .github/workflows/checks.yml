@@ -87,10 +87,13 @@ jobs:
         run: uv run python scripts/mypy_gate.py
 
       # 레이어 계약 게이트: 계약 정본은 pyproject.toml 의 [tool.importlinter].
-      # 로컬 pre-push 와 동일 스크립트(scripts/gates/code/check_layers.py) 호출(DRY).
+      # 로컬 pre-push 와 **동일 호출 형태**(`-m scripts.gates.code.check_layers`)를 쓴다(DRY).
       # 지금 통과하는 계약만 들어 있다 — 기존 위반은 docs/tech-debt/ 에 등재만 했다.
       - name: Layer contracts (import-linter)
-        run: uv run python scripts/gates/code/check_layers.py
+        # 🔴 반드시 `-m` 으로 부른다. 파일 경로로 부르면 sys.path[0] 이 스크립트 폴더라
+        #    게이트가 쓰는 `from scripts.gates._root import …` 가 ModuleNotFoundError 로 죽는다.
+        #    pre-commit(.pre-commit-config.yaml)도 `-m` 을 쓴다 — 둘이 갈리면 로컬만 초록이 된다.
+        run: uv run python -m scripts.gates.code.check_layers
 
   # ── FE 게이트 (ESLint · npm audit · 정적 빌드) ───────────────────────
   # 흐름: npm ci -> eslint(보안룰 react/no-danger 포함) -> npm audit(blocking)

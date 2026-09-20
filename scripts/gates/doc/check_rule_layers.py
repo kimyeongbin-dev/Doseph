@@ -78,6 +78,12 @@ MIN_SECTIONS = 25
 MIN_HOOKS = 10
 MIN_SCRIPTS = 11
 MIN_TRACKS = 3
+MIN_WORKFLOWS = 1
+
+#: 워크플로가 게이트를 **파일 경로**로 부르는 형태.
+#: 그러면 ``sys.path[0]`` 이 스크립트 폴더가 되어 ``from scripts.gates._root import …`` 가
+#: ``ModuleNotFoundError`` 로 죽는다. 게이트는 패키지라 ``-m`` 으로만 돈다.
+BY_PATH = re.compile(r"python\s+(?:-\S+\s+)*scripts/gates/\S+\.py")
 
 
 # ── ① FILING 절이 층②③ 에서 불리는가 ────────────────────────────────
@@ -167,6 +173,29 @@ def audit_wiring() -> tuple[list[str], int]:
     return reports, len(scripts)
 
 
+# ── ⑤ 워크플로가 게이트를 정본 형태로 부르는가 ────────────────────────
+# 흐름: .github/workflows/*.yml 수집 -> `python scripts/gates/**.py` (파일 경로) 호출 검색
+# 왜: 게이트는 패키지라 **`-m` 으로만 돈다.** 파일 경로로 부르면 `sys.path[0]` 이 스크립트
+#     폴더가 되어 `from scripts.gates._root import …` 가 죽는다.
+#     🔴 **로컬은 안 깨진다** — `pre-commit` 은 `-m` 을 쓰기 때문이다. 그래서 이 어긋남은
+#     **CI 에서만** 드러나고, 커밋을 쌓아 두면 그 신호마저 늦게 온다: 2026-09-16 에 들어온
+#     결함이 **2026-09-20 푸시에서야** 드러났다(31커밋이 쌓여 있었다).
+#     정밀도 100%(그 호출 형태만 잡는다) 라 **보고가 아니라 차단**이다.
+def audit_workflow_calls() -> tuple[list[str], int]:
+    """(파일 경로로 게이트를 부르는 워크플로 보고줄, 검사한 워크플로 수)."""
+    workflows = sorted((REPO_ROOT / ".github" / "workflows").glob("*.yml"))
+    reports: list[str] = []
+    for wf in workflows:
+        reports.extend(
+            f"`{wf.name}` 이 게이트를 **파일 경로**로 부른다 — `{hit.strip()}`. "
+            "`-m scripts.gates.<폴더>.<모듈>` 로 바꾼다. 파일 경로로 부르면 "
+            "`sys.path[0]` 이 스크립트 폴더라 `scripts` 패키지를 못 찾는다 "
+            "(로컬 `pre-commit` 은 `-m` 이라 **CI 에서만** 빨개진다)"
+            for hit in BY_PATH.findall(wf.read_text(encoding="utf-8", errors="replace"))
+        )
+    return reports, len(workflows)
+
+
 def main() -> int:
     """pre-push 훅 진입점.
 
@@ -190,13 +219,20 @@ def main() -> int:
     hook_reports, hooks_seen = audit_hooks()
     track_reports, tracks_seen = audit_tracks()
     wiring_reports, scripts_seen = audit_wiring()
+    call_reports, workflows_seen = audit_workflow_calls()
 
     # 🔴 대상이 줄면 "구멍이 없다" 가 아니라 "아무것도 못 봤다" 이다.
-    if sections_seen < MIN_SECTIONS or hooks_seen < MIN_HOOKS or scripts_seen < MIN_SCRIPTS or tracks_seen < MIN_TRACKS:
+    if (
+        sections_seen < MIN_SECTIONS
+        or hooks_seen < MIN_HOOKS
+        or scripts_seen < MIN_SCRIPTS
+        or tracks_seen < MIN_TRACKS
+        or workflows_seen < MIN_WORKFLOWS
+    ):
         print(
             f"[거부] 대상이 줄었다 — FILING 절 {sections_seen}(≥{MIN_SECTIONS}) · "
             f"우리 훅 {hooks_seen}(≥{MIN_HOOKS}) · 게이트 스크립트 {scripts_seen}(≥{MIN_SCRIPTS}) · "
-            f"트랙 {tracks_seen}(≥{MIN_TRACKS}).",
+            f"트랙 {tracks_seen}(≥{MIN_TRACKS}) · 워크플로 {workflows_seen}(≥{MIN_WORKFLOWS}).",
             file=sys.stderr,
         )
         print("  머리말 모양·훅 배선·경로가 바뀌었다. 줄어든 것도 실패다(fail-closed, D31).", file=sys.stderr)
@@ -215,10 +251,24 @@ def main() -> int:
         )
         return 1
 
+    # 🔴 호출 형태 어긋남도 **차단**이다 — 로컬 `pre-commit` 은 `-m` 이라 안 깨지고
+    #    CI 에서만 빨개진다. 커밋을 쌓아 두면 그 신호마저 늦게 온다.
+    if call_reports:
+        print("[거부] 워크플로가 게이트를 파일 경로로 부른다 — CI 에서만 죽는다", file=sys.stderr)
+        for line in call_reports:
+            print(f"  - {line}", file=sys.stderr)
+        print(
+            "  `.pre-commit-config.yaml` 과 **같은 형태**(`-m`)로 맞춘다. "
+            "로컬만 초록인 상태가 이 검사가 막으려는 것이다.",
+            file=sys.stderr,
+        )
+        return 1
+
     reports = section_reports + hook_reports + track_reports
     if not reports:
         print(
             f"✅ 규칙↔층 연결 — FILING 절 {sections_seen}(면제 {len(exempt)}) · 우리 훅 {hooks_seen} · "
+            f"워크플로 {workflows_seen}(경로 호출 0) · "
             f"게이트 스크립트 {scripts_seen}(배선 누락 0) · 트랙 {tracks_seen} · 끊긴 연결 0.",
         )
         return 0
