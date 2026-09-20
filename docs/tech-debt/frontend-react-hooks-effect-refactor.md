@@ -113,4 +113,4 @@ Phase 1(정적 export) 범위 밖의 광범위 상태관리 리팩터이며 beha
    ChatModal 초기화 실패 UI 죽은 분기 · 로드맵 1-d 를 한 건으로 묶어 처리
 
 중간 기록: `docs-private/record/2026-09-14_fe-hooks-effect-6C-B-record.md`
-계획 정본: `docs-private/PLAN_FE_HOOKS_EFFECT.md`
+계획은 **비공개로 관리**한다(`docs-private/plan/`). 이 문서가 공개 원장이다.
