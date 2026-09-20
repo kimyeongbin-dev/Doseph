@@ -21,7 +21,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class IntentType(StrEnum):
-    """5가지 의도 카테고리."""
+    """6가지 의도 카테고리.
+
+    ⚠️ 이 수는 **손으로 적혀 있어 늘어날 때 따라오지 않는다** — 실제로 `location_search`·
+    `recall_check` 가 나중에 들어왔는데 이 줄은 *5가지* 인 채로 남아 있었다(2026-09-21 정독에서 발견).
+    세려면 `len(IntentType)` 를 쓴다.
+    """
 
     GREETING = "greeting"
     """단순 인사 — direct_answer 즉시 응답."""
