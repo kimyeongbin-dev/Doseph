@@ -14,7 +14,7 @@
 -------------------------------------
 ::
 
-    status: active   ⟺   파일명에 날짜 없음   ⟺   직하에 있다
+    draft·in-progress·current  ⟺  파일명에 날짜 없음  ⟺  직하에 있다
     status: 그 외    ⟺   파일명에 날짜 있음   ⟺   축 폴더에 있다
 
 세 신호가 **서로 독립**이라 하나만 어긋나도 잡힌다. 축 폴더에 있는데 ``active`` 면
@@ -99,7 +99,10 @@ STATUS = re.compile(r"^status:\s*(\S+)\s*$", re.MULTILINE)
 META = re.compile(r"<!--\s*doc-meta\s*(.*?)-->", re.DOTALL)
 
 #: 직하 정본이 가질 수 있는 status (FILING §8-1).
-TOP_STATUS = frozenset({"draft", "active"})
+#: 직하에 있을 수 있는 status — 작업버퍼 2종 + 상태정본 1종.
+#: ⚠️ `active` 는 2026-09-20 은퇴(한 단어를 두 뜻으로 썼다) → `in-progress`(작업버퍼) · `current`(상태정본).
+#: 🔴 `check_doc_meta.py` 의 같은 이름 상수와 **반드시 같아야 한다** — 갈라지면 두 게이트가 서로 다른 규약을 강제한다.
+TOP_STATUS = frozenset({"draft", "in-progress", "current"})
 
 
 @dataclass(frozen=True)
@@ -134,7 +137,7 @@ def inspect_top(errors: list[Finding]) -> None:
         status = read_status(path)
         if status is not None and status not in TOP_STATUS:
             errors.append(
-                Finding(name, f"직하인데 status 가 `{status}` 다 — 직하는 `draft`/`active` 뿐이다 (FILING §8-2)")
+                Finding(name, f"직하인데 status 가 `{status}` 다 — 직하는 {sorted(TOP_STATUS)} 뿐이다 (FILING §8-2)")
             )
 
     missing = sorted(STATE_CANONS - {p.name for p in PRIVATE.glob("*.md")})

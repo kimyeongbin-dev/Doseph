@@ -21,7 +21,7 @@ This document defines the **logical guidelines and coding rules** that all AI ag
 
 ```plaintext
  없음 ──착수──▶ PLAN.md          ──go──▶ PLAN.md          ──닫기──▶ plan/YYYY-MM-DD_<슬러그>-plan.md
-                status: draft            status: active             status: done │ suspended │ pending │ dropped
+                status: draft            status: in-progress        status: done │ partial │ superseded
                                                                         │
                                                           여기서 직하는 다시 비어야 한다 ◀┘
 ```
@@ -32,13 +32,14 @@ This document defines the **logical guidelines and coding rules** that all AI ag
   **먼저 그것을 닫아야 한다**(③). 덮어쓰지 않는다.
 * 머리에 **`doc-meta`** 를 단다 — `kind` · `status` · `roadmap`(어느 트랙에서 나왔나) ·
   **`supersedes`**(계승한 계획. 없으면 **`none`** 이라고 **적는다** — 빈칸은 *"잊었다"* 와 구분이 안 된다) ·
-  **`affects`**(바꿀 정본을 **절 단위**로: `DEPLOY#5`) · **`closes`**(닫을 큐 항목).
+  **`affects`**(바꿀 정본을 **절 단위**로: `DEPLOY#5`) · **`closes`**(닫을 큐 항목) ·
+  **`parent`**(큰 계획의 *축소판·1단계*로 떨어져 나왔다면 그 상위 PLAN — `FILING.md` §9-2. **역링크는 두지 않는다**).
 * BE 데이터 흐름·비즈니스 로직은 **Mermaid 흐름도**로 시각화한다.
 * 🔴 **같은 동작으로 `ROADMAP.md` §지금 위치의 `| **진행 중인 계획** |` 줄을 고친다** —
   그 한 줄이 *"어디까지 왔나"* 의 **단일 답**이고, 다음 세션은 그것만 읽고 시작한다.
   거기가 *"없다"* 인 채로 두면 **새 세션이 통째로 거짓을 읽는다**(실제로 그랬다).
 
-**② 실행 — `go` 를 받고 나서** (`status: active`)
+**② 실행 — `go` 를 받고 나서** (`status: in-progress`)
 * 초안을 쓴 뒤 **멈추고 사용자 피드백을 기다린다.** `go` 라고 할 때만 구현을 시작한다.
 * 진행 중에는 **진행 현황 절**을 갱신한다(중단돼도 거기서 이어갈 수 있게).
 * 소계획을 열면 `REPORT.md`(조사)·`RECORD.md`(실측)를 **직하에 같이** 둔다. 셋 다 **각각 최대 1개**.
@@ -51,7 +52,8 @@ This document defines the **logical guidelines and coding rules** that all AI ag
 | `done` | 전부 완료 | — |
 | `suspended` | 착수했다가 **중단** | 가능 |
 | `pending` | `go` 를 못 받고 **보류** | 가능 |
-| `dropped` | **폐기** | 안 함 |
+| **`rejected`** | **검토 후 기각** (근거 있는 불가·거절) | 안 함 |
+| **`withdrawn`** | **철회** (기각 판정 없이 그만둠) | 안 함 |
 | **`partial`** | **일부만 하고 닫힘** — 🔴 **`remainder:` 필수** | 나머지는 **다른 곳**에서 |
 
 > 🔴 **`partial` 은 *"아직 진행 중"* 이 아니라 *"여기서 끝났고 나머지는 **저기**로 갔다"* 다**
@@ -131,7 +133,7 @@ This document defines the **logical guidelines and coding rules** that all AI ag
 | 파일 이름을 어떻게 | §3 — `YYYY-MM-DD_<슬러그>-<접미사>.md` · **접미사 == 부모 폴더명** |
 | 이 날짜가 무슨 날인가 | §4 — **축 폴더에 들어간 날**. 뜻은 이것 하나다 |
 | 다 쓴 문서를 어디로 | §7 — **판 교체 / 항목 배출** 중 어느 회전인가 |
-| `status` 를 뭐라고 적나 | §8 — 생애주기(`draft`·`active`·`done`·`suspended`…). `sync` 는 별개 필드 |
+| `status` 를 뭐라고 적나 | §8 — 생애주기. ⚠️ **`active` 는 은퇴**(두 뜻으로 쓰였다) → 작업버퍼 **`in-progress`** / 상태정본 **`current`** |
 | 머리말에 뭘 적나 | §9 — `doc-meta` (`kind`·`status`·`plan`·`affects`·`closes`) |
 | 옮길 때 주의 | §12 — **`mv` 다. 재작성하지 않는다** (mtime 이 유일한 "언제") |
 
@@ -158,14 +160,14 @@ docs-private/
 | 무엇 | 지금 **쓰고 있는** 것 | 지금 **이렇다**는 것 | 지나간 판·항목 |
 | **없으면** | 🟢 정상 | 🔴 **결함** | — |
 | 날짜 | 없음 | 없음 | **있음(필수)** |
-| `status` | `draft`·`active` | `active` | 그 외 전부 |
+| `status` | `draft`·**`in-progress`** | **`current`** | 그 외 전부 |
 
 **회전 두 종류** — 본문이 *서술*이면 **판 교체**(문서 통째로 내려감), *항목 목록*이면
 **항목 배출**(닫힌 항목만 빠짐). 배출형은 **"어느 절이 배출 대상인지"를 반드시 적는다**
 (안 적으면 `QUEUE` §D 한계 선언 같은 **영구 유효 절**까지 내려간다). 표 = `FILING.md` §7.
 
-> 🔑 **세 신호가 서로를 검증한다** — `status: active` ⟺ 날짜 없음 ⟺ 직하.
-> 하나만 어긋나도 게이트가 잡는다. *축 폴더인데 `active`* = 닫으면서 상태를 안 고친 것.
+> 🔑 **세 신호가 서로를 검증한다** — `status` 가 `draft`·`in-progress`·`current` ⟺ 날짜 없음 ⟺ 직하.
+> 하나만 어긋나도 게이트가 잡는다. *축 폴더인데 `in-progress`·`current`* = 닫으면서 상태를 안 고친 것.
 
 ---
 

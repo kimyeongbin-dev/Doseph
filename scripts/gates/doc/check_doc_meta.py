@@ -62,19 +62,28 @@ FIELD = re.compile(r"^[ 	]*([a-z_]+):[ 	]*(.+?)[ 	]*$", re.MULTILINE)
 DATED = re.compile(r"^(\d{4}-\d{2}-\d{2})_([a-z0-9-]+)-([a-z]+)\.md$")
 
 #: kind 별로 허용되는 status (FILING §8-1). 여기 없는 값은 오타이거나 규약 밖이다.
+#: 🔴 ``active`` 는 **은퇴했다**(2026-09-20). 한 단어를 두 뜻으로 쓰고 있었다 —
+#: 작업버퍼의 *"진행 중"* 과 상태정본의 *"현재 유효한 판"*. 후자는 Apache Geode 의 ``active``
+#: (*구현이 끝난 유효 결정*)와 뜻이 겹치고 전자와는 거의 반대라, 둘을 갈랐다.
+#:   작업버퍼(plan·report·record) → ``in-progress``
+#:   상태정본(architecture·deploy·…) → ``current``
+#: ``dropped`` 도 갈랐다 — RFC 관행대로 ``rejected``(검토 후 기각)와 ``withdrawn``(철회).
 ALLOWED_STATUS: dict[str, frozenset[str]] = {
-    "plan": frozenset({"draft", "active", "pending", "suspended", "done", "dropped", "superseded", "partial"}),
-    "report": frozenset({"active", "done", "dropped", "partial"}),
-    "record": frozenset({"active", "partial", "done"}),
-    "architecture": frozenset({"active", "superseded"}),
-    "deploy": frozenset({"active", "superseded"}),
-    "filing": frozenset({"active", "superseded"}),
-    "roadmap": frozenset({"active", "superseded"}),
-    "mistake": frozenset({"active", "superseded"}),
-    "queue": frozenset({"active", "superseded"}),
-    "drift": frozenset({"active", "superseded"}),
+    "plan": frozenset(
+        {"draft", "in-progress", "pending", "suspended", "done", "rejected", "withdrawn", "superseded", "partial"},
+    ),
+    "report": frozenset({"in-progress", "done", "rejected", "withdrawn", "partial"}),
+    "record": frozenset({"in-progress", "partial", "done"}),
+    "architecture": frozenset({"current", "superseded"}),
+    "deploy": frozenset({"current", "superseded"}),
+    "filing": frozenset({"current", "superseded"}),
+    "roadmap": frozenset({"current", "superseded"}),
+    "mistake": frozenset({"current", "superseded"}),
+    "queue": frozenset({"current", "superseded"}),
+    "drift": frozenset({"current", "superseded"}),
 }
-TOP_STATUS = frozenset({"draft", "active"})
+#: 직하에 있을 수 있는 status — 작업버퍼 2종 + 상태정본 1종.
+TOP_STATUS = frozenset({"draft", "in-progress", "current"})
 
 #: 하위 검사의 **바닥값**. 0건은 *"위반이 없다"* 가 아니라 *"대상이 사라져 아무것도 못 봤다"* 이다.
 #: 실제로 ``check_utf8_guard`` 가 경로 이동 뒤 대상 11건 → 1건이 되고도 초록을 냈다(대장 **D31**).
@@ -321,6 +330,7 @@ def verify_not_orphaned(meta: dict[str, str], path: Path, axis: str | None, wher
 
 #: ``inspect`` 가 세는 ``partial`` 대조 건수. 모듈 수준 누산기(시그니처를 더 늘리지 않는다).
 remainder_checked = [0]
+parent_checked = [0]
 
 
 def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, int]:
@@ -347,7 +357,9 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, i
     if axis and kind and kind != axis:
         errors.append(Finding(where, f"`kind: {kind}` 가 폴더 `{axis}/` 와 다르다"))
     if axis is None and status and status not in TOP_STATUS:
-        errors.append(Finding(where, f"직하인데 `status: {status}` 다 — 직하는 `draft`/`active` 뿐이다"))
+        errors.append(
+            Finding(where, f"직하인데 `status: {status}` 다 — 직하는 {sorted(TOP_STATUS)} 뿐이다"),
+        )
 
     plan_ref = meta.get("plan")
     if plan_ref and not plan_ref.startswith("("):
@@ -365,6 +377,7 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, i
         )
     verify_not_orphaned(meta, path, axis, where, errors)
     remainder_checked[0] += verify_remainder(meta, where, errors)
+    parent_checked[0] += verify_parent(meta, path, axis, where, errors)
     links_checked = verify_supersedes(meta, path, axis, where, errors)
     return verify_affects(meta, where, errors), links_checked
 
@@ -374,6 +387,26 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, i
 # 왜: 스냅샷은 갱신되지 않는다. `partial` 을 그냥 허용하면 그 문서는 **영원히 미완**인 채
 #     남고 나머지가 어디 갔는지 아무도 모른다 — `pending` 이 고아가 되는 것과 같은 실패다.
 #     문제는 *"영원히 partial"* 이 아니라 ***"가리키는 데가 없는 partial"*** 이다(FILING §8-6).
+# ── ⑩ parent 가 실재하는 상위 PLAN 을 가리키는가 ─────────────────────
+# 흐름: parent 값 -> plan/ 에서 대상 찾기 -> 자기 자신이 아닌가
+# 왜: 축소판·1단계는 상위를 **대신하지 않고 일부를 먼저 끝낸 것**이라 `supersedes` 로 적으면
+#     거짓이 된다. 역링크(`children:`)는 두지 않는다 — 1:N 이라 하위가 늘 때마다 상위가
+#     낡는다. 반대편은 `grep` 으로 도출된다(FILING §9-2).
+def verify_parent(meta: dict[str, str], path: Path, axis: str | None, where: str, errors: list[Finding]) -> int:
+    """``parent:`` 가 실재하는 상위 PLAN 을 가리키는지 본다. 검사했으면 1."""
+    target = (meta.get("parent") or "").strip()
+    if not target:
+        return 0
+    if target == plan_identity(path, axis):
+        errors.append(Finding(where, "`parent:` 가 자기 자신을 가리킨다"))
+        return 1
+    if not resolve_plan(target).exists():
+        errors.append(
+            Finding(where, f"`parent:` 가 없는 상위 PLAN 을 가리킨다 → `{target}` (FILING §9-2)"),
+        )
+    return 1
+
+
 def verify_remainder(meta: dict[str, str], where: str, errors: list[Finding]) -> int:
     """``partial`` 의 ``remainder:`` 를 대조한다. 검사했으면 1."""
     if meta.get("status") != "partial":
@@ -528,7 +561,7 @@ def main() -> int:
     print(
         f"✅ doc-meta 정합 — 문서 {seen}건 · affects 절 대조 {affects_checked}건 · "
         f"계승 링크 대조 {links_checked}건 · PLAN {plans_seen}건(고아 0) · "
-        f"partial {remainder_checked[0]}건 · §지금 위치 ✅ · 위반 0."
+        f"partial {remainder_checked[0]}건 · parent {parent_checked[0]}건 · §지금 위치 ✅ · 위반 0."
     )
     return 0
 
