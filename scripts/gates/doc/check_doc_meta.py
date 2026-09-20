@@ -514,7 +514,7 @@ def main() -> int:
         got_affects, got_links = inspect(path, None, errors)
         affects_checked += got_affects
         links_checked += got_links
-        plans_seen += "kind:     plan" in path.read_text(encoding="utf-8", errors="replace")[:600]
+        plans_seen += (parse_meta(path) or {}).get("kind") == "plan"
 
     for folder in sorted(p for p in PRIVATE.iterdir() if p.is_dir()):
         axis = folder.name

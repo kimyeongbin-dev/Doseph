@@ -64,7 +64,9 @@ MEMORY_INDEX = Path.home() / ".claude" / "projects" / "E--Project-Personal-Proje
 #: ``## 8-6. 제목`` / ``### 12-1. 제목`` 형태의 절 머리.
 SECTION = re.compile(r"^#{2,3}\s+(\d+(?:-\d+)?)\.\s+(.+)$", re.MULTILINE)
 #: 훅 하나의 블록에서 id 와 본문을 뽑는다.
-HOOK = re.compile(r"- id:\s*(\S+)(.*?)(?=\n      - id:|\Z)", re.DOTALL)
+#: ⚠️ **줄 머리 앵커가 없으면 주석 안의 `- id:` 도 잡는다** — 구조(YAML 키)를 찾는데
+#: 문자열을 보고 있기 때문이다(대장 **D47**). `^` 로 가둔다.
+HOOK = re.compile(r"^\s*- id:\s*(\S+)(.*?)(?=\n\s*- id:|\Z)", re.DOTALL | re.MULTILINE)
 #: 그 훅이 **우리 게이트**를 부르는가 (3rd-party 훅은 대상이 아니다).
 OURS = re.compile(r"scripts\.gates\.[\w.]+|scripts/[\w/]+\.py")
 #: ``## 트랙 D — …``

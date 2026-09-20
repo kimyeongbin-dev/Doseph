@@ -57,7 +57,7 @@ GATE_ENV = {
 MIN_CONTRACTS = 6
 
 #: `lint-imports` 의 마지막 요약 줄. 이 줄이 없으면 **무엇을 셌는지 알 수 없다** → 실패.
-SUMMARY = re.compile(r"Contracts:\s*(\d+)\s*kept,\s*(\d+)\s*broken", re.IGNORECASE)
+SUMMARY = re.compile(r"^Contracts:\s*(\d+)\s*kept,\s*(\d+)\s*broken", re.IGNORECASE | re.MULTILINE)
 
 
 # ── 레이어 계약 게이트 본문 ─────────────────────────────────────────────
