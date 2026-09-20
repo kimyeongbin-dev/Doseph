@@ -33,7 +33,7 @@ mtime 뿐이고, 그것으로는 *"§5 가 바뀌었나"* 를 **원리적으로 
 ⚠️ ``pre-push`` **로컬 전용**이다. 대상이 없으면 **실패**한다(fail-closed).
 
 ✅ **음성 대조 표본** — 이것들은 **통과해야** 한다:
-  - ``done`` · ``dropped`` — **종결 상태라 아무것도 안 가리켜도 된다**
+  - ``done`` · ``rejected`` · ``withdrawn`` — **종결 상태라 아무것도 안 가리켜도 된다**
   - 판 교체형 정본 스냅샷(``filing/`` 등)의 ``superseded`` — 후속이 폴더로 도출되므로 역링크가 없다
   - ``_legacy/`` · ``_unfiled/`` · ``study/`` · ``portfolio/`` — ``doc-meta`` 를 요구하지 않는다
   - PLAN 이 없을 때 §지금 위치가 *"없다"* 라고 말하는 정상 쌍
@@ -322,7 +322,7 @@ def verify_not_orphaned(meta: dict[str, str], path: Path, axis: str | None, wher
                 where,
                 f"`status: {meta.get('status')}` 인데 `{ROADMAP}` 이 이 파일을 이름으로 부르지 않는다 — "
                 "아무도 가리키지 않는 보류는 재개되지 않는다(고아). 로드맵 단계에 경로를 적거나, "
-                "되살릴 생각이 없으면 `dropped` 로 닫는다 (FILING §8-5)",
+                "되살릴 생각이 없으면 `rejected`(기각) 또는 `withdrawn`(철회)으로 닫는다 (FILING §8-5)",
             )
         )
     return 1

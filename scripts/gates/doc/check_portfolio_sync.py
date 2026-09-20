@@ -23,7 +23,7 @@
 
 `status` 라는 이름을 **두 가지 다른 뜻**으로 쓰고 있었다:
 
-* `plan` 의 `status` = **생애주기** — 어디 있고 어떻게 닫혔나(`draft`·`active`·`done`·`suspended`…)
+* `plan` 의 `status` = **생애주기** — 어디 있고 어떻게 닫혔나(`draft`·`in-progress`·`done`·`suspended`…)
 * 포트폴리오의 `status` = **근거와 동기화됐나**(`draft`·`synced`)
 
 같은 이름의 다른 필드는 게이트가 `kind` 를 먼저 읽어야만 해석되고, 사람은 매번 헷갈린다.

@@ -28,7 +28,7 @@ reason = "status 어휘표. 개별 어휘(§8-4·8-5·8-6)가 각각 층② 에�
 
 [[exempt]]
 section = "8-2"
-reason = "3중 교차검증. 층②·③ 이 '`status: active` ⟺ 날짜 없음 ⟺ 직하' 를 **문장으로** 이미 담고 있다(절 번호로 부르지 않을 뿐)."
+reason = "3중 교차검증. 층②·③ 이 '`status: in-progress`/`current` ⟺ 날짜 없음 ⟺ 직하' 를 **문장으로** 이미 담고 있다(절 번호로 부르지 않을 뿐)."
 
 [[exempt]]
 section = "8-3"
