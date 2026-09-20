@@ -164,13 +164,13 @@ E2E 로 관측 불가능하다는 사실 자체가 **"컴포넌트 층으로 내
 - [ ] `pytest app -m db` 가 **0건이 아니라** 실제로 선택되는가
 - [ ] 지키려는 것을 깨면(필터 한 줄 제거 · 분기 반전 · raw SQL 주석) **빨개지는가**
 - [ ] 실제 동작이 주석·docstring 과 다르면, **테스트는 실제를 잠그고 불일치를 명시**했는가
-      → 그리고 `docs-private/TEST_FOLLOWUP_QUEUE.md` 에 등재했는가 (**놓치면 그 주석은 영원히 거짓**)
+      → 그리고 `docs-private/FOLLOWUP_QUEUE.md` 에 등재했는가 (**놓치면 그 주석은 영원히 거짓**)
 
 ---
 
 ## 관련 문서
 
-- **`docs-private/TEST_FOLLOWUP_QUEUE.md`** — **테스트 후속 큐 정본(`QA-##`)**.
+- **`docs-private/FOLLOWUP_QUEUE.md`** — **테스트 후속 큐 정본(`QA-##`)**.
   테스트 관련 후속 항목은 전부 여기로 등재한다. 특히 **§A 잠금-불일치**
   (테스트는 초록인데 코드 주석이 거짓인 상태)는 발견 즉시 등재할 것.
 - `medication-frontend/e2e/README.md` — 실행 절차·테스트 구성

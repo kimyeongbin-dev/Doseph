@@ -47,7 +47,7 @@ from scripts.gates._root import PRIVATE
 MIN_ANCHORS = 12
 MIN_QUEUE = 38
 
-QUEUE_PATH = PRIVATE / "TEST_FOLLOWUP_QUEUE.md"
+QUEUE_PATH = PRIVATE / "FOLLOWUP_QUEUE.md"
 
 #: 앵커는 **소스 코드**에서만 읽는다. 문서까지 훑으면 큐 문서 자신이 잡혀
 #: 모든 ID 가 "알려진 ID" 가 되고 게이트는 통과 기계가 된다.

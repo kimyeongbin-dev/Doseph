@@ -69,8 +69,11 @@ SECTION = re.compile(r"^#{2,3}\s+(\d+(?:-\d+)?)\.\s+(.+)$", re.MULTILINE)
 HOOK = re.compile(r"^\s*- id:\s*(\S+)(.*?)(?=\n\s*- id:|\Z)", re.DOTALL | re.MULTILINE)
 #: 그 훅이 **우리 게이트**를 부르는가 (3rd-party 훅은 대상이 아니다).
 OURS = re.compile(r"scripts\.gates\.[\w.]+|scripts/[\w/]+\.py")
-#: ``## 트랙 D — …``
-TRACK = re.compile(r"^##\s+트랙\s+([A-Z])\b", re.MULTILINE)
+#: 🔴 한 글자만 잡으면 안 된다 — 트랙 `D` 가 실수 대장 `D##` 과 충돌해 `ARCH` 로 개명했고(2026-09-20),
+#:    앞으로 새 트랙 접두사는 **2글자 이상**이다(`FILING.md` §3-2).
+#:    `([A-Z])` 면 `ARCH` 의 `A` 뒤가 단어 경계가 아니라 **그 트랙이 통째로 안 보인다**.
+#: ``## 트랙 B — …`` / ``## 트랙 ARCH — …``
+TRACK = re.compile(r"^##\s+트랙\s+([A-Z][A-Z0-9]*)\b", re.MULTILINE)
 
 #: 바닥값 — *0건*만이 아니라 **줄어든 것도 실패**다(D31).
 #: 이 값은 **손으로 올린다** — 대상이 늘면 그때 올리는 것이 의식적인 결정이 된다.
@@ -140,7 +143,7 @@ def audit_tracks() -> tuple[list[str], int]:
     ⚠️ **매칭을 ``ID 패턴``으로 잡는다.** 처음엔 *"라우팅 줄에 그 글자가 있나"* 로 봤는데,
     설명 문구(*"트랙 A제품 / B정리·강화 / C기타 / D재아키텍처"*)에서 글자를 주워
     **``D-N`` 을 지워도 통과**했다 — 결핍 주입에서 드러났다.
-    새 세션이 실제로 묻는 것은 *"``D-1`` 을 보면 어디를 여나"* 이므로
+    새 세션이 실제로 묻는 것은 *"``ARCH-1`` 을 보면 어디를 여나"* 이므로
     **``<문자>-N`` 형태가 라우팅 표에 있는지**를 본다.
     """
     roadmap = (PRIVATE / "ROADMAP.md").read_text(encoding="utf-8", errors="replace")

@@ -152,6 +152,20 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # 후속 과제 색인이 원장과 맞는가 (pre-push) — 생성물 대조
+      # 왜: 큐 현황판이 "§B 미착수 19" 라 적고 있었는데 실제 28 이었다. QA-32~40 이 들어올 때
+      # 절 건수가 안 따라온 것인데, 총계(41)는 맞아서 합으로는 안 드러났다(대장 D29).
+      # 손으로 적은 숫자는 반드시 썩으므로, 사람이 안 적게 만들고 기계가 대조한다.
+      # 차단 = 색인 != 원장 / 원장별 바닥값 미달(0건은 "없다"가 아니라 "못 셌다").
+      - id: followup-index
+        name: 🧾 후속 과제 색인 정합
+        entry: uv run python -m scripts.gates.doc.build_followup_index --check
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       # 문서 배치 규약 (pre-push) — 정본 = docs-private/FILING.md
       # 직하 66건 중 57건이 규약 밖이었고, 파일명이 7가지 형태로 갈려 있었다.
       # 규칙이 없어서가 아니라 기계가 센 적이 없어서 갈렸다(레이어 위반 72건과 같은 실패).

@@ -155,7 +155,7 @@ docs-private/
 ├ PLAN.md  REPORT.md  RECORD.md          ← 작업 버퍼   (없어도 정상)
 ├ ARCHITECTURE.md  DEPLOY.md  FILING.md  ← 상태 정본 · 판 교체
 ├ ROADMAP.md  MISTAKE.md                 ← 상태 정본 · 항목 배출
-│ TEST_FOLLOWUP_QUEUE.md  DOC_TRUTH_DRIFT.md
+│ FOLLOWUP_QUEUE.md  DOC_TRUTH_DRIFT.md
 ├ plan/ report/ record/ architecture/ deploy/ filing/ roadmap/ mistake/
 │                                        ← 축 폴더(스냅샷). 전부 날짜 有
 ├ study/  portfolio/                     ← 정본 없는 축 (날짜 = 작성일)
@@ -449,7 +449,7 @@ git status --porcelain && git stash list && git log --oneline @{u}..HEAD
     * ⚠️ **①과 ②는 한 동작이다.** 완료기록만 쓰고 스냅샷을 빠뜨리는 실패가 **6회** 있었다 — 체크리스트 1번을 하면 2번을 한 것 같은 감각이 생기기 때문이다. `scripts/gates/doc/check_plan_archives.py` 가 `pre-push` 에서 대조한다.
     * 서로를 가리키는 방법은 `doc-meta` 의 **`plan:`** 필드다(`FILING.md` §9). 파일명으로 짝짓지 않는다 — **1:N 도 N:1 도 실재한다**(`PLAN_CICD` → 완료기록 2건).
 3. **`affects` 로 선언한 정본을 회전**시키고, 항목 배출형 원장의 **배출도 이때** 한다(`FILING.md` §7)
-4. **후속 큐 갱신** — 테스트·검증 항목은 `docs-private/TEST_FOLLOWUP_QUEUE.md` 에 `QA-##` 로(ID 영구·재사용 금지). `doc-meta` 의 **`closes:`** 에도 적는다
+4. **후속 큐 갱신** — 테스트·검증 항목은 `docs-private/FOLLOWUP_QUEUE.md` 에 `QA-##` 로(ID 영구·재사용 금지). `doc-meta` 의 **`closes:`** 에도 적는다
 5. **새로 배운 개념** → `docs-private/study/` (색인 = `study/README.md` 도 같이 갱신)
 
 ### 2패스 점검 (필수)

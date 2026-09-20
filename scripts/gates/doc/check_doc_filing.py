@@ -87,11 +87,12 @@ STATE_CANONS = frozenset({
     "ROADMAP.md",
     "DEPLOYMENT.md",
     "DOC_TRUTH_DRIFT.md",
-    "TEST_FOLLOWUP_QUEUE.md",
+    "FOLLOWUP_QUEUE.md",
     "AGENT_실수-오류-기록.md",
     "READING_LOG.md",
     "DTO_DESIGN_RULES.md",
     "LOCAL_RESIDUE.md",
+    "FOLLOWUP_INDEX.md",  # 🤖 생성물 — build_followup_index.py 가 만든다
 })
 ALLOWED_TOP = WORK_BUFFERS | STATE_CANONS
 

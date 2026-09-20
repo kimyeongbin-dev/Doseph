@@ -124,7 +124,7 @@ RESUMABLE = frozenset({"pending", "suspended"})
 #: 그 자체가 또 안 바뀌므로 추적이 한 칸 옮겨졌을 뿐이다(FILING §8-6).
 REMAINDER_TARGETS = (
     (re.compile(r"^ROADMAP#(\S+)$"), ROADMAP),
-    (re.compile(r"^(QA-\d+)$"), "TEST_FOLLOWUP_QUEUE.md"),
+    (re.compile(r"^(QA-\d+)$"), "FOLLOWUP_QUEUE.md"),
     (re.compile(r"^(문서-\d+)$"), "DOC_TRUTH_DRIFT.md"),
 )
 
