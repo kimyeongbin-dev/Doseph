@@ -4,7 +4,7 @@ httpx 공식 권장(Advanced/Clients): 일회성 스크립트가 아니면 **Cli
 재사용**해 커넥션 풀링(핸드셰이크 생략·지연↓·자원↓). 매 호출 ``AsyncClient()`` 생성은
 탑레벨 API 와 같은 안티패턴.
 
-안전 규칙(docs-private/study/connection-pooling-security.md):
+안전 규칙(docs-private/study/2026-09-11_connection-pooling-security-study.md):
 - ``verify=True``(기본) 유지 — TLS 검증 끄지 않음.
 - 명시적 ``timeout``(연결/읽기) + ``limits``(풀 상한) — 가용성·자원 가드.
 - **secret/토큰은 client 기본값에 넣지 않고 요청별로만 전달**(호스트 간 bleed 방지).

@@ -34,6 +34,9 @@ This document defines the **logical guidelines and coding rules** that all AI ag
   **`supersedes`**(계승한 계획. 없으면 **`none`** 이라고 **적는다** — 빈칸은 *"잊었다"* 와 구분이 안 된다) ·
   **`affects`**(바꿀 정본을 **절 단위**로: `DEPLOY#5`) · **`closes`**(닫을 큐 항목).
 * BE 데이터 흐름·비즈니스 로직은 **Mermaid 흐름도**로 시각화한다.
+* 🔴 **같은 동작으로 `ROADMAP.md` §지금 위치의 `| **진행 중인 계획** |` 줄을 고친다** —
+  그 한 줄이 *"어디까지 왔나"* 의 **단일 답**이고, 다음 세션은 그것만 읽고 시작한다.
+  거기가 *"없다"* 인 채로 두면 **새 세션이 통째로 거짓을 읽는다**(실제로 그랬다).
 
 **② 실행 — `go` 를 받고 나서** (`status: active`)
 * 초안을 쓴 뒤 **멈추고 사용자 피드백을 기다린다.** `go` 라고 할 때만 구현을 시작한다.
@@ -71,6 +74,8 @@ This document defines the **logical guidelines and coding rules** that all AI ag
    `PLAN.md` → **지금 정한 파일명**으로 바꾼다.** 계승 시점엔 파일명이 없어서 `PLAN.md` 라고
    적어 뒀고, **이 순간이 그것이 확정되는 유일한 시점**이다. 잊으면 끊긴 링크가 되어 게이트가 막는다.
 8. **직하를 비운다.** 다음 계획 전까지 `PLAN.md` 가 없어야 한다.
+   🔴 **그리고 `ROADMAP.md` §지금 위치를 되돌린다** — `진행 중인 계획` 줄을 *"없다"* 로,
+   `직전 구간` 을 방금 닫은 것으로. **직하를 비우는 것과 한 동작이다.**
 9. `§6-1` 의 완료 조건을 **여기서 함께** 센다.
 
 > 📌 **아카이브와 스냅샷은 하나다**(2026-09-16 변경). 예전에는 *"`_legacy/*.snapshot.md`(작업 당시 사본)"*
@@ -90,6 +95,8 @@ This document defines the **logical guidelines and coding rules** that all AI ag
 > 본문은 *그때의 사실*이라 안 고치지만 **`status` 와 링크는 본문이 아니라 지금의 관계**다
 > (`done`·`suspended` 도 전부 나중에 적는 값이다).
 > 🧱 **기계가 양방향을 대조한다** — `check_doc_meta.py`(결핍 주입 7/7).
+> 🧱 **§지금 위치 ↔ 직하 `PLAN.md` 도 같은 게이트가 대조한다**(정탐 4/4 · 음성 2/2):
+> *PLAN 이 있는데 "없다"* · *PLAN 이 없는데 진행 중이라 함* · *경로를 안 가리킴* · *표 모양이 바뀜*.
 > ⚠️ **판 교체형 정본 스냅샷(`filing/`·`deploy/` …)은 역링크를 안 적는다** — 후속이
 > **폴더 이름으로 도출**되기 때문이다. 역링크는 *도출되지 않을 때만* 필요하다.
 
@@ -359,7 +366,7 @@ git status --porcelain && git stash list && git log --oneline @{u}..HEAD
 ⚠️ **이 규칙을 검사 스크립트로 만들려다 실패했고 지웠다.** 만든 검사기를 그 5개로
 측정하니 **0개**를 잡았다 — 진행 표식이 있는 PLAN 만 보는 **fail-open 판별** 때문에
 *상태줄이 틀린 PLAN 은 아예 검사 대상에서 빠졌다.* **자기가 막으려던 실패에
-초록을 주는 도구**였다. 경위 = `docs-private/study/session-close-checker.md`.
+초록을 주는 도구**였다. 경위 = `docs-private/study/2026-09-15_session-close-checker-study.md`.
 
 ## 6-3. 주석이 말해도 되는 것 / 안 되는 것
 

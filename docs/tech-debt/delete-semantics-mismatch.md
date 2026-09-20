@@ -181,5 +181,5 @@ updated = await RefreshToken.filter(account_id=account_id, is_revoked=False).upd
 > **컬럼을 지우고 테스트가 초록이면, 그건 "안전하다"가 아니라
 > "mock 이 그 질의를 대신 받아줬다"일 수 있다.**
 
-관련: `docs-private/study/schema-introspection-and-version-pinning.md` ·
-`docs-private/study/test-doubles-stubs-seeds.md` · `docs/TESTING_SAFETY_NET_RULES.md`
+관련: `docs-private/study/2026-09-15_schema-introspection-and-version-pinning-study.md` ·
+`docs-private/study/2026-09-15_test-doubles-stubs-seeds-study.md` · `docs/TESTING_SAFETY_NET_RULES.md`

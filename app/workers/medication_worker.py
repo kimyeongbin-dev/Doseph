@@ -17,7 +17,7 @@ Two passes:
 
     유예는 **새 상태(컬럼)를 만들지 않고 날짜 산술로만** 표현한다 — 지울 시점을
     미루는 것이지 "지워진 척하는 행"을 만드는 것이 아니다. 후자가 QA-01 의
-    형태였다. 자세한 비교는 ``docs-private/study/tombstone-and-staged-deletion.md``.
+    형태였다. 자세한 비교는 ``docs-private/study/2026-09-15_tombstone-and-staged-deletion-study.md``.
 
     ⚠️ 유예는 **복구가 아니다.** 사용자가 되살릴 버튼은 없고, 삭제가 늦게 올 뿐이다.
 """

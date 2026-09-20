@@ -116,7 +116,7 @@ B형은 대부분 "테스트가 데이터가 아니라 **정적 UI** 를 보고 
 - ⚠️ **우리 환경 미확인**: Vitest **5.0.0** / Node **22.14.0**(실측)에서 도는지 검증 안 됨
 - 적용 층: **Vitest 층만**. E2E 뮤테이션은 느리고 비결정적이라 비현실적
 - 게이트: 처음엔 **report-only** → baseline 확보 후 점수 게이트(6A MyPy 방식과 동일)
-- 개념·근거 정본: `docs-private/study/vacuous-green-detection.md` §3
+- 개념·근거 정본: `docs-private/study/2026-09-15_vacuous-green-detection-study.md` §3
 
 ---
 
@@ -191,4 +191,4 @@ B형은 대부분 "테스트가 데이터가 아니라 **정적 UI** 를 보고 
 "아니오"거나 **"모르겠다"**면 그 단언은 아직 안전망이 아니다.
 `.first()` 를 붙이고 싶어지는 순간이 대개 그 신호다.
 
-전체 체크리스트(8형 분류 포함) = `docs-private/study/vacuous-green-detection.md`
+전체 체크리스트(8형 분류 포함) = `docs-private/study/2026-09-15_vacuous-green-detection-study.md`

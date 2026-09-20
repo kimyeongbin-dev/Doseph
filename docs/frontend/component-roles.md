@@ -124,5 +124,5 @@ displayMessages[displayMessages.length - 1].role === 'user'   // 마지막이 us
 ---
 
 ## 관련 문서
-- 개념/테스트 기법(controlled·harness·TanStack Query 등) = `docs-private/study/react-hooks-effect-testing.md`
+- 개념/테스트 기법(controlled·harness·TanStack Query 등) = `docs-private/study/2026-09-13_react-hooks-effect-testing-study.md`
 - 리팩터 계획·경고 목록 = `docs-private/PLAN_FE_HOOKS_EFFECT.md`, `docs/tech-debt/frontend-react-hooks-effect-refactor.md`

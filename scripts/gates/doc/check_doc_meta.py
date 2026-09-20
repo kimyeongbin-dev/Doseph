@@ -12,6 +12,8 @@
 6. **계승 링크가 양방향으로 맞는가** — ``supersedes`` ↔ ``superseded_by`` (FILING §8-4)
 7. **``supersedes`` 를 아예 안 적었는가** — 계승 안 했으면 ``none`` 이라고 **명시**해야 한다
 8. ⭐ **보류가 고아가 아닌가** — ``pending``/``suspended`` 를 ``ROADMAP.md`` 가 이름으로 가리키는가 (FILING §8-5)
+9. 🔴 **``ROADMAP.md`` §지금 위치가 직하 ``PLAN.md`` 와 맞는가** — 진행 중인 계획이 있는데
+   *"없다"* 라고 적혀 있으면(또는 그 반대) 다음 세션이 **거짓을 읽는다**
 
 왜 ⑤ 가 핵심인가
 -----------------
@@ -81,6 +83,11 @@ NO_SUCCESSION = "none"
 #: 보류를 **살려 두는** 문서. 여기서 이름이 불리지 않는 보류는 고아다(FILING §8-5).
 ROADMAP = "ROADMAP.md"
 RESUMABLE = frozenset({"pending", "suspended"})
+
+#: ``ROADMAP.md`` §지금 위치의 "진행 중인 계획" 줄. 이 한 줄이 *"어디까지 왔나"* 의 단일 답이다.
+POSITION_ROW = re.compile(r"^\|\s*\*\*진행 중인 계획\*\*\s*\|(.+?)\|\s*$", re.MULTILINE)
+#: 그 줄이 *"없다"* 고 주장하는 형태.
+CLAIMS_NONE = re.compile(r"\*\*없다\.?\*\*|없다\.")
 
 #: ``affects: DEPLOY#5``(절) 또는 ``affects: DEPLOY``(문서 전체).
 #: 절 단위가 기본이지만 **판을 통째로 새로 쓰는 경우**가 실재한다(규약 재작성 등) —
@@ -342,6 +349,51 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, i
     return verify_affects(meta, where, errors), links_checked
 
 
+# ── ⑨ ROADMAP §지금 위치 ↔ 직하 PLAN.md ──────────────────────────────
+# 흐름: PLAN.md 실재 여부 -> ROADMAP 의 "진행 중인 계획" 줄이 그것과 맞는가
+# 왜: 이 한 줄은 `MEMORY.md` 가 *"어디까지 왔나 = ROADMAP 맨 위 §지금 위치"* 라고
+#     가리키는 **단일 답**이다. 여기가 거짓이면 **다음 세션이 통째로 거짓을 읽고 시작한다**
+#     — 압축·`/clear` 를 넘어 살아남는 층이라 손상 범위가 가장 넓다.
+#     실제로 2026-09-20 에 PLAN.md 가 `active` 인데 이 줄이 *"없다"* 였다.
+def verify_roadmap_position(errors: list[Finding]) -> int:
+    """§지금 위치의 "진행 중인 계획" 줄이 직하 ``PLAN.md`` 와 맞는지 본다. 검사했으면 1."""
+    text = roadmap_text()
+    if not text:
+        errors.append(Finding(ROADMAP, "정본을 읽지 못했다 — §지금 위치를 대조할 수 없다(fail-closed)"))
+        return 0
+    matched = POSITION_ROW.search(text)
+    if not matched:
+        errors.append(
+            Finding(ROADMAP, "§지금 위치에 `| **진행 중인 계획** |` 줄이 없다 — 표 모양이 바뀌면 이 검사가 눈이 먼다")
+        )
+        return 0
+
+    cell = matched.group(1)
+    says_none = bool(CLAIMS_NONE.search(cell))
+    plan = PRIVATE / OPEN_PLAN
+    if plan.exists() and says_none:
+        errors.append(
+            Finding(
+                ROADMAP,
+                f'§지금 위치가 *"진행 중인 계획 없다"* 라는데 `{OPEN_PLAN}` 이 실재한다 — '
+                "다음 세션이 거짓을 읽는다. PLAN 을 열거나 닫으면 이 줄도 **같은 동작으로** 고친다 (CLAUDE.md §1.1)",
+            )
+        )
+    elif not plan.exists() and not says_none:
+        errors.append(
+            Finding(
+                ROADMAP,
+                f"§지금 위치가 진행 중인 계획을 말하는데 `{OPEN_PLAN}` 이 없다 — "
+                "닫으면서 이 줄을 안 고쳤다. 구식 PLAN 을 현재로 읽게 만드는 것과 같은 실패",
+            )
+        )
+    elif plan.exists() and OPEN_PLAN not in cell:
+        errors.append(
+            Finding(ROADMAP, f"§지금 위치가 진행 중이라고는 하는데 `{OPEN_PLAN}` 을 **경로로 가리키지 않는다**")
+        )
+    return 1
+
+
 def main() -> int:
     """pre-push 훅 진입점.
 
@@ -383,10 +435,13 @@ def main() -> int:
 
     # ⭐ 하위 검사도 각각 fail-closed 다. 전체 대상이 많아도 **특정 검사만 눈이 멀 수 있다** —
     #    문서는 36건인데 계승 링크를 0건 봤다면 그 검사는 아무 일도 안 한 것이다.
+    position_checked = verify_roadmap_position(errors)
+
     for label, count, floor, why in (
         ("affects 절 대조", affects_checked, MIN_AFFECTS, "affects 선언이 사라졌거나 비교할 스냅샷이 없다"),
         ("계승 링크 대조", links_checked, MIN_SUCCESSION, "supersedes/superseded_by 파싱이 깨졌거나 필드명이 바뀌었다"),
         ("PLAN 모집단", plans_seen, MIN_PLANS, "plan/ 경로가 바뀌었거나 kind 파싱이 깨졌다"),
+        ("§지금 위치 대조", position_checked, 1, "ROADMAP.md 가 없거나 §지금 위치 표 모양이 바뀌었다"),
     ):
         if count < floor:
             print(f"❌ {label} 대상이 {count}건이다 (기대 최소 {floor}건) — {why}.")
@@ -403,7 +458,7 @@ def main() -> int:
 
     print(
         f"✅ doc-meta 정합 — 문서 {seen}건 · affects 절 대조 {affects_checked}건 · "
-        f"계승 링크 대조 {links_checked}건 · PLAN {plans_seen}건(고아 0) · 위반 0."
+        f"계승 링크 대조 {links_checked}건 · PLAN {plans_seen}건(고아 0) · §지금 위치 ✅ · 위반 0."
     )
     return 0
 

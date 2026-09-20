@@ -57,7 +57,7 @@ mock IdP 는 있었지만 두 가지가 막고 있었고, 2026-09-14 에 해소�
    세션 위조로 이어지진 않으나(prod 는 실제 카카오로 교환, 이미지에 mock 데이터 없음)
    불필요한 표면이라 **local 전용 게이팅**(`a05b67c`).
 
-> 개념 정리(IdP/RP, OAuth vs OIDC, 대역 위치 선정 근거): `docs-private/study/idp-oauth-oidc.md`
+> 개념 정리(IdP/RP, OAuth vs OIDC, 대역 위치 선정 근거): `docs-private/study/2026-09-14_idp-oauth-oidc-study.md`
 
 ## 처리 조건 (전부 충족)
 
