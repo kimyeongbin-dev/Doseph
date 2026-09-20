@@ -149,6 +149,28 @@ def inspect_top(errors: list[Finding]) -> None:
     )
 
 
+# ── 직하의 **문서가 아닌 것** ───────────────────────────────────────────
+# 흐름: 직하 파일 순회 -> .md 가 아닌 것 수집 -> 🟡 보고
+# 🔴 왜 있나: 위 `inspect_top` 은 `glob("*.md")` 라 **.md 만 본다.** 그래서 직하의
+#    `.dbml`·`.tsv`·`.csv`·`.sh`·`.jpg` 는 *"화이트리스트 밖"* 판정을 **구조적으로 못 받았다.**
+#    게이트는 매번 "직하 13종 규약 준수" 라고 초록을 냈는데, 그 13종은 **.md 만 센 수**였다.
+#    2026-09-21 정독에서 직하에 비-md 7건이 있는 것이 드러났다.
+# 🟡 **차단이 아니라 보고다**: 이것들은 대개 문서가 아니라 **데이터·임시 스크립트**라
+#    문서 분류 체계(화이트리스트)에 등록할 대상이 아니다. 강제로 등록시키면 규약이
+#    쓰레기로 채워진다. 기계가 할 일은 **보이게 만드는 것**까지다 — 옮길지 지울지는 사람이 정한다.
+def inspect_top_nondoc() -> list[Finding]:
+    """직하의 `.md` 아닌 파일 (폴더 제외). 보고용."""
+    return [
+        Finding(
+            p.name,
+            "직하에 있는데 문서가 아니다 — 데이터·임시 스크립트면 직하가 아니라 "
+            "축 폴더/작업 폴더로 옮기거나 지운다 (문서면 `.md` 로 규약을 따른다)",
+        )
+        for p in sorted(PRIVATE.iterdir())
+        if p.is_file() and p.suffix != ".md"
+    ]
+
+
 # ── 축 폴더 판정 ───────────────────────────────────────────────────────
 # 흐름: 축 폴더 순회 -> 파일명 모양 -> 접미사==폴더명 -> 예약어 -> status 대조
 def inspect_axes(errors: list[Finding], warnings: list[Finding]) -> int:
@@ -217,6 +239,9 @@ def main() -> int:
     # 🔴 `README.md` 는 그 폴더의 **분류 절차서**이지 분류 대상이 아니다.
     #    세면 잔량이 늘 +1 이라, 다 끝나도 계측기가 0 을 못 찍는다.
     #    PLAN(B-9) §2 의 완료 기준 명령도 `grep -v README` 로 거른다 — 둘이 같은 것을 세야 한다.
+    nondoc = inspect_top_nondoc()
+    warnings.extend(nondoc)
+
     unfiled = PRIVATE / "_unfiled"
     pending = len([p for p in unfiled.glob("*.md") if p.name != "README.md"]) if unfiled.is_dir() else 0
     if pending:
@@ -242,7 +267,10 @@ def main() -> int:
         print(f"❌ 축 폴더 대상이 {seen}건이다 (기대 ≥{MIN_AXIS_DOCS}) — 경로 규약이 바뀌었거나 glob 이 좁아졌다.")
         print("   줄어든 것도 실패다(fail-closed, 대장 D31).")
         return 1
-    print(f"✅ 문서 배치 — 직하 {len(ALLOWED_TOP)}종 규약 준수 · 축 폴더 {seen}건 이름 정합.")
+    print(
+        f"✅ 문서 배치 — 직하 {len(ALLOWED_TOP)}종(.md) 규약 준수 · "
+        f"직하 비문서 {len(nondoc)}건 · 축 폴더 {seen}건 이름 정합."
+    )
     return 0
 
 
