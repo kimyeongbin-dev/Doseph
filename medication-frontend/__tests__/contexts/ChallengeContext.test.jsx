@@ -44,11 +44,16 @@ function makeChallenge(overrides = null) {
 const renderedRefs = []
 
 function Consumer() {
-  const { activeChallenges, isError } = useChallenge()
+  const { activeChallenges, unstartedByGuide, isError } = useChallenge()
   renderedRefs.push(activeChallenges)
   return (
     <div>
       <span data-testid="titles">{activeChallenges.map((c) => c.title).join(',') || 'empty'}</span>
+      <span data-testid="unstarted">
+        {unstartedByGuide('guide-1')
+          .map((c) => c.title)
+          .join(',') || 'empty'}
+      </span>
       <span data-testid="error">{String(isError)}</span>
     </div>
   )
@@ -96,6 +101,52 @@ describe('ChallengeContext 특성화', () => {
 
     expect(await screen.findByText('활성')).toBeInTheDocument()
     expect(api.get).toHaveBeenCalledWith(expect.stringContaining('/api/v1/challenges?profile_id=prof-1'))
+  })
+
+  // ── 추천 탭의 "미시작" 계약 ────────────────────────────────────────
+  // 백엔드 정의(`challenge_repository.not_started`)와 **같아야 한다**:
+  //   is_active = false  AND  challenge_status != 'COMPLETED'
+  // 🔴 예전 구현은 `!== 'DELETED'` 로 걸렀는데, ChallengeStatus enum 에는
+  //    IN_PROGRESS / COMPLETED 뿐이라 **아무것도 안 거르는 no-op** 이었다.
+  //    폐지된 soft delete(QA-01)의 잔재이자, 완료된 비활성 챌린지가
+  //    추천 탭에 되살아나는 경로였다(QA-38).
+  it('unstartedByGuide 는 같은 가이드의 미시작 챌린지만 준다', async () => {
+    api.get.mockResolvedValue({
+      data: [
+        makeChallenge({ id: 'u', title: '미시작', guide_id: 'guide-1', is_active: false }),
+        makeChallenge({ id: 'a', title: '시작함', guide_id: 'guide-1', is_active: true }),
+        makeChallenge({ id: 'o', title: '다른가이드', guide_id: 'guide-2', is_active: false }),
+      ],
+    })
+
+    renderHarness()
+
+    await screen.findByText('미시작')
+    // 바닥값 — 목록이 비면 `not.toContain` 은 무조건 통과한다(D49).
+    expect(screen.getByTestId('unstarted').textContent).toBe('미시작')
+  })
+
+  it('unstartedByGuide 는 완료된 비활성 챌린지를 추천에 되살리지 않는다', async () => {
+    api.get.mockResolvedValue({
+      data: [
+        makeChallenge({ id: 'u', title: '미시작', guide_id: 'guide-1', is_active: false }),
+        makeChallenge({
+          id: 'c',
+          title: '완료했지만비활성',
+          guide_id: 'guide-1',
+          is_active: false,
+          challenge_status: 'COMPLETED',
+        }),
+      ],
+    })
+
+    renderHarness()
+
+    // 🔴 `findByText` 는 정확 일치라 합쳐진 텍스트를 못 찾는다 — testid 로 기다린다.
+    await waitFor(() => expect(screen.getByTestId('unstarted').textContent).toContain('미시작'))
+    const shown = screen.getByTestId('unstarted').textContent
+    expect(shown, '표본이 비면 이 단언은 공짜로 통과한다').toContain('미시작')
+    expect(shown).not.toContain('완료했지만비활성')
   })
 
   it('같은 데이터로 프로바이더가 리렌더돼도 activeChallenges 참조가 유지된다', async () => {

@@ -139,9 +139,14 @@ export function ChallengeProvider({ children }) {
     () => challenges.filter((c) => c.challenge_status === 'COMPLETED'),
     [challenges],
   )
+  // 추천 탭의 "미시작" — 백엔드 `challenge_repository.not_started` 와 **같은 정의**여야 한다:
+  //   is_active = false  AND  challenge_status != 'COMPLETED'
+  // ⚠️ 예전에는 `!== 'DELETED'` 로 걸렀다. ChallengeStatus 에는 IN_PROGRESS/COMPLETED 뿐이라
+  //    아무것도 안 거르는 no-op 이었고(폐지된 soft delete 의 잔재, QA-01),
+  //    완료된 비활성 챌린지가 추천에 되살아났다. 계약은 테스트가 잠근다(QA-38).
   const unstartedByGuide = (guideId) =>
     challenges.filter(
-      (c) => c.guide_id === guideId && !c.is_active && c.challenge_status !== 'DELETED',
+      (c) => c.guide_id === guideId && !c.is_active && c.challenge_status !== 'COMPLETED',
     )
   const challengesByGuide = (guideId) => challenges.filter((c) => c.guide_id === guideId)
 
