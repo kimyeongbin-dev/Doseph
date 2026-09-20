@@ -213,8 +213,11 @@ def main() -> int:
         print("   경로 규약이 바뀌었거나 glob 이 어긋났다. 검사 대상 0건은 통과가 아니다(fail-closed).")
         return 1
 
+    # 🔴 `README.md` 는 그 폴더의 **분류 절차서**이지 분류 대상이 아니다.
+    #    세면 잔량이 늘 +1 이라, 다 끝나도 계측기가 0 을 못 찍는다.
+    #    PLAN(B-9) §2 의 완료 기준 명령도 `grep -v README` 로 거른다 — 둘이 같은 것을 세야 한다.
     unfiled = PRIVATE / "_unfiled"
-    pending = len(list(unfiled.glob("*.md"))) if unfiled.is_dir() else 0
+    pending = len([p for p in unfiled.glob("*.md") if p.name != "README.md"]) if unfiled.is_dir() else 0
     if pending:
         warnings.append(Finding("_unfiled/", f"미분류 **{pending}건** 남음 — 정독·분류 구간에서 처리한다"))
 
