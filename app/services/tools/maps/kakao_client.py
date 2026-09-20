@@ -186,12 +186,16 @@ async def _request_with_retry(
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         try:
             response = await http_client.get(KAKAO_ENDPOINT, params=params, headers=headers)
+        # 🔒 예외 객체를 통째로 문자열화하지 않는다 — httpx 가 transport 예외 메시지에
+        #    URL·헤더를 담는 경우가 있고, 이 요청 헤더에는 `KakaoAK <API 키>` 가 들어 있다.
+        #    상위가 logger.exception 으로 흘리면 traceback locals 로도 샌다(CLAUDE.md §9.4).
+        #    원인 규명에 필요한 것은 **예외 종류**지 문자열 본문이 아니다.
         except httpx.TimeoutException as exc:
             logger.warning("[ToolCalling] Kakao API timeout query=%r", query)
-            raise KakaoAPIError(f"Kakao API timeout: {exc}") from exc
+            raise KakaoAPIError(f"Kakao API timeout: {type(exc).__name__}") from exc
         except httpx.HTTPError as exc:
-            logger.warning("[ToolCalling] Kakao API transport error query=%r err=%s", query, exc)
-            raise KakaoAPIError(f"Kakao API transport error: {exc}") from exc
+            logger.warning("[ToolCalling] Kakao API transport error query=%r err=%s", query, type(exc).__name__)
+            raise KakaoAPIError(f"Kakao API transport error: {type(exc).__name__}") from exc
 
         status = response.status_code
         if status >= 500:
