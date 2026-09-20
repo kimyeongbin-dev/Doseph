@@ -91,6 +91,7 @@ STATE_CANONS = frozenset({
     "AGENT_실수-오류-기록.md",
     "READING_LOG.md",
     "DTO_DESIGN_RULES.md",
+    "LOCAL_RESIDUE.md",
 })
 ALLOWED_TOP = WORK_BUFFERS | STATE_CANONS
 
