@@ -1,3 +1,14 @@
+> 🔴 **2026-09-21 — 이 문서의 핵심 설계가 폐기됐다. 근거로 인용하지 말 것.**
+> 아래는 **옵션 C(RAG-as-tool)** 시절 흐름이고, *"**Router LLM** 이 tool 선택으로 의도를 분류한다"*
+> 고 서술한다. 그 Router LLM 은 **폐기됐다**(`router_llm` 저장소 전체 **0건**) — 지금은 단일
+> LLM 호출이 intent·rewritten_query·metadata 를 한 번에 결정한다.
+>
+> ✅ **현행 정본 = [`chatbot_full_flow.md`](./chatbot_full_flow.md)** (2026-05-05 작성, 2026-09-21 전수 실측).
+> ✅ 아직 맞는 것: 엔드포인트 **`POST /messages/ask`** · 세션 소유권 검증 · GPS 파킹 분기.
+> 두 문서를 한 벌로 합치는 일은 비공개 원장의 **문서-22** 로 추적한다.
+
+---
+
 # Doseph 챗봇 백엔드 흐름
 
 > 옵션 C (RAG-as-tool) 적용 후의 챗봇 한 턴 처리 흐름 정리.
