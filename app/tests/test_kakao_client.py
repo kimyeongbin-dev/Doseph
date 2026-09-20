@@ -14,6 +14,7 @@ Red 전제:
 """
 
 import json
+import logging
 
 import httpx
 import pytest
@@ -325,3 +326,95 @@ class TestMalformedResponse:
         async with _make_client(handler) as client:
             with pytest.raises(KakaoAPIError):
                 await kakao_local_search(query="q", client=client, api_key="KEY")
+
+
+# ── 🔒 API 키 누설 방지 (S-1, 2026-09-20) ──────────────────────
+# 흐름: transport 예외 메시지에 키가 박힌 상황을 만든다 -> 래핑된 예외·로그를 본다
+#       -> 키 문자열이 어디에도 안 나와야 한다
+#
+# 왜 이 테스트가 있나: httpx 의 transport 예외는 요청 URL·헤더를 메시지에 담는 경우가
+# 있고, 이 요청 헤더에는 `KakaoAK <API 키>` 가 들어 있다. 예외를 통째로 문자열화하면
+# 그 키가 에러 응답·로그·traceback 으로 샌다(`_legacy/2026-04-24_REVIEW.md` S-1, High).
+# 🔴 수정만 하고 이 단언이 없으면 **되돌려도 초록**이다 — 잠그는 것이 완료 조건이다.
+
+
+_LEAKY_SECRET = "SECRET_KAKAO_KEY_ffff9999"
+
+
+class TestApiKeyNeverLeaksIntoErrors:
+    @pytest.mark.asyncio
+    async def test_transport_error_message_omits_api_key(self) -> None:
+        """transport 예외 메시지에 키가 박혀 있어도 래핑된 예외로 새지 않는다."""
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError(
+                f"failed to connect; headers={{'authorization': 'KakaoAK {_LEAKY_SECRET}'}}",
+                request=request,
+            )
+
+        async with _make_client(handler) as client:
+            with pytest.raises(KakaoAPIError) as excinfo:
+                await kakao_local_search(query="q", client=client, api_key=_LEAKY_SECRET)
+
+        assert _LEAKY_SECRET not in str(excinfo.value)
+
+    @pytest.mark.asyncio
+    async def test_timeout_message_omits_api_key(self) -> None:
+        """타임아웃 경로도 같은 보장을 받는다."""
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.TimeoutException(f"timed out KakaoAK {_LEAKY_SECRET}", request=request)
+
+        async with _make_client(handler) as client:
+            with pytest.raises(KakaoAPIError) as excinfo:
+                await kakao_local_search(query="q", client=client, api_key=_LEAKY_SECRET)
+
+        assert _LEAKY_SECRET not in str(excinfo.value)
+
+    @pytest.mark.asyncio
+    async def test_transport_error_log_omits_api_key(self) -> None:
+        """로그에도 키가 남지 않는다 — 로그는 예외보다 오래 보관된다.
+
+        🔴 ``caplog`` 를 쓰지 않는다. 이 모듈의 로거는 루트로 **전파되지 않아**
+        ``caplog.text`` 가 빈 채로 통과한다(실측: 키가 stdout 에 찍히는데도 초록이었다).
+        검사 대상 로거에 **핸들러를 직접 붙여** 실제로 나간 레코드를 본다.
+        """
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError(f"boom KakaoAK {_LEAKY_SECRET}", request=request)
+
+        target = logging.getLogger("app.services.tools.maps.kakao_client")
+        emitted: list[str] = []
+
+        class _Capture(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                emitted.append(record.getMessage())
+
+        probe = _Capture(level=logging.DEBUG)
+        previous_level = target.level
+        target.addHandler(probe)
+        target.setLevel(logging.DEBUG)
+        try:
+            async with _make_client(handler) as client:
+                with pytest.raises(KakaoAPIError):
+                    await kakao_local_search(query="q", client=client, api_key=_LEAKY_SECRET)
+        finally:
+            target.removeHandler(probe)
+            target.setLevel(previous_level)
+
+        # 바닥값 — 레코드를 0건 봤다면 "안 샜다"가 아니라 "아무것도 못 봤다" 이다.
+        assert emitted, "이 경로에서 로그가 한 건도 안 나왔다 — 검사가 무력화된 상태다"
+        assert not any(_LEAKY_SECRET in line for line in emitted), emitted
+
+    # ✅ 음성 대조 — 키를 가렸다고 **에러가 쓸모없어지면** 안 된다.
+    #    실패 종류를 못 알아보는 메시지였다면 사람이 이 방어를 걷어낸다.
+    @pytest.mark.asyncio
+    async def test_error_message_still_names_the_failure_type(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("boom", request=request)
+
+        async with _make_client(handler) as client:
+            with pytest.raises(KakaoAPIError) as excinfo:
+                await kakao_local_search(query="q", client=client, api_key=_LEAKY_SECRET)
+
+        assert "ConnectError" in str(excinfo.value)
