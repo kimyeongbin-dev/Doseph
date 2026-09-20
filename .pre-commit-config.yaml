@@ -180,6 +180,19 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # 규칙이 **발동하는 층**에 닿았는지 (pre-push · 🟡 보고 전용) — 정본 = FILING §1-1
+      # 규칙을 정본에만 적으면 "세운 것 같은 감각"만 남고 Read 를 안 부르면 발동하지 않는다.
+      # 손으로 전수 대조해 3건을 찾은 것(D44)을 기계가 대신 찾게 만든 것이다.
+      # ⚠️ 절이 생긴 것만 본다 — 규칙을 산문으로 녹이면 보이지 않는다(한계 선언은 docstring).
+      - id: rule-layers
+        name: 🔗 규칙↔층 연결 검사
+        entry: uv run python -m scripts.gates.doc.check_rule_layers
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       # ⛔ 은퇴 2026-09-16 — canon-sync (scripts/check_canon_sync.py)
       # 전제가 무효화됐다. 그 게이트는 "축 폴더가 정본보다 새로우면 정본이 낡은 것"으로
       # 판정했는데, 새 규약에서 축 폴더는 **정본의 옛 판이 내려앉는 곳**이라
