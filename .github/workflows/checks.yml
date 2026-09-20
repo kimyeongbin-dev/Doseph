@@ -1,5 +1,11 @@
 name: ci.yml
 
+# 🔴 CI 와 CD 는 같은 액션 메이저를 쓴다. 갈리면 한쪽에서만 깨지고, 그 신호가 늦게 온다
+#    (대장 D53 — 로컬과 CI 가 게이트를 다르게 부르던 것과 같은 모양).
+#    `scripts/gates/doc/check_rule_layers.py` 가 두 워크플로를 대조해 막는다.
+env:
+  UV_VERSION: '0.11.2'   # 로컬과 같은 버전. 올릴 때 deploy.yml 과 **함께** 올린다
+
 on:
   push:
     branches:
@@ -28,6 +34,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          # 🔴 버전을 고정한다. 안 고정하면 setup-uv 가 매 실행마다 astral-sh/versions 에서
+          #    버전 목록을 받아오는데, 그 fetch 가 실패해 CI 가 통째로 빨개진 적이 있다
+          #    (2026-09-20, `##[error]fetch failed`). 우리 코드와 무관한 외부 의존이다.
+          version: ${{ env.UV_VERSION }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -64,6 +74,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          # 🔴 버전을 고정한다. 안 고정하면 setup-uv 가 매 실행마다 astral-sh/versions 에서
+          #    버전 목록을 받아오는데, 그 fetch 가 실패해 CI 가 통째로 빨개진 적이 있다
+          #    (2026-09-20, `##[error]fetch failed`). 우리 코드와 무관한 외부 의존이다.
+          version: ${{ env.UV_VERSION }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -168,6 +182,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          # 🔴 버전을 고정한다. 안 고정하면 setup-uv 가 매 실행마다 astral-sh/versions 에서
+          #    버전 목록을 받아오는데, 그 fetch 가 실패해 CI 가 통째로 빨개진 적이 있다
+          #    (2026-09-20, `##[error]fetch failed`). 우리 코드와 무관한 외부 의존이다.
+          version: ${{ env.UV_VERSION }}
 
       - name: Set up Python
         uses: actions/setup-python@v7

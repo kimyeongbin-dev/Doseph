@@ -82,6 +82,11 @@ MIN_HOOKS = 10
 MIN_SCRIPTS = 11
 MIN_TRACKS = 3
 MIN_WORKFLOWS = 1
+#: 워크플로가 공유하는 액션의 `@v<major>` 와, 그 워크플로가 선언한 툴 버전.
+USES = re.compile(r"^\s*uses:\s*([\w./-]+)@v(\d+)", re.MULTILINE)
+ENV_VER = re.compile(r"^\s{2}(\w+_VERSION):\s*'([^']+)'", re.MULTILINE)
+#: 이 액션들은 **모든 워크플로가 같은 메이저**를 써야 한다.
+SHARED_ACTIONS = frozenset({"astral-sh/setup-uv", "actions/setup-python", "actions/checkout"})
 
 #: 워크플로가 게이트를 **파일 경로**로 부르는 형태.
 #: 그러면 ``sys.path[0]`` 이 스크립트 폴더가 되어 ``from scripts.gates._root import …`` 가
@@ -156,6 +161,44 @@ def audit_tracks() -> tuple[list[str], int]:
         if not re.search(rf"`{letter}-N`|`{letter}-\d+`", layer3)
     ]
     return reports, len(letters)
+
+
+# ── ⑥ 워크플로끼리 액션 메이저·툴 버전이 같은가 ─────────────────────
+# 흐름: 워크플로 수집 -> uses: <action>@v<major> 와 env 의 *_VERSION 수집
+#       -> 공유 액션의 메이저가 갈리면 차단 · 같은 이름의 버전 값이 갈리면 차단
+# 🔴 왜: CI 와 CD 가 `setup-uv@v7` / `@v5` 로 갈려 있었다. 갈리면 **한쪽에서만 깨지고**
+#    그 신호가 늦게 온다 — 대장 **D53**(로컬은 `-m`, CI 는 파일 경로)과 같은 모양이다.
+#    그리고 버전을 안 고정하면 setup-uv 가 매 실행 외부에서 버전 목록을 받아오는데,
+#    그 fetch 가 실패해 CI 가 통째로 빨개진 적이 있다(2026-09-20).
+#    정밀도 100%(문자열 일치)라 **보고가 아니라 차단**이다.
+def audit_workflow_versions() -> list[str]:
+    """(메이저·버전이 갈린 보고줄)."""
+    files = sorted((REPO_ROOT / ".github" / "workflows").glob("*.yml"))
+    majors: dict[str, dict[str, str]] = {}
+    versions: dict[str, dict[str, str]] = {}
+    for wf in files:
+        text = wf.read_text(encoding="utf-8", errors="replace")
+        for action, major in USES.findall(text):
+            if action in SHARED_ACTIONS:
+                majors.setdefault(action, {})[wf.name] = major
+        for key, value in ENV_VER.findall(text):
+            versions.setdefault(key, {})[wf.name] = value
+
+    reports = [
+        f"액션 `{action}` 의 메이저가 워크플로마다 다르다 — "
+        + " · ".join(f"`{f}`=v{v}" for f, v in sorted(seen.items()))
+        + ". CI 와 CD 가 갈리면 한쪽에서만 깨지고 신호가 늦게 온다(대장 D53)."
+        for action, seen in sorted(majors.items())
+        if len(set(seen.values())) > 1
+    ]
+    reports += [
+        f"`{key}` 값이 워크플로마다 다르다 — "
+        + " · ".join(f"`{f}`={v}" for f, v in sorted(seen.items()))
+        + ". 같은 이름이면 같은 값이어야 한다."
+        for key, seen in sorted(versions.items())
+        if len(set(seen.values())) > 1
+    ]
+    return reports
 
 
 # ── ④ 게이트 스크립트 ↔ 훅 배선 ────────────────────────────────────
@@ -254,6 +297,14 @@ def main() -> int:
         )
         return 1
 
+    version_reports = audit_workflow_versions()
+    if version_reports:
+        print("[거부] 워크플로끼리 액션 메이저 또는 툴 버전이 갈린다", file=sys.stderr)
+        for line in version_reports:
+            print(f"  - {line}", file=sys.stderr)
+        print("  CI 와 CD 는 같은 메이저를 쓴다. 올릴 때 **함께** 올린다.", file=sys.stderr)
+        return 1
+
     # 🔴 호출 형태 어긋남도 **차단**이다 — 로컬 `pre-commit` 은 `-m` 이라 안 깨지고
     #    CI 에서만 빨개진다. 커밋을 쌓아 두면 그 신호마저 늦게 온다.
     if call_reports:
@@ -271,7 +322,7 @@ def main() -> int:
     if not reports:
         print(
             f"✅ 규칙↔층 연결 — FILING 절 {sections_seen}(면제 {len(exempt)}) · 우리 훅 {hooks_seen} · "
-            f"워크플로 {workflows_seen}(경로 호출 0) · "
+            f"워크플로 {workflows_seen}(경로 호출 0 · 액션 메이저 일치) · "
             f"게이트 스크립트 {scripts_seen}(배선 누락 0) · 트랙 {tracks_seen} · 끊긴 연결 0.",
         )
         return 0

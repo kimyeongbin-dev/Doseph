@@ -33,6 +33,7 @@ concurrency:
 
 env:
   IMAGE: ghcr.io/kimyeongbin-dev/doseph-fastapi
+  UV_VERSION: '0.11.2'   # 🔴 checks.yml 과 같은 값이어야 한다(게이트가 대조한다)
 
 jobs:
   # ── ① 테스트 게이트 (배포 전 안전망) ────────────────────────────────
@@ -59,15 +60,19 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          # 🔴 버전을 고정한다. 안 고정하면 setup-uv 가 매 실행마다 astral-sh/versions 에서
+          #    버전 목록을 받아오는데, 그 fetch 가 실패해 CI 가 통째로 빨개진 적이 있다
+          #    (2026-09-20, `##[error]fetch failed`). 우리 코드와 무관한 외부 의존이다.
+          version: ${{ env.UV_VERSION }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
@@ -103,7 +108,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
