@@ -8,10 +8,20 @@ Responsibilities (this phase):
 3. Delegate to the injected RAG generator (worker LLM) to produce the
    merged summary and surface the structured SummaryResult.
 
-Out of scope (deferred to Phase Z-B):
-- Reading/writing ChatSession summary columns
-- Scheduling / Redis locking
-- Triggering from MessageService
+이 모듈의 책임은 **요약 생성까지**다. 나머지는 아래가 맡는다(2026-09-21 실측):
+- ``chat_sessions.summary`` / ``summary_updated_at`` 읽고 쓰기
+  -> ``MessageService._fetch_session_summary`` + ``compact_and_save_session_job``
+- 트리거 -> ``MessageService._maybe_enqueue_compact``
+  (``_COMPACT_TRIGGER_MIN=6`` 이상 + ``_COMPACT_TRIGGER_EVERY=6`` 배수일 때 RQ enqueue)
+
+.. warning::
+   여기엔 원래 *"Out of scope (deferred to Phase Z-B): 컬럼 읽고쓰기 / 스케줄링 /
+   MessageService 트리거"* 라고 적혀 있었다. **그 셋은 그 뒤 전부 구현됐는데 이 글이
+   따라오지 않았다.** 2026-09-21 정독에서 이 문장을 *"아직 없다"* 로 읽고 로드맵에
+   **거짓 미구현 항목을 등재**했다(``ROADMAP`` C-8, 같은 날 철회 · 대장 **D55**).
+
+   > **단계의 범위 선언은 그 단계의 사실이지 오늘의 사실이 아니다.**
+   > 단계가 끝나면 그 문장은 남겨 두지 말고 **지금의 분담**으로 다시 쓴다.
 """
 
 from dataclasses import dataclass
