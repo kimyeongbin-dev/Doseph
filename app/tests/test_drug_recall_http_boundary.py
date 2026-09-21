@@ -31,6 +31,8 @@
 ===============  ==========================  ==============================
 """
 
+from typing import Any
+
 import httpx
 import pytest
 import respx
@@ -43,17 +45,17 @@ _HOST = "apis.data.go.kr"
 _PATH = "/1471000/MdcinRtrvlSleStpgeInfoService04/getMdcinRtrvlSleStpgeList03"
 
 
-def _body(items: object, total_count: int) -> dict:
+def _body(items: object, total_count: int) -> dict[str, Any]:
     """MFDS 응답 봉투. 실제 API 가 `body.items` / `body.totalCount` 로 준다."""
     return {"body": {"items": items, "totalCount": total_count}}
 
 
-def _item(seq: str) -> dict:
+def _item(seq: str) -> dict[str, str]:
     """페이징만 보는 테스트라 최소 필드만 채운다."""
     return {"ITEM_SEQ": seq, "ITEM_NAME": f"테스트약-{seq}"}
 
 
-def _route():
+def _route() -> respx.Route:
     """목록 엔드포인트 라우트. 쿼리스트링은 매칭 조건에서 뺀다(페이지마다 달라진다)."""
     return respx.route(method="GET", host=_HOST, path=_PATH)
 
