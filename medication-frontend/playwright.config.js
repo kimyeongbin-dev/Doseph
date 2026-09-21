@@ -37,7 +37,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  // json 리포터는 CI 게이트(scripts/gates/code/check_e2e_inventory.py)가
+  // **몇 건이 실제로 돌았는지**를 세는 유일한 입력이다. 끄면 그 게이트가 눈이 먼다.
+  reporter: [['list'], ['html', { open: 'never' }], ['json', { outputFile: 'playwright-report.json' }]],
 
   timeout: 30_000,
   expect: { timeout: 7_000 },
