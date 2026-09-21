@@ -47,7 +47,7 @@ docker compose logs fastapi --tail=30
 curl -i http://localhost:8000/api/v1/health   # 엔드포인트가 다르면 /docs 로 확인
 ```
 
-> 백엔드가 안 뜨면 개발자 로그인이 실패하고 인증 테스트가 전부 skip/실패한다. 먼저 `fastapi` 컨테이너가
+> 백엔드가 안 뜨면 **mock IdP 로그인**(`auth.setup.js`)이 실패하고 인증 테스트가 전부 skip/실패한다. 먼저 `fastapi` 컨테이너가
 > `healthy` 인지 확인할 것.
 
 ---
