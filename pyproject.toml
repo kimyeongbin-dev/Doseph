@@ -44,6 +44,7 @@ app = [
 dev = [
     "bandit>=1.7.0",
     "coverage>=7.13.2",
+    "freezegun>=1.5.5",
     "import-linter>=2.3",
     "mypy>=1.19.1",
     "mypy-baseline>=0.7.4",
