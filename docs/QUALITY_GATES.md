@@ -71,9 +71,18 @@
 |---|---|
 | **Security Scan** | Bandit (high 이상 실패) + 리포트 아티팩트 |
 | **Lint (Ruff)** | `ruff check` · `ruff format --check` · **MyPy baseline 게이트** · **레이어 계약(import-linter)** |
-| **Frontend** | ESLint · **Vitest** · `npm audit --audit-level=high` (**차단**) · 정적 빌드 |
+| **Frontend** | ESLint · **Vitest** · **`node --test`(CSP 해시 주입 5건)** · `npm audit --audit-level=high` (**차단**) · **배포와 같은 사슬로 정적 빌드**(`build:pages`) + **주입 산출물 검증** |
+| **E2E (Playwright)** | compose 로 백엔드 기동 → **`aerich upgrade` + 스키마 검증** → 헬스 → **local 타깃** 정적 빌드 → Playwright **61건** → **인벤토리 게이트** → 실패 산출물(`trace`·`screenshot`·`video`) 업로드 |
 | **Test** | `pytest app -m "not db"` → `pytest app -m db` → `pytest tests` → 커버리지 리포트 → **커버리지 baseline 게이트** |
 
+> 🎭 **E2E 잡이 왜 생겼나**(2026-09-22, B-8 2구간 · QA-08): 이 61건이 **로컬 전용**이라
+> *"내가 안 돌리면 아무도 안 도는 안전망"* 이었다. 실측 소요 **2분 30초**(테스트 자체 47초)로
+> `≤ 5분` 안이라 **스모크 분리 없이 전체를 PR 게이트로** 둔다.
+> **로컬과 같은 `docker-compose.yml`** 을 쓴다 — service containers 로 다시 쓰면 같은 스택의
+> 두 번째 정의가 생기고(D53), 게다가 그 compose 가 **E2E 용 레이트리밋 상향**을 담고 있다.
+> 🔴 **`aerich upgrade` 가 필수다** — CI 의 postgres 는 빈 DB 인데 로컬은 볼륨이 스키마를
+> 들고 있어, 로컬 **4회 통과 동안 이 누락이 안 보였다**(→ 규칙 **R28**).
+>
 > **테스트를 3스텝으로 쪼갠 이유**: pytest 는 수집 0건이면 **exit 5** 로 실패한다.
 > 한 번에 돌리면 *"DB 층이 통째로 안 돌았는데 초록"* 이 조용히 지나간다.
 > 실제로 루트 `tests/` 180건이 **어느 워크플로에도 없어 23건이 4개월 반 빨간 채 방치**됐다.
