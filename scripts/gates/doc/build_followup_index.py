@@ -53,7 +53,7 @@ NOISE = re.compile(r"\*\*|`|<br>|[🔴🟠🟡🟢🔵⬜✅⚠️🔑⭐📦⏸
 #: ⚠️ QA 41 -> 33: 2026-09-21 §C(완료 8건)를 `record/2026-09-21_qa-completed-record.md` 로
 #:    **배출**했다. 바닥값이 그 감소를 잡아 차단했고(설계대로), 배출이 의도였음을 확인하고
 #:    의식적으로 내렸다 — 조용히 0이 되는 것과 다르다.
-FLOORS = {"QA": 33, "문서": 23, "L": 6, "ROADMAP": 17, "B": 11}
+FLOORS = {"QA": 33, "문서": 23, "L": 7, "ROADMAP": 17, "B": 11}
 
 
 def tidy(text: str, limit: int = 150) -> str:

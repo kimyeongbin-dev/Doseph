@@ -51,7 +51,7 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import PRIVATE  # noqa: E402
 
-EXEMPT_DIRS = frozenset({"_legacy", "_unfiled", "aerich_backup_20260911", "__pycache__"})
+EXEMPT_DIRS = frozenset({"_legacy", "_unfiled", "__pycache__"})
 #: 정본이 없는 축 — 직하에 있은 적이 없어 생애주기가 없다. ``doc-meta`` 를 요구하지 않는다.
 CANONLESS = frozenset({"study", "portfolio"})
 

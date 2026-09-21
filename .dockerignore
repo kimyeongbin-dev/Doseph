@@ -76,6 +76,12 @@ docs/
 docs-private/
 csv/
 nginx/
+# 🔧 개발 전용 도구 — 런타임은 쓰지 않는다(2026-09-21 실측: app/·ai_worker/ 의
+# 비-테스트 코드에서 `import scripts` 0건. 3건 전부 app/tests/ 안이고 그건 아래에서 제외된다).
+# 776 KB 가 이미지에 실려 있었고, 더 큰 비용은 **게이트를 한 줄 고칠 때마다 BE 가 재배포**되는 것이었다
+# (deploy.yml 의 paths-ignore 는 deny-list 라 scripts/ 가 없으면 배포가 돈다).
+# VM 에서 일회성으로 필요하면 그때 올려서 쓰고 지운다(사용자 결정).
+scripts/
 **/tests/
 **/*_test.py
 **/test_*.py

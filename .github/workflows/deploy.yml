@@ -23,6 +23,7 @@ on:
       - '**/*.md'
       - '.github/**' # .dockerignore 제외 대상. 워크플로 변경은 다음 실행부터 적용됨
       - 'envs/**' # .dockerignore 제외 대상. prod env 는 VM 자체 .env 가 공급
+      - 'scripts/**' # .dockerignore 제외 대상(2026-09-21~). 게이트·크롤러 등 개발 도구
       - '.env.example' # 템플릿일 뿐 앱은 .env 를 읽는다(런타임 무영향)
   workflow_dispatch:
 

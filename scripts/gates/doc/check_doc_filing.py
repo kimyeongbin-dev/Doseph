@@ -59,7 +59,7 @@ MIN_AXIS_DOCS = 80
 EXEMPT_DIRS = frozenset({"_legacy", "_unfiled"})
 
 #: 스캔하지 않는 것 — 문서가 아니다.
-SKIP_DIRS = frozenset({"aerich_backup_20260911", "__pycache__"})
+SKIP_DIRS = frozenset({"__pycache__"})
 
 #: 접미사 ↔ 축 폴더는 1:1 이다 (FILING §5). 새 축을 만들면 여기에 한 줄 추가한다.
 SUFFIXES = frozenset({
