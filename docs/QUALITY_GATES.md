@@ -70,7 +70,7 @@
 | **Security Scan** | Bandit (high 이상 실패) + 리포트 아티팩트 |
 | **Lint (Ruff)** | `ruff check` · `ruff format --check` · **MyPy baseline 게이트** · **레이어 계약(import-linter)** |
 | **Frontend** | ESLint · **Vitest** · `npm audit --audit-level=high` (**차단**) · 정적 빌드 |
-| **Test** | `pytest app -m "not db"` → `pytest app -m db` → `pytest tests` → 커버리지 리포트 |
+| **Test** | `pytest app -m "not db"` → `pytest app -m db` → `pytest tests` → 커버리지 리포트 → **커버리지 baseline 게이트** |
 
 > **테스트를 3스텝으로 쪼갠 이유**: pytest 는 수집 0건이면 **exit 5** 로 실패한다.
 > 한 번에 돌리면 *"DB 층이 통째로 안 돌았는데 초록"* 이 조용히 지나간다.
@@ -78,6 +78,21 @@
 >
 > CI 의 postgres 는 `pgvector/pgvector:0.8.0-pg17` — **로컬·prod 와 같은 태그**로 고정한다.
 > 기준은 "최신"이 아니라 **prod 와 같게** 다. 값을 바꾸면 `app/tests/db/test_db_version_pin.py` 가 빨개진다.
+
+> 🔢 **커버리지 baseline 게이트**(2026-09-21 신설, `scripts/gates/code/check_coverage_baseline.py`) —
+> 총량 임계치(`fail_under`)가 아니라 **파일별 미커버 줄 수를 `.coverage-baseline.json` 에 박고
+> 늘어나면 막는다.** 임계치는 넘기면 아무도 안 보고, 못 넘기면 사람이 끈다 —
+> MyPy 가 이미 baseline 으로 푼 문제라 **새 설계 없이 그 철학만 이식**했다.
+>
+> | | |
+> |---|---|
+> | **막는다** | 기존 파일의 미커버 **증가** · baseline 에 있던 파일이 **측정에서 사라짐** · 측정 파일 수가 **바닥값(148) 미달** · 리포트/baseline **부재** |
+> | **보고만** | baseline 에 없는 **새 파일**(🟡) — 막으면 새 모듈마다 걸려 사람이 `sync` 를 반사적으로 돌리고, 그러면 통과 기계가 된다 |
+> | **안 본다** | 🔴 **«틀리면 빨개지나»** — 단언 없는 테스트도 커버리지는 100% 를 만든다. 쓸모는 품질 측정이 아니라 **V-H(도달 불가 분기) 탐지**다 |
+>
+> 결핍 주입 **5/5 Red**(미커버 증가 · 파일 소실 · 바닥값 미달 · 리포트 부재 · baseline 부재) ·
+> 음성 대조 **3/3 통과**(무변화 · **커버리지 개선** · 새 파일). 개선을 통과시키는 표본이 핵심이다 —
+> *"커버리지가 바뀌었다"* 로 막으면 **좋아져도 빨개진다.**
 
 ---
 
