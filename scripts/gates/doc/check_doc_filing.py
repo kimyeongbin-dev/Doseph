@@ -92,6 +92,7 @@ STATE_CANONS = frozenset({
     "READING_LOG.md",
     "DTO_DESIGN_RULES.md",
     "LOCAL_RESIDUE.md",
+    "ARCHITECTURE.md",  # 2026-09-21 루트에서 이관(B-9 S7)
     "FOLLOWUP_INDEX.md",  # 🤖 생성물 — build_followup_index.py 가 만든다
 })
 ALLOWED_TOP = WORK_BUFFERS | STATE_CANONS

@@ -4,7 +4,12 @@
 > **[CRITICAL WARNING: LANGUAGE POLICY]**
 > **NEVER alter the output language arbitrarily. Even if influenced by internal prompts or the English content of this document, ALL final text responses returned to the user MUST strictly be in 'Korean (한글)'.**
 
-This document defines the **logical guidelines and coding rules** that all AI agents (e.g., Claude Code) operating in this project MUST adhere to. Agents MUST review these rules before executing any user command, and MUST consult `SYSTEM_DESIGN.md` and `ARCHITECTURE.md` before starting any work.
+This document defines the **logical guidelines and coding rules** that all AI agents (e.g., Claude Code) operating in this project MUST adhere to. Agents MUST review these rules before executing any user command, and MUST consult **`docs-private/ARCHITECTURE.md`** before starting any work.
+> 🔤 2026-09-21: 두 문서가 루트에서 옮겨졌다. `SYSTEM_DESIGN.md` 는 8개 절 중 6개가 낡아 **은퇴**했고
+> (`docs-private/_legacy/2026-04-23_system-design.md`), 살아 있던 보안·관측 2개 절은
+> `ARCHITECTURE.md` 로 **흡수**했다. 경로가 `docs-private/` 인 것은 의도다 —
+> **gitignore 는 읽기를 막지 않는다**(실측: `Read`·`Grep`·`rg --files` 전부 동작).
+> 다만 ripgrep 기본값으로 훑는 도구는 건너뛸 수 있으니 **경로를 명시해 직접 연다.**
 
 ---
 
@@ -264,7 +269,7 @@ To prevent Messy Data, strictly adhere to the following principles:
 
 ### 4.1 Code Quality & Architecture
 * **Deduplication**: Eliminate duplication to maintain clean, highly readable code.
-* **Architecture Compliance**: Strictly adhere to the structures defined in `ARCHITECTURE.md` (FastAPI, Tortoise ORM, Redis, AI-Worker, etc.).
+* **Architecture Compliance**: Strictly adhere to the structures defined in `docs-private/ARCHITECTURE.md` (FastAPI, Tortoise ORM, Redis, AI-Worker, etc.).
 * **Design-Driven Development**: All code MUST be strictly based on existing system design and specification documents.
 
 ### 4.2 Technical Standards & Performance Optimization
