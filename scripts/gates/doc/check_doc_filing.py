@@ -26,7 +26,8 @@
 그러면 옆의 정확한 게이트까지 죽는다(``docs/QUALITY_GATES.md`` §2-1).
 
 * 🔴 **차단** — 직하 화이트리스트 위반 · 축 폴더 파일명 위반 · 접미사≠폴더 · 날짜↔위치↔status 불일치
-* 🟡 **보고** — ``study/``·``portfolio/`` 의 날짜 누락(45+2건, 개명은 정독·분류 구간 몫) ·
+* 🟡 **보고** — ``study/``·``portfolio/`` 의 날짜 누락(개명은 정독·분류 구간 몫).
+  ⚠️ ``누적: true`` 를 선언한 누적형은 **날짜 없음이 정상**이라 제외한다(FILING §3-4) ·
   ``_unfiled/`` 잔량
 
 ⚠️ ``docs-private/`` 는 git 밖이지만 이 훅은 ``pre-push`` **로컬 전용**이라 CI 에서 돌지 않는다.
@@ -76,12 +77,28 @@ SUFFIXES = frozenset({
 })
 #: 정본이 없는 축 — 날짜는 "작성일" 이고 직하에 있은 적이 없다.
 CANONLESS = frozenset({"study", "portfolio"})
+
+#: 누적형(append-only) 선언 — **항목마다 자기 날짜를 갖는 문서**는 파일 전체의 "작성일" 이 없다
+#: (FILING §3-4). 날짜를 붙이면 **붙이는 순간부터 거짓**이 되므로 날짜 없는 이름을 허용한다.
+#: 🔴 파일명 화이트리스트로 하지 않는 이유 = §3-1 *"파일명으로 종류를 판정하지 않는다"*.
+#: 문서가 `doc-meta` 로 **스스로 선언**해야 하고, 그 선언이 없으면 그냥 개명 누락이다.
+APPEND_ONLY = re.compile(r"^\s*누적:\s*true\s*$", re.MULTILINE)
+
+#: 🔴 누적형은 **자라면 안 되는 예외**다. 2026-09-21 전수 스윕(study+portfolio 62건)에서
+#: 정확히 1건이었다. 0 이 되면 *"예외가 없어졌다"* 가 아니라 **선언 파싱이 깨졌다** 로 읽는다.
+#: ⚠️ 늘어나면 예외가 아니라 **종류**다 — 그때는 축 폴더를 따로 내주는 게 맞다(손으로 올린다).
+MIN_APPEND_ONLY = 1
 ALL_SUFFIXES = SUFFIXES | CANONLESS
 
 #: 직하에 있어도 되는 것 — **이 목록이 전부다** (FILING §5).
 #: 🔴 상태 정본은 **없으면 결함**이고, 작업 버퍼는 없어도 정상이다.
 #: ⚠️ 이관 중 이름: DEPLOYMENT→DEPLOY · AGENT_실수-오류-기록→MISTAKE 개명은 정독·분류 구간 몫.
 WORK_BUFFERS = frozenset({"PLAN.md", "REPORT.md", "RECORD.md"})
+# 🔴 2026-09-21: ``READING_LOG.md`` 를 여기서 뺐다. 상태 정본이 아니라 **작업 버퍼**였다 —
+# 자기 ``doc-meta`` 가 ``kind: record`` 에 *"끝나면 record/ 로"* 라고 적고 있었는데
+# 여기 있는 바람에 게이트가 *"없으면 결함"* 이라고 말했다. 트랙 B-9 가 끝나 닫히자 그 거짓이 드러났다.
+# 🔑 **성격은 파일이 선언하고(`kind`/`status`), 목록은 그것을 따라간다** — 반대로 하면
+#    목록이 문서더러 *"너는 죽으면 안 된다"* 고 말하게 된다.
 STATE_CANONS = frozenset({
     "FILING.md",
     "ROADMAP.md",
@@ -89,7 +106,6 @@ STATE_CANONS = frozenset({
     "DOC_TRUTH_DRIFT.md",
     "FOLLOWUP_QUEUE.md",
     "AGENT_실수-오류-기록.md",
-    "READING_LOG.md",
     "DTO_DESIGN_RULES.md",
     "LOCAL_RESIDUE.md",
     "ARCHITECTURE.md",  # 2026-09-21 루트에서 이관(B-9 S7)
@@ -177,6 +193,7 @@ def inspect_top_nondoc() -> list[Finding]:
 def inspect_axes(errors: list[Finding], warnings: list[Finding]) -> int:
     """축 폴더의 파일들을 판정하고, 검사한 파일 수를 돌려준다."""
     seen = 0
+    append_only: list[str] = []
     for folder in sorted(p for p in PRIVATE.iterdir() if p.is_dir()):
         axis = folder.name
         if axis in EXEMPT_DIRS or axis in SKIP_DIRS:
@@ -192,6 +209,10 @@ def inspect_axes(errors: list[Finding], warnings: list[Finding]) -> int:
                 continue
             found = DATED.match(name)
             if not found:
+                # 누적형은 날짜가 없는 것이 **정상**이다. 단, 스스로 선언해야 한다.
+                if axis in CANONLESS and APPEND_ONLY.search(path.read_text(encoding="utf-8", errors="replace")):
+                    append_only.append(f"{axis}/{name}")
+                    continue
                 bucket = warnings if axis in CANONLESS else errors
                 bucket.append(
                     Finding(
@@ -213,7 +234,7 @@ def inspect_axes(errors: list[Finding], warnings: list[Finding]) -> int:
             if status in TOP_STATUS:
                 reason = f"축 폴더인데 status 가 `{status}` 다 — 닫으면서 상태를 안 고쳤다 (FILING §8-2)"
                 errors.append(Finding(f"{axis}/{name}", reason))
-    return seen
+    return seen, append_only
 
 
 def main() -> int:
@@ -229,7 +250,7 @@ def main() -> int:
     errors: list[Finding] = []
     warnings: list[Finding] = []
     inspect_top(errors)
-    seen = inspect_axes(errors, warnings)
+    seen, append_only = inspect_axes(errors, warnings)
 
     # fail-closed: 대상을 한 건도 못 모으면 "깨끗하다"가 아니라 "못 셌다"이다.
     if seen == 0:
@@ -268,9 +289,15 @@ def main() -> int:
         print(f"❌ 축 폴더 대상이 {seen}건이다 (기대 ≥{MIN_AXIS_DOCS}) — 경로 규약이 바뀌었거나 glob 이 좁아졌다.")
         print("   줄어든 것도 실패다(fail-closed, 대장 D31).")
         return 1
+    if len(append_only) < MIN_APPEND_ONLY:
+        print(f"❌ 누적형 선언을 {len(append_only)}건밖에 못 셌다 (기대 최소 {MIN_APPEND_ONLY}건).")
+        print("   `누적: true` 파싱이 깨졌거나 그 문서가 사라졌다 — 0건은 '예외가 없다' 가 아니라")
+        print("   '아무것도 못 봤다' 이고, 그러면 날짜 없는 이름이 조용히 통과한다(fail-closed).")
+        return 1
     print(
         f"✅ 문서 배치 — 직하 {len(ALLOWED_TOP)}종(.md) 규약 준수 · "
-        f"직하 비문서 {len(nondoc)}건 · 축 폴더 {seen}건 이름 정합."
+        f"직하 비문서 {len(nondoc)}건 · 축 폴더 {seen}건 이름 정합 · "
+        f"누적형 {len(append_only)}건({', '.join(append_only)})."
     )
     return 0
 
