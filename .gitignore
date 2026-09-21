@@ -61,4 +61,7 @@ docs/plans/plan_recall_tool.md
 .coverage
 .coverage.*
 coverage.xml
+# 🔴 `coverage.json` 은 산출물이라 무시하고, `.coverage-baseline.json` 은
+#    게이트의 기준이라 **커밋한다**(하이픈이라 위 `.coverage.*` 에 안 걸린다).
+coverage.json
 htmlcov/

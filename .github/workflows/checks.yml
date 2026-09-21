@@ -231,3 +231,16 @@ jobs:
           uv run coverage run --append -m pytest app -m db
           uv run coverage run --append -m pytest tests
           uv run coverage report -m
+
+      # 🔴 커버리지를 **게이트**로 쓴다 — 총량 임계치가 아니라 baseline(뒷걸음만 차단).
+      #   총량 임계치는 넘기면 아무도 안 보고, 못 넘기면 사람이 끈다. MyPy 가 이미
+      #   baseline 으로 성공한 방식을 그대로 이식했다(scripts/mypy_gate.py).
+      #   ⚠️ 이 게이트는 «실행됐나» 만 본다. «틀리면 빨개지나» 는 보지 않는다 —
+      #   쓸모는 품질 측정이 아니라 **V-H(도달 불가 분기) 탐지**다. 한계 선언 = 게이트 docstring.
+      - name: Coverage Baseline Gate
+        if: steps.check_tests.outputs.has_tests == 'true'
+        env:
+          PYTHONPATH: "."
+        run: |
+          uv run coverage json -o coverage.json
+          uv run python -m scripts.gates.code.check_coverage_baseline
