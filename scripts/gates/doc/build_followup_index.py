@@ -50,7 +50,7 @@ NOISE = re.compile(r"\*\*|`|<br>|[🔴🟠🟡🟢🔵⬜✅⚠️🔑⭐📦⏸
 
 #: 바닥값 — 0건은 *"없다"* 가 아니라 *"못 셌다"* 이다(fail-closed).
 #: ⚠️ 손으로 올린다. 항목이 늘어 이 값을 넘기면 그때 올리는 것이 **의식적인 결정**이 된다.
-FLOORS = {"QA": 41, "문서": 21, "L": 6, "ROADMAP": 17, "B": 11}
+FLOORS = {"QA": 41, "문서": 22, "L": 6, "ROADMAP": 17, "B": 11}
 
 
 def tidy(text: str, limit: int = 150) -> str:
