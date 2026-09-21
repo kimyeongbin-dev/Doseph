@@ -194,6 +194,21 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # 커버리지 baseline **산출물** 검사 (pre-push) — 정본 = docs/QUALITY_GATES.md §1-4
+      # 🔴 여기서 커버리지를 **재지 않는다.** 재려면 전체 스위트를 돌려야 하고, 매 push 마다
+      # 그러면 사람이 훅을 끈다(§2-8). 그렇다고 "리포트 없으면 통과" 로 두면 fail-open 이다(§2-5-1).
+      # 그래서 훅은 **자기가 fail-closed 로 답할 수 있는 질문**만 맡는다 —
+      # *baseline 이 온전한가*(존재·파싱·경로 규약·바닥값 148). 실제 대조는 CI 가 한다.
+      # 막는 이유: baseline 이 사라지면 CI 게이트가 **통째로 죽고**, 그건 빨강이 아니라 한 줄 메시지다.
+      - id: coverage-baseline
+        name: 🔢 커버리지 baseline 산출물
+        entry: uv run python -m scripts.gates.code.check_coverage_baseline verify
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       # 규칙이 **발동하는 층**에 닿았는지 (pre-push · 🟡 보고 전용) — 정본 = FILING §1-1
       # 규칙을 정본에만 적으면 "세운 것 같은 감각"만 남고 Read 를 안 부르면 발동하지 않는다.
       # 손으로 전수 대조해 3건을 찾은 것(D44)을 기계가 대신 찾게 만든 것이다.

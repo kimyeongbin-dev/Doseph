@@ -25,10 +25,28 @@ MyPy 에서 **baseline(신규만 차단)** 으로 풀었고(`scripts/mypy_gate.p
 
 사용
 ----
-    uv run python -m scripts.gates.code.check_coverage_baseline          # 검사
-    uv run python -m scripts.gates.code.check_coverage_baseline sync     # baseline 갱신
+    ... check_coverage_baseline            # CI: 리포트 ↔ baseline 대조 (coverage.json 필요)
+    ... check_coverage_baseline verify     # pre-push: baseline **산출물**만 검사 (리포트 불필요)
+    ... check_coverage_baseline sync       # baseline 갱신
 
-``coverage json`` 리포트를 입력으로 받는다(기본 ``coverage.json``).
+🔴 **왜 로컬 훅과 CI 가 하는 일이 다른가**
+-------------------------------------------
+대조에는 ``coverage json`` 리포트가 필요하고, 그걸 만들려면 **전체 스위트**를 돌려야 한다.
+매 push 마다 그러면 **사람이 훅을 끈다** — 그러면 검출률이 0 이 된다(`QUALITY_GATES` §2-8).
+그렇다고 *"리포트 없으면 통과"* 로 두면 fail-open 이라 이 저장소가 금지한다(§2-5-1).
+
+그래서 **훅과 CI 가 각각 자기가 fail-closed 로 답할 수 있는 질문만** 맡는다:
+
+===========  =================================  ===========================
+층            묻는 것                             필요한 것
+===========  =================================  ===========================
+`pre-push`   baseline **산출물이 온전한가**       baseline 파일뿐
+CI           **미커버가 늘었나**                  coverage.json + baseline
+===========  =================================  ===========================
+
+⚠️ **한계**: `pre-push` 는 커버리지를 **재지 않는다.** 로컬에서 커버리지를 깨뜨리고
+밀어도 훅은 통과하고 **CI 가 잡는다.** 훅의 쓸모는 *baseline 이 사라지거나 손상된 채로
+밀리는 것*을 막는 데 있다 — 그게 일어나면 CI 게이트가 통째로 죽기 때문이다.
 """
 
 import json
@@ -127,6 +145,57 @@ def compare(current: dict[str, int], baseline: dict[str, int]) -> tuple[list[str
     return worsened, vanished, appeared
 
 
+# ── baseline 산출물 검사 (pre-push 전용) ──────────────────────────────
+# 흐름: 존재 -> 파싱 -> 모양(경로·정수) -> 바닥값. 커버리지 리포트는 안 본다.
+def verify_baseline() -> int:
+    """`.coverage-baseline.json` 이 **CI 가 쓸 수 있는 상태인가**.
+
+    baseline 이 사라지거나 손상되면 CI 게이트가 통째로 죽는다 —
+    그때 나오는 것은 빨강이 아니라 *"baseline 이 없다"* 한 줄이고,
+    사람이 `sync` 로 덮어 버리면 **그동안의 기준이 조용히 사라진다.**
+
+    Returns:
+        온전하면 0, 아니면 1.
+    """
+    if not BASELINE_PATH.is_file():
+        print(f"\n[거부] baseline 이 없다 — {BASELINE_PATH.name}", file=sys.stderr)
+        print("  이 파일이 없으면 CI 의 커버리지 게이트가 **통째로 죽는다**(fail-closed).", file=sys.stderr)
+        print("  `... check_coverage_baseline sync <리포트>` 로 만든 뒤 커밋한다.\n", file=sys.stderr)
+        return 1
+
+    try:
+        baseline = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        print(f"\n[거부] baseline 을 읽지 못했다 — {exc}\n", file=sys.stderr)
+        return 1
+
+    if not isinstance(baseline, dict):
+        print("\n[거부] baseline 이 객체가 아니다 — 손으로 고쳤거나 형식이 바뀌었다.\n", file=sys.stderr)
+        return 1
+
+    malformed = [
+        path for path, missing in baseline.items() if not is_measured(str(path)) or not isinstance(missing, int)
+    ]
+    if malformed:
+        print("\n[거부] baseline 항목이 규약을 벗어났다 (경로 접두사 또는 값 타입)\n", file=sys.stderr)
+        for path in malformed[:8]:
+            print(f"  ✗ {path}", file=sys.stderr)
+        print(file=sys.stderr)
+        return 1
+
+    if len(baseline) < MIN_MEASURED_FILES:
+        print(
+            f"\n[거부] baseline 파일이 {len(baseline)}개뿐이다 (기대 최소 {MIN_MEASURED_FILES}개).",
+            file=sys.stderr,
+        )
+        print("  잘린 baseline 은 '기준이 낮다' 가 아니라 '기준이 없다' 이다(fail-closed).\n", file=sys.stderr)
+        return 1
+
+    print(f"✅ 커버리지 baseline 산출물 — {len(baseline)}파일 · 미커버 {sum(baseline.values())}줄 · 형식 정합.")
+    print("   ⚠️ 이 훅은 커버리지를 **재지 않는다** — 실제 대조는 CI 의 `Coverage Baseline Gate` 가 한다.")
+    return 0
+
+
 def main() -> int:
     """게이트 진입점.
 
@@ -136,6 +205,9 @@ def main() -> int:
     argv = sys.argv[1:]
     subcommand = argv[0] if argv and not argv[0].startswith("-") else "check"
     report_path = Path(argv[1]) if len(argv) > 1 else DEFAULT_REPORT
+
+    if subcommand == "verify":
+        return verify_baseline()
 
     current = load_report(report_path)
 
