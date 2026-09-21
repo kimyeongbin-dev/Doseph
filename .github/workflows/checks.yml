@@ -214,6 +214,26 @@ jobs:
       - name: Start backend stack
         run: docker compose up -d --wait postgres redis fastapi
 
+      # 🔴 CI 의 postgres 는 **빈 DB** 다. 로컬은 볼륨이 스키마를 들고 있어 이 단계가
+      #    구조적으로 안 보였고, 첫 CI 실행에서 relation "accounts" does not exist 로 드러났다.
+      #    프로드도 같은 일을 한다 — docker-compose.gcp-login.yml 의 migrate 서비스가
+      #    aerich upgrade 를 마친 뒤에야 fastapi 가 뜬다(service_completed_successfully).
+      #    test 잡의 DB 층도 같다(conftest 가 doseph_db_test 를 만들고 aerich upgrade).
+      - name: Apply migrations (aerich upgrade)
+        run: docker compose exec -T fastapi sh -c 'cd /app && uv run --no-sync aerich upgrade'
+
+      # 스키마가 **실제로** 생겼는지 센다 — upgrade 가 조용히 아무것도 안 해도 여기서 빨개진다.
+      # 바닥값 15 는 «통째로 안 돌았다» 를 잡는 용도다(실측 18). 정확값으로 안 박는 이유는
+      # 마이그레이션이 테이블을 합치거나 지울 수도 있어서다 — 여기서 잡을 실패는 0 에 가까운 쪽이다.
+      - name: Verify schema
+        run: |
+          tables=$(docker compose exec -T postgres psql -U doseph_admin -d doseph_db -tAc "select count(*) from information_schema.tables where table_schema='public'" | tr -d '[:space:]')
+          echo "public 스키마 테이블 = ${tables}"
+          if [ "${tables}" -lt 15 ]; then
+            echo "::error::테이블이 ${tables}개뿐이다 (바닥값 15) — 마이그레이션이 안 돌았다"
+            exit 1
+          fi
+
       # 기동 실패를 **E2E 실패로 위장시키지 않는다** — 여기서 먼저 빨개진다.
       - name: Backend health
         run: curl -fsS http://localhost:8000/api/v1/health
