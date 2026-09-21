@@ -336,6 +336,14 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
     * 4-2. **왜 여기에 적혀 있나**: 이 규칙은 개인 메모리에만 있었고 **두 번 위반됐다**(2026-09-13 10커밋 · 2026-09-15 23커밋). 원인은 망각이 아니라 **층(layer) 불일치** — 하네스 지시는 매 세션 새로 주입되는데 금지 규칙은 세션 시작 스냅샷에만 있어, 압축 후 *낡은 한 줄 vs 갓 주입된 권위 문구*의 대결이 됐다. **매 턴 재주입되는 이 문서로 올려야 이긴다.**
     * 4-3. **기계 게이트**: `scripts/gates/commit/check_commit_trailers.py` 가 `commit-msg` 훅으로 차단한다. dependabot 의 `Signed-off-by` / `Co-authored-by: dependabot[bot]` 는 정상이라 통과시킨다.
     * 4-4. 커밋 후 자가 확인: `git log -1 --format='%B' | grep -iE 'Co-Authored-By|Claude-Session'` 가 **비어야** 한다.
+5. **🔴 «커밋했다»·«푸시했다» 는 명령 *출력*이 아니라 *상태*로 확인한다** (대장 **D63**).
+    * 5-1. **커밋** → `git log --oneline -1` 이 **내 메시지**인가. **푸시** → `git log @{u}..HEAD` 가 **비었나**.
+    * 5-2. 🔴 **`git commit` 에 파이프를 걸지 않는다.** `pre-commit` 은 **실패한 훅을 머리에** 인쇄하므로
+      `| tail` 로 보면 꼬리의 `Passed` 만 남아 **성공처럼 보인다.** 게다가 종료코드가 `tail` 것이 된다.
+      줄여야 하면 `head` 로 보거나 `${PIPESTATUS[0]}` 를 읽는다.
+    * 5-3. **왜**: 2026-09-22 에 훅이 커밋을 거부했는데 꼬리의 `Passed` 를 보고 됐다고 읽었고,
+      `git push` 의 *Everything up-to-date* 에서야 드러났다. **본 신호 두 개가 전부 거짓**이었다.
+
 
 ---
 
