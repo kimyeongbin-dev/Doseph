@@ -72,6 +72,20 @@ NOISE = re.compile(r"\*\*|`|<br>|[🔴🟠🟡🟢🔵⬜✅⚠️🔑⭐📦⏸
 FLOORS = {"QA": 41, "문서": 31, "L": 11, "ROADMAP": 19, "B": 14}
 
 
+#: 🔴 **항목 상태 어휘 — 텍스트 값이다. 이모지로 태깅하지 않는다**(사용자 지시 2026-09-22).
+#:    이모지는 전각·조합 문자라 셸 정규식에서 자주 깨진다 — 기계가 파싱할 필드는 텍스트여야 한다.
+#:    `문서-N` 은 한 표에 열림·닫힘이 섞여 있어 **행마다 토큰**이 필요하다(문서-31).
+OPEN = "열림"
+CLOSED_TOKENS = frozenset({"완료", "보냄", "기각"})
+STATUS_TOKENS = CLOSED_TOKENS | {OPEN, "부분"}
+STATUS_RE = re.compile(r"`(" + "|".join(sorted(STATUS_TOKENS)) + r")`")
+
+#: 절로 열림/닫힘이 갈리는 원장 — 표가 아니라 **구조**가 상태를 말한다.
+#: `QA` 는 §C(완료 → 배출), `L` 은 §2(닫힌 항목).
+#: 🔑 `QA` 는 **둘**이다 — §C(완료 → 배출)와 §A(잠금-불일치 **개념 선언**, 전건 해소).
+CLOSED_SECTIONS = {"QA": ("§C", "§A"), "L": ("2. 닫힌",)}
+
+
 def tidy(text: str, limit: int = 150) -> str:
     """표 셀에서 장식을 걷고 한 줄로 줄인다."""
     clean = NOISE.sub("", text).replace("|", "/").strip()
@@ -82,17 +96,57 @@ def tidy(text: str, limit: int = 150) -> str:
 # ── 원장 하나에서 항목을 긁는다 ─────────────────────────────────────
 # 흐름: 파일 읽기 -> 줄머리 앵커로 표 행·제목형 수집 -> (ID, 셀들) 목록
 def scrape(filename: str, prefix: str) -> list[tuple[str, list[str]]]:
-    """(ID, 셀 목록). `prefix` 로 시작하는 ID 만 남긴다."""
+    """(ID, 셀 목록). `prefix` 로 시작하는 ID 만 남긴다.
+
+    🔑 마지막 셀 뒤에 **그 행이 있던 절 이름**을 붙인다 — `QA`·`L` 은 절이 상태를 말한다.
+    """
     path = PRIVATE / filename
     body = path.read_text(encoding="utf-8", errors="replace")
     items: dict[str, list[str]] = {}
-    for ident, rest in ROW.findall(body):
-        if ident.startswith(prefix):
-            items.setdefault(ident, [c.strip() for c in rest.split("|") if c.strip()])
-    for ident, title in HEAD.findall(body):
-        if ident.startswith(prefix):
-            items.setdefault(ident, [title.strip()])
+    section = ""
+    for line in body.splitlines():
+        if line.startswith("## "):
+            section = line[3:].strip()
+        row = ROW.match(line)
+        if row and row.group(1).startswith(prefix):
+            cells = [c.strip() for c in row.group(2).split("|") if c.strip()]
+            items.setdefault(row.group(1), [*cells, f"§절={section}"])
+    section = ""
+    for line in body.splitlines():
+        if line.startswith("## "):
+            section = line[3:].strip()
+        head = HEAD.match(line)
+        if head and head.group(1).startswith(prefix):
+            items.setdefault(head.group(1), [head.group(2).strip(), f"§절={section}"])
     return sorted(items.items(), key=lambda kv: int(re.sub(r"\D", "", kv[0]) or 0))
+
+
+# ── 열림/닫힘 판정 ──────────────────────────────────────────────────
+# 흐름: 원장마다 다른 신호를 읽는다 — 구조(절) 또는 토큰
+# 🔴 두 방식이 섞이는 이유: `QA`·`L` 은 절이 갈라 놨고, `문서-N` 은 한 표에 섞여 있다.
+def open_count(rows: list[tuple[str, list[str]]], ledger: str) -> tuple[int, str | None]:
+    """(열린 건수, 문제 메시지 또는 None)."""
+    if ledger in CLOSED_SECTIONS:
+        marks = CLOSED_SECTIONS[ledger]
+        return sum(1 for _, cells in rows if not any(m in cells[-1] for m in marks)), None
+
+    if ledger != "문서":
+        return len(rows), None
+
+    # 🔴 fail-closed — 토큰 없는 행이 하나라도 있으면 «열림» 수를 믿을 수 없다.
+    # 🔴 «상태 셀» 에서만 찾는다 — 전체를 이으면 **내용 셀의 같은 단어**가 먼저 걸린다.
+    #    `cells[-1]` 은 절 표식이므로 그 앞이 상태 셀이다.
+    def token(cells: list[str]) -> str | None:
+        cell = cells[-2] if len(cells) >= 2 else ""
+        found = STATUS_RE.search(cell)
+        return found.group(1) if found else None
+
+    missing = [ident for ident, cells in rows if token(cells) is None]
+    if missing:
+        head = " · ".join(missing[:8]) + (" …" if len(missing) > 8 else "")
+        return 0, f"상태 토큰이 없는 `문서-N` {len(missing)}건 — {head}"
+    opened = sum(1 for _, cells in rows if token(cells) not in CLOSED_TOKENS)
+    return opened, None
 
 
 # ── 색인 본문 생성 ──────────────────────────────────────────────────
@@ -118,6 +172,13 @@ def build() -> tuple[str, dict[str, int]]:
     ]
 
     counts = {"QA": len(qa), "문서": len(docs), "L": len(local), "ROADMAP": len(tracks), "B": len(btrack)}
+    opens: dict[str, int] = {}
+    problems: list[str] = []
+    for key, rows in (("QA", qa), ("문서", docs), ("L", local)):
+        opened, why = open_count(rows, key)
+        opens[key] = opened
+        if why:
+            problems.append(why)
 
     out = [
         "<!-- doc-meta",
@@ -154,7 +215,8 @@ def build() -> tuple[str, dict[str, int]]:
         out.append("| ID | 내용 |")
         out.append("|---|---|")
         for ident, cells in rows:
-            body = " · ".join(tidy(c, 110) for c in cells[:3] if c and c != "—")
+            shown = [c for c in cells if c and c != "—" and not c.startswith("§절=")]
+            body = " · ".join(tidy(c, 110) for c in shown[:3])
             out.append(f"| **{ident}** | {body} |")
         out.append("")
 
@@ -169,16 +231,16 @@ def build() -> tuple[str, dict[str, int]]:
         "",
         "## 합계",
         "",
-        "| 원장 | 건수 | 바닥값 |",
-        "|---|---:|---:|",
-        *[f"| {k} | {v} | {FLOORS[k]} |" for k, v in counts.items()],
-        f"| **총합** | **{sum(counts.values())}** | |",
+        "| 원장 | 등재 | **열림** | 바닥값 |",
+        "|---|---:|---:|---:|",
+        *[f"| {k} | {v} | {opens.get(k, chr(8212))} | {FLOORS[k]} |" for k, v in counts.items()],
+        f"| **총합** | **{sum(counts.values())}** | **{sum(opens.values())}**(QA·문서·L) | |",
         "",
         '> 🔢 **바닥값 아래로 떨어지면 게이트가 막는다** — *0건은 "없다"가 아니라 "못 셌다"이다.*',
         "> 줄어든 것도 실패로 본다(대장 **D31** — `check_utf8_guard` 가 11건→1건이 되고도 초록이었다).",
         "",
     ]
-    return "\n".join(out), counts
+    return "\n".join(out), counts, opens, problems
 
 
 def main() -> int:
@@ -187,7 +249,15 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="쓰지 않고 대조만 한다(게이트 모드)")
     args = parser.parse_args()
 
-    content, counts = build()
+    content, counts, opens, problems = build()
+
+    # 🔴 열림을 «못 셌다» 면 그 수를 인쇄하지 않는다 — 0 을 답으로 내면 거짓 안심이다.
+    if problems:
+        print("[거부] 열림/닫힘을 셀 수 없다 — 상태 어휘가 빠졌다.", file=sys.stderr)
+        for line in problems:
+            print(f"  - {line}", file=sys.stderr)
+        print("  값은 `열림`·`완료`·`보냄`·`기각`·`부분` 중 하나다(FILING).", file=sys.stderr)
+        return 1
 
     low = {k: v for k, v in counts.items() if v < FLOORS[k]}
     if low:
@@ -197,7 +267,7 @@ def main() -> int:
         print("  0건은 '없다' 가 아니라 '못 셌다' 이다(fail-closed).\n", file=sys.stderr)
         return 1
 
-    tally = " · ".join(f"{k} {v}" for k, v in counts.items())
+    tally = " · ".join(f"{k} {v}" + (f"(열림 {opens[k]})" if k in opens else "") for k, v in counts.items())
 
     if args.check:
         current = INDEX.read_text(encoding="utf-8", errors="replace") if INDEX.exists() else ""
