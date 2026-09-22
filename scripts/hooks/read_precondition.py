@@ -101,6 +101,17 @@ def decide(payload: dict[str, object]) -> dict[str, object] | None:
         return None
 
     if marker_path(session, GATED_DOC).exists():
+        # 🔴 상시 세트는 **세션당 한 번만** 주입한다.
+        #    한 번 들어오면 이미 컨텍스트에 있으므로 같은 340자를 매 편집마다 다시 넣는 것은
+        #    순수한 낭비다(실측: 25회 편집 = 약 7,000 토큰 → 1회 = 약 283 토큰).
+        #    ⚠️ **대가**: 압축 이후에는 주입분이 컨텍스트에서 사라지는데 마커는 남아 있어
+        #    다시 오지 않는다. 그 자리를 메우는 것이 `PostCompact` 훅이고, 그건 다음 구간이다
+        #    (정지 규칙 — 훅 1종). 그때까지는 **최소 핵 8줄(`CLAUDE.md` §6-5)**이 그 공백을 받는다.
+        injected = marker_path(session, "상시세트-주입됨")
+        if injected.exists():
+            return None
+        injected.parent.mkdir(parents=True, exist_ok=True)
+        injected.touch()
         return {
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
