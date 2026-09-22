@@ -234,6 +234,18 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # Claude `PreToolUse` 훅이 **조용히 사라졌나** (pre-push · 차단)
+      # 막는 이유: `.claude/` 는 gitignore 라 훅이 없어져도 **diff 에 안 뜬다**(L-9).
+      # 그리고 훅은 «성공하면 아무것도 안 보이는» 장치라 부재가 티나지 않는다(D61).
+      - id: claude-hooks
+        name: 🪝 Claude 훅 배선
+        entry: uv run python -m scripts.gates.tooling.check_claude_hooks
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       # 규칙이 **발동하는 층**에 닿았는지 (pre-push · 🟡 보고 전용) — 정본 = FILING §1-1
       # 규칙을 정본에만 적으면 "세운 것 같은 감각"만 남고 Read 를 안 부르면 발동하지 않는다.
       # 손으로 전수 대조해 3건을 찾은 것(D44)을 기계가 대신 찾게 만든 것이다.
