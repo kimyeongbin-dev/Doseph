@@ -64,6 +64,8 @@ MIN_AXES = 8
 ROUTE_START = "<!-- 실수대장-라우팅 시작 -->"
 ROUTE_END = "<!-- 실수대장-라우팅 끝 -->"
 ROUTE_ROW_RE = re.compile(r"^\|[^|]*`([^`]+)`\s*\|")
+# 표 행의 `(12건)` — D67 재발 방지용 대조 대상.
+COUNT_RE = re.compile(r"\((\d+)건\)")
 
 
 # ── ① CLAUDE.md 의 라우팅 표에서 «선언된 축» 을 거둔다 ────────────────
@@ -85,6 +87,30 @@ def collect_declared_axes(text: str) -> tuple[set[str], str | None]:
     block = text.split(ROUTE_START, 1)[1].split(ROUTE_END, 1)[0]
     axes = {m.group(1).strip() for line in block.splitlines() if (m := ROUTE_ROW_RE.match(line))}
     return axes, None
+
+
+# ── ①' 표가 «몇 건» 이라고 말하는가 ───────────────────────────────────
+# 흐름: 마커 구간 -> 각 행의 축 이름 + `(N건)` -> 실측과 대조할 선언값
+# 🔴 왜 있나: D67 — 건수를 두 곳에 적고 한쪽만 고쳤다. 대조하는 기계가 없으면 반드시 썩는다.
+def collect_declared_counts(text: str) -> dict[str, int]:
+    """라우팅 표가 축마다 선언한 건수를 모은다.
+
+    Args:
+        text: `CLAUDE.md` 전문.
+
+    Returns:
+        {축 이름: 선언 건수}. 건수를 안 적은 행은 빠진다.
+    """
+    if ROUTE_START not in text or ROUTE_END not in text:
+        return {}
+    block = text.split(ROUTE_START, 1)[1].split(ROUTE_END, 1)[0]
+    declared: dict[str, int] = {}
+    for line in block.splitlines():
+        row = ROUTE_ROW_RE.match(line)
+        count = COUNT_RE.search(line) if row else None
+        if row and count:
+            declared[row.group(1).strip()] = int(count.group(1))
+    return declared
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -148,6 +174,19 @@ def main(argv: list[str] | None = None) -> int:
                 f"🔴 **표에만 있고 항목이 0건인 축**: {' · '.join(empty_axes)} — "
                 "*읽어도 아무것도 안 나오는 주소*다(절차만 통과하는 헛된 초록)"
             )
+
+        # 🔴 D67 재발 방지 — 표가 말하는 건수와 실측을 대조한다.
+        #    숫자를 두 곳에 적으면 반드시 한쪽이 썩는다. 대조하는 기계가 있으면 조용히 못 썩는다.
+        measured = {axis: sum(1 for v in tagged.values() if v == axis) for axis in used}
+        for axis, declared_count in collect_declared_counts(
+            CLAUDE_MD.read_text(encoding="utf-8", errors="replace")
+        ).items():
+            actual = measured.get(axis)
+            if actual is not None and actual != declared_count:
+                problems.append(
+                    f"라우팅 표의 축 `{axis}` 건수가 **{declared_count}** 인데 실측은 **{actual}** 이다 "
+                    "— 표와 대장이 갈렸다(대장 D67)"
+                )
 
     if problems:
         print("❌ 실수 대장 라우팅 검사 실패")

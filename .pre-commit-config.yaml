@@ -245,6 +245,18 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # 실수마다 **무엇이 막나** 를 값으로 강제한다 (pre-push · 차단)
+      # `기계`/`절차` 는 **종류 태그를 동반**해야 하고, 게이트가 그 참조의 실재를 대조한다.
+      # 🔴 동반값이 없으면 «막힌다고 적혀 있는데 안 막히는» 상태가 만들어진다(D12).
+      - id: mistake-prevention
+        name: 🛡️ 실수 대장 예방 열
+        entry: uv run python -m scripts.gates.doc.check_mistake_prevention
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       # Claude `PreToolUse` 훅이 **조용히 사라졌나** (pre-push · 차단)
       # 막는 이유: `.claude/` 는 gitignore 라 훅이 없어져도 **diff 에 안 뜬다**(L-9).
       # 그리고 훅은 «성공하면 아무것도 안 보이는» 장치라 부재가 티나지 않는다(D61).
