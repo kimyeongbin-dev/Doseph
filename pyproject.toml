@@ -196,7 +196,6 @@ ignore = [
 
     # FastAPI / framework specific
     "B008",    # Function calls in argument defaults (FastAPI Depends)
-    "BLE001",  # Blind exception catch (needed for top-level handlers)
     "PLC0415", # Import not at top-level (circular import prevention)
 
     # Exception messages (overly strict for application code)
@@ -204,10 +203,7 @@ ignore = [
     "EM102",   # Exception must not use f-string literal
     "TRY003",  # Long messages outside exception class
     "TRY300",  # Consider moving return to else block
-    "TRY400",  # Use logging.exception instead of logging.error
 
-    # Logging
-    "G004",    # Logging uses f-string (f-string is more readable)
 
     # Return style
     "RET504",  # Unnecessary assignment before return (useful for debugging)

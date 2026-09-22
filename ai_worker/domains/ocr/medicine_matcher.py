@@ -192,6 +192,9 @@ async def _extract_medicines_with_llm(raw_text: str) -> list[dict]:
         )
         result = json.loads(response.choices[0].message.content)
         return result.get("items", [])
-    except Exception as e:
-        logger.error("LLM 텍스트 추출 실패: %s", e)
+    # 🟠 QA-51: 아래 두 예외 억제는 «부채» 다 — 정당한 설계가 아니라 미판정이다.
+    #    BLE001 은 openai 예외 + json.JSONDecodeError 로 좁힐 수 있고,
+    #    TRY400 은 스택이 없어 원인 추적이 안 된다. 행동 변경이라 B-11 범위 밖으로 미뤘다.
+    except Exception as e:  # noqa: BLE001
+        logger.error("LLM 텍스트 추출 실패: %s", e)  # noqa: TRY400
         return []

@@ -290,7 +290,11 @@ async def log_boundary(
             )
         else:
             # 서버 5xx·네트워크·예상 밖 버그 — 스택 포함해 원인 추적.
-            logger.error("[BOUNDARY] %s 실패 %s (%.0fms)", operation, ctx, elapsed_ms, exc_info=exc)
+            # 🔒 TRY400 억제는 «정당한 예외» 다 — exc_info=exc 로 이미 스택을 남긴다.
+            #    logger.exception 은 «현재 처리 중인 예외» 를 쓰므로 여기선 의미가 달라진다.
+            logger.error(  # noqa: TRY400
+                "[BOUNDARY] %s 실패 %s (%.0fms)", operation, ctx, elapsed_ms, exc_info=exc
+            )
         raise
     else:
         elapsed_ms = (time.perf_counter() - start) * 1000

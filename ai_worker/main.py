@@ -49,7 +49,8 @@ def check_redis_connection() -> bool:
         redis_client = make_sync_redis(config.REDIS_URL, socket_timeout=5)
         redis_client.ping()
         return True
-    except Exception as e:
+    # 🟠 QA-51: BLE001 은 부채다 — redis 예외로 좁힐 수 있다. 행동 변경이라 미뤘다.
+    except Exception as e:  # noqa: BLE001
         logger.warning("Redis connection failed: %s", e)
         return False
 

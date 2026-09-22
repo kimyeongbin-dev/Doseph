@@ -76,9 +76,12 @@ async def _call_llm(client: AsyncOpenAI, user_prompt: str) -> tuple[OpenAIChatCo
             temperature=_TEMPERATURE,
             max_tokens=_MAX_TOKENS,
         )
-    except Exception as exc:
+    # 🟠 QA-51: BLE001 은 부채다 — openai 예외로 좁힐 수 있으나 행동 변경이라 미뤘다.
+    except Exception as exc:  # noqa: BLE001
         elapsed_ms = int((time.perf_counter() - start) * 1000)
-        logger.error(
+        # 🔒 TRY400 억제는 «정당한 예외» 다 — logger.exception 으로 바꾸면 원본 메시지와
+        #    스택이 그대로 나가 sanitize_error_message 의 마스킹을 우회한다(§9.4 위반).
+        logger.error(  # noqa: TRY400
             "[COMPACT] api_error type=%s msg=%s after %dms; fallback to prior summary",
             type(exc).__name__,
             sanitize_error_message(str(exc)),
