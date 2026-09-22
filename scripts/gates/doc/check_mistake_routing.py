@@ -55,7 +55,7 @@ CLAUDE_MD = REPO_ROOT / "CLAUDE.md"
 # 🔑 실측값이다. 어림잡지 않는다 — 1구간에서 바닥값을 어림잡았다가 자기 첫 실행에서 자기를 막았다.
 #    🔴 **여기에 두 번째 숫자를 적지 않는다**(대장 D67) — 상수만 사실이고,
 #    올릴 때는 `uv run python -m scripts.gates.doc.check_mistake_routing` 출력으로 센다.
-MIN_ITEMS = 90
+MIN_ITEMS = 91
 # 축은 S3 에서 작은 것끼리 합칠 수 있다(1~2건 축은 라우팅 비용만 된다).
 # 그래서 실측 10 이 아니라 8 로 둔다 — 여기서 잡을 실패는 **표가 통째로 비는 쪽**이다.
 MIN_AXES = 8

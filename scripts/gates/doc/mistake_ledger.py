@@ -164,6 +164,30 @@ def _meta_block(lines: list[str], head_index: int) -> list[str]:
     return block
 
 
+# ── 마커 안 헤딩 세기 ─────────────────────────────────────────────────
+# 흐름: 펜스를 건너뛰며 `### ` 만 센다 — 예시 헤딩을 항목으로 세면 대조가 거짓이 된다
+def _count_headings(lines: list[str], start: int, end: int) -> int:
+    """마커 사이의 `### ` 헤딩 수를 센다(코드 펜스 제외).
+
+    Args:
+        lines: 대장 전체 줄.
+        start: 시작 마커 인덱스.
+        end: 끝 마커 인덱스.
+
+    Returns:
+        헤딩 수.
+    """
+    count = 0
+    in_fence = False
+    for i in range(start + 1, end):
+        if lines[i].lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence and _HEAD_ANY_RE.match(lines[i]):
+            count += 1
+    return count
+
+
 # ── 대장 파싱 ─────────────────────────────────────────────────────────
 # 흐름: 마커 경계 확정 -> 헤딩 수집 -> 메타 블록에서 축·예방 -> 두 모집단
 def parse_ledger(path: Path | None = None) -> Ledger:
@@ -181,8 +205,10 @@ def parse_ledger(path: Path | None = None) -> Ledger:
     target = DEFAULT_LEDGER if path is None else path
     lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
 
-    start = next((i for i, line in enumerate(lines) if MARKER_START in line), None)
-    end = next((i for i, line in enumerate(lines) if MARKER_END in line), None)
+    # 🔴 «포함» 이 아니라 «그 줄 전체» 다 — 산문이 마커를 인용하면 그걸 먼저 잡는다(D47).
+    #    실제로 대장 §0 이 마커를 백틱으로 설명하자마자 파서가 거기서 멈췄다.
+    start = next((i for i, line in enumerate(lines) if line.strip() == MARKER_START), None)
+    end = next((i for i, line in enumerate(lines) if line.strip() == MARKER_END), None)
     if start is None or end is None or end <= start:
         message = (
             f"모집단 마커를 못 찾았다 ({MARKER_START} … {MARKER_END}) — "
@@ -191,7 +217,15 @@ def parse_ledger(path: Path | None = None) -> Ledger:
         raise MarkerError(message)
 
     entries: list[Entry] = []
+    in_fence = False
     for index, line in enumerate(lines):
+        # 🔴 코드 펜스 안은 **예시**지 항목이 아니다(D69) — 규약을 설명하는 문서는
+        #    자기 형식을 반드시 인용하게 되어 있고, 그 인용이 파서 입력이 된다.
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
         head = _HEAD_ID_RE.match(line)
         if head is None:
             continue
@@ -209,5 +243,5 @@ def parse_ledger(path: Path | None = None) -> Ledger:
             )
         )
 
-    headings = sum(1 for i in range(start + 1, end) if _HEAD_ANY_RE.match(lines[i]))
+    headings = _count_headings(lines, start, end)
     return Ledger(entries=tuple(entries), headings_in_population=headings)
