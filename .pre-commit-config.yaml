@@ -200,6 +200,17 @@ repos:
       # 그래서 훅은 **자기가 fail-closed 로 답할 수 있는 질문**만 맡는다 —
       # *baseline 이 온전한가*(존재·파싱·경로 규약·바닥값 148). 실제 대조는 CI 가 한다.
       # 막는 이유: baseline 이 사라지면 CI 게이트가 **통째로 죽고**, 그건 빨강이 아니라 한 줄 메시지다.
+      # 코드 부채 **천장** (pre-push) — CLAUDE.md 가 요구하지만 위반이 0 이 아니라
+      # 그냥 켤 수 없는 규칙들. noqa 로 덮지 않고 건수에 천장을 씌운다.
+      - id: debt-baseline
+        name: 📉 코드 부채 천장
+        entry: uv run python -m scripts.gates.code.check_debt_baseline
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       - id: coverage-baseline
         name: 🔢 커버리지 baseline 산출물
         entry: uv run python -m scripts.gates.code.check_coverage_baseline verify

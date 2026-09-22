@@ -248,6 +248,8 @@ ignore = [
 ]
 "app/db/migrations/*" = ["ALL"]  # Ignore all rules in migrations
 "tests/*" = [
+    "PLC0415", # Import not at top-level — 테스트에서는 관용이다(환경 조작 후 import,
+               # 지연 import 검증). 생산 코드는 면제하지 않는다(바닥값 게이트가 센다).
     "S101",    # Use of assert detected (normal in tests)
     "D",       # Missing docstrings (not required in tests)
     "ANN",     # Missing annotations (not required in tests)
@@ -255,6 +257,8 @@ ignore = [
     "SLF001",  # Private member accessed (normal in tests)
 ]
 "app/tests/*" = [
+    "PLC0415", # Import not at top-level — 테스트에서는 관용이다(환경 조작 후 import,
+               # 지연 import 검증). 생산 코드는 면제하지 않는다(바닥값 게이트가 센다).
     "S101",    # Use of assert detected (normal in tests)
     "D",       # Missing docstrings (not required in tests)
     "ANN",     # Missing annotations (not required in tests)

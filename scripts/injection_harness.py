@@ -90,17 +90,20 @@ def run(cmd: list[str], *, allow_fail: bool = True) -> subprocess.CompletedProce
 # ── ruff 위반 수 — 「못 셌다」와 「0건」을 가른다 ──────────────────────
 # 흐름: --statistics 실행 -> 도구 자체 오류면 None -> 아니면 정수
 # 🔴 실패를 0 으로 바꾸지 않는다. 0 은 «위반이 없다» 는 답이고 None 은 «답을 못 얻었다» 다.
-def ruff_count(rule: str, paths: list[str] | None = None) -> int | None:
+def ruff_count(rule: str, paths: list[str] | None = None, *, no_cache: bool = True) -> int | None:
     """한 ruff 규칙의 위반 수를 센다.
 
     Args:
         rule: 규칙 코드(예: ``D103``).
         paths: 검사 경로. 생략하면 저장소 전체.
+        no_cache: 주입 측정은 True(캐시가 갓 쓴 표식을 놓칠 수 있다). 게이트는 False 로 빠르게.
 
     Returns:
         위반 수. **측정 자체에 실패하면 `None`** — 0 이 아니다.
     """
-    cmd = ["uv", "run", "ruff", "check", "--no-cache", "--no-fix", "--select", rule, "--statistics"]
+    cmd = ["uv", "run", "ruff", "check", "--no-fix", "--select", rule, "--statistics"]
+    if no_cache:
+        cmd.insert(4, "--no-cache")
     proc = run([*cmd, *(paths or [])])
     # ruff 는 위반이 있으면 rc=1 이다. 그러나 «인자가 틀렸다» 도 rc!=0 이므로 구분해야 한다.
     if proc.returncode not in (0, 1):
