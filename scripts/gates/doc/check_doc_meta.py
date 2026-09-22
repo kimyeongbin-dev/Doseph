@@ -11,7 +11,7 @@
 5. ⭐ **``affects`` 가 거짓말하지 않는가** — 선언한 절이 **직전 스냅샷과 실제로 다른가**
 6. **계승 링크가 양방향으로 맞는가** — ``supersedes`` ↔ ``superseded_by`` (FILING §8-4)
 7. **``supersedes`` 를 아예 안 적었는가** — 계승 안 했으면 ``none`` 이라고 **명시**해야 한다
-8. ⭐ **보류가 고아가 아닌가** — ``pending``/``suspended`` 를 ``ROADMAP.md`` 가 이름으로 가리키는가 (FILING §8-5)
+8. ⭐ **보류가 고아가 아닌가** — ``pending`` 을 ``ROADMAP.md`` 가 이름으로 가리키는가 (FILING §8-5)
 9. ⭐ **``partial`` 이 나머지를 가리키는가** — ``remainder:`` 존재 + 대상 실재 (FILING §8-6)
 10. 🔴 **``ROADMAP.md`` §지금 위치가 직하 ``PLAN.md`` 와 맞는가** — 진행 중인 계획이 있는데
    *"없다"* 라고 적혀 있으면(또는 그 반대) 다음 세션이 **거짓을 읽는다**
@@ -70,7 +70,7 @@ DATED = re.compile(r"^(\d{4}-\d{2}-\d{2})_([a-z0-9-]+)-([a-z]+)\.md$")
 #: ``dropped`` 도 갈랐다 — RFC 관행대로 ``rejected``(검토 후 기각)와 ``withdrawn``(철회).
 ALLOWED_STATUS: dict[str, frozenset[str]] = {
     "plan": frozenset(
-        {"draft", "in-progress", "pending", "suspended", "done", "rejected", "withdrawn", "superseded", "partial"},
+        {"draft", "in-progress", "pending", "done", "rejected", "withdrawn", "superseded", "partial"},
     ),
     "report": frozenset({"in-progress", "done", "rejected", "withdrawn", "partial"}),
     "record": frozenset({"in-progress", "partial", "done"}),
@@ -82,6 +82,9 @@ ALLOWED_STATUS: dict[str, frozenset[str]] = {
     "queue": frozenset({"current", "superseded"}),
     "drift": frozenset({"current", "superseded"}),
 }
+#: 직하 작업버퍼 — `closes:` 선언을 요구하는 종류(FILING §9 · 문서-32).
+BUFFER_KINDS = frozenset({"plan", "report", "record"})
+
 #: 직하에 있을 수 있는 status — 작업버퍼 2종 + 상태정본 1종.
 TOP_STATUS = frozenset({"draft", "in-progress", "current"})
 
@@ -118,7 +121,8 @@ NO_SUCCESSION = "none"
 
 #: 보류를 **살려 두는** 문서. 여기서 이름이 불리지 않는 보류는 고아다(FILING §8-5).
 ROADMAP = "ROADMAP.md"
-RESUMABLE = frozenset({"pending", "suspended"})
+#: 🔑 `suspended` 는 2026-09-23 에 `pending` 으로 통합됐다(FILING §8-1 · 문서-20).
+RESUMABLE = frozenset({"pending"})
 
 #: ``remainder:`` 가 가리킬 수 있는 곳. **살아서 갱신되는 자리**여야 한다 — 스냅샷을 가리키면
 #: 그 자체가 또 안 바뀌므로 추적이 한 칸 옮겨졌을 뿐이다(FILING §8-6).
@@ -328,7 +332,7 @@ def roadmap_text() -> str:
 
 
 # ── ⑧ 보류가 고아인가 ────────────────────────────────────────────────
-# 흐름: pending/suspended 인가 -> ROADMAP 이 그 파일명을 부르는가
+# 흐름: pending 인가 -> ROADMAP 이 그 파일명을 부르는가
 # 왜 나이로 판정하지 않나: *"오래된 보류"* 와 *"아직 유효한 보류"* 를 가르는 것은 **판단**이다.
 #     날짜 상수를 두면 살아 있는 계획을 죽었다고 말한다. 보류는 **죽지 않는다** —
 #     대신 **아무도 가리키지 않게 되는 것**을 막는다. 그건 판단 없이 셀 수 있다(FILING §8-5).
@@ -380,6 +384,18 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, i
     if axis is None and status and status not in TOP_STATUS:
         errors.append(
             Finding(where, f"직하인데 `status: {status}` 다 — 직하는 {sorted(TOP_STATUS)} 뿐이다"),
+        )
+
+    # 🔴 `closes:` 선언 강제 — **직하 작업버퍼에만** (FILING §9 · 문서-32).
+    #    빈칸을 허용하면 «닫는 게 없다» 와 «적는 걸 잊었다» 가 같은 모양이 된다(§8-4 논리).
+    #    ⚠️ 소급하지 않는다 — 닫힌 스냅샷 58건에 필드를 넣으면 **mtime 이 깨진다**(§12-1).
+    #    선언 강제는 **작성자가 그 자리에 있을 때만** 값이 있다.
+    if axis is None and kind in BUFFER_KINDS and not meta.get("closes"):
+        errors.append(
+            Finding(
+                where,
+                "직하 작업버퍼인데 `closes:` 가 비었다 — 닫는 게 없으면 `none` 이라고 **적는다**(FILING §9)",
+            ),
         )
 
     plan_ref = meta.get("plan")
