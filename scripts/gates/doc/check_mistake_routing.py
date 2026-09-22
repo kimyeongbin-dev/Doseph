@@ -39,14 +39,17 @@ from pathlib import Path
 import re
 import sys
 
+from scripts.gates._root import REPO_ROOT
+from scripts.gates.doc.mistake_ledger import DEFAULT_LEDGER, MarkerError, parse_ledger
+
 # 한글·이모지를 인쇄하므로 Windows cp949 콘솔에서 죽지 않게 먼저 방어한다(대장 D36).
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-LEDGER = REPO_ROOT / "docs-private" / "AGENT_실수-오류-기록.md"
+# 🔑 깊이를 세지 않는다 — `parents[3]` 은 폴더를 한 단계 나누는 순간 깨진다(`scripts/gates/README.md`).
+LEDGER = DEFAULT_LEDGER
 CLAUDE_MD = REPO_ROOT / "CLAUDE.md"
 
 # 🔑 실측값이다. 어림잡지 않는다 — 1구간에서 바닥값을 어림잡았다가 자기 첫 실행에서 자기를 막았다.
@@ -57,48 +60,13 @@ MIN_ITEMS = 90
 # 그래서 실측 10 이 아니라 8 로 둔다 — 여기서 잡을 실패는 **표가 통째로 비는 쪽**이다.
 MIN_AXES = 8
 
-HEAD_RE = re.compile(r"^### ([A-Z]\d+)\.")
-TAG_RE = re.compile(r"^\*\*축\*\*: `([^`]+)`")
 # 라우팅 표는 마커 사이에서만 읽는다 — 산문에 백틱이 있어도 안 섞이게(D47: 앵커 없는 패턴 금지).
 ROUTE_START = "<!-- 실수대장-라우팅 시작 -->"
 ROUTE_END = "<!-- 실수대장-라우팅 끝 -->"
 ROUTE_ROW_RE = re.compile(r"^\|[^|]*`([^`]+)`\s*\|")
 
 
-# ── ① 대장에서 «항목 → 태그» 를 거둔다 ────────────────────────────────
-# 흐름: 헤딩 수집 -> 바로 다음 2줄에서 태그 탐색 -> (태그된 것, 안 된 것)
-# 2줄까지 보는 이유: 헤딩과 본문 사이에 빈 줄이 있는 항목과 없는 항목이 섞여 있다.
-def collect_tags(text: str) -> tuple[dict[str, str], list[str]]:
-    """대장을 훑어 항목별 태그를 모은다.
-
-    Args:
-        text: 대장 전문.
-
-    Returns:
-        (태그된 항목 {ID: 축}, 태그 없는 항목 ID 목록).
-    """
-    lines = text.splitlines()
-    tagged: dict[str, str] = {}
-    untagged: list[str] = []
-    for i, line in enumerate(lines):
-        head = HEAD_RE.match(line)
-        if not head:
-            continue
-        # ⚠️ for/else 를 쓰지 않는다 — 범위 초과로 break 하면 else 가 건너뛰어져
-        #    **파일 끝 항목이 조용히 «태그됨» 으로 세어진다**(꼬리에서 fail-open).
-        #    합성 입력 검증이 이 결함을 잡았다.
-        found = next(
-            (m.group(1).strip() for off in (1, 2) if i + off < len(lines) and (m := TAG_RE.match(lines[i + off]))),
-            None,
-        )
-        if found is None:
-            untagged.append(head.group(1))
-        else:
-            tagged[head.group(1)] = found
-    return tagged, untagged
-
-
-# ── ② CLAUDE.md 의 라우팅 표에서 «선언된 축» 을 거둔다 ────────────────
+# ── ① CLAUDE.md 의 라우팅 표에서 «선언된 축» 을 거둔다 ────────────────
 # 흐름: 마커 구간 잘라내기 -> 표 행의 첫 백틱 값 수집
 def collect_declared_axes(text: str) -> tuple[set[str], str | None]:
     """라우팅 표에 선언된 축 이름을 모은다.
@@ -119,20 +87,35 @@ def collect_declared_axes(text: str) -> tuple[set[str], str | None]:
     return axes, None
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """대장 태그와 라우팅 표를 양방향으로 대조한다.
+
+    Args:
+        argv: 대장 경로를 1개 받는다. 생략하면 정본.
+            🔑 **경로를 받는 이유**: 하드코딩하면 결핍 주입이 **정본을 훼손하는 길밖에** 없다.
+            대장은 git 밖이라 되돌릴 안전망이 없다(`FILING.md` §12-1).
 
     Returns:
         종료코드 — 0 이면 통과.
     """
     problems: list[str] = []
+    target = Path(argv[0]) if argv else LEDGER
 
-    if not LEDGER.exists():
-        print(f"❌ 대장이 없다: {LEDGER.relative_to(REPO_ROOT).as_posix()}")
+    if not target.exists():
+        print(f"❌ 대장이 없다: {target}")
         return 1
 
-    tagged, untagged = collect_tags(LEDGER.read_text(encoding="utf-8", errors="replace"))
-    total = len(tagged) + len(untagged)
+    # 🔑 공용 파서를 쓴다 — 여기서 직접 정규식을 짜면 **덜 엄밀한 두 번째 구현**이 된다(D31).
+    #    라우팅은 **라우팅 모집단**(마커 안팎 전부)을 센다. 안전 패턴도 셸 작업 때 읽혀야 한다.
+    try:
+        ledger = parse_ledger(target)
+    except MarkerError as exc:
+        print(f"❌ {exc}")
+        return 1
+
+    tagged = {entry.id: entry.axis for entry in ledger.entries if entry.axis is not None}
+    untagged = [entry.id for entry in ledger.entries if entry.axis is None]
+    total = len(ledger.entries)
 
     # 바닥값 — *0건은 «없다» 가 아니라 «못 셌다»* 다. 줄어든 것도 실패로 본다(D31).
     if total < MIN_ITEMS:
@@ -180,4 +163,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
