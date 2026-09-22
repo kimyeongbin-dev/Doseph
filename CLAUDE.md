@@ -234,7 +234,7 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
 
 ## 6-5. 🧭 실수 대장 — **작업별로 «그 자리만» 읽는다**
 
-정본 = `docs-private/AGENT_실수-오류-기록.md` (**88건 · 165 KB**).
+정본 = `docs-private/AGENT_실수-오류-기록.md`.
 🔴 **전체를 읽으라는 지시는 실행 불가능하고, 그래서 실제로 안 읽힌다** — 그 상태가
 `D52`·`D63` 을 *규칙으로 적어 둔 채* 다시 밟게 만들었다. 그래서 **주소로 연다.**
 
@@ -244,10 +244,10 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
 
 | 축 | 이 작업을 할 때 읽는다 |
 |---|---|
-| `셸-원격실행` | PowerShell·ssh·bash·docker 명령을 짤 때 (11건) |
+| `셸-원격실행` | PowerShell·ssh·bash·docker 명령을 짤 때 (12건) |
 | `배포-인프라` | GCP·VM·CI/CD·CF Pages 를 건드릴 때 (12건) |
 | `문서-닫기` | PLAN·완료기록·스냅샷·색인을 닫거나 옮길 때 (20건) |
-| `게이트-검사기` | 게이트·테스트·검사기를 만들거나 고칠 때 (16건) |
+| `게이트-검사기` | 게이트·테스트·검사기를 만들거나 고칠 때 (17건) |
 | `git-커밋` | 커밋·푸시할 때 (2건) |
 | `파일편집` | 스크립트로 파일을 고칠 때 (2건) |
 | `프론트엔드` | FE 코드·테스트를 만질 때 (2건) |
@@ -353,6 +353,7 @@ git status --porcelain && git stash list && git log --oneline @{u}..HEAD
 > *"파일에 없고 내 머릿속에만 있는 것"* 인데 **그게 무엇인지는 기계가 열거할 수 없다.**
 > 아래 네 가지에 **자동 판정을 붙이지 않는다** — 붙이는 순간 통과 기계가 된다.
 >
+<!-- rule:닫기-순서 -->
 > 🔴 **그렇다고 사용자에게 통째로 넘기는 것이 아니다. 순서가 정해져 있다:**
 >
 > ```
