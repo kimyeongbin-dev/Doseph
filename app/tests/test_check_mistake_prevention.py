@@ -41,7 +41,8 @@ def make_known(tmp_path: Path) -> Known:
     (tmp_path / "GUIDE.md").write_text("intro\n<!-- rule:있는앵커 -->\n규칙 본문\n", encoding="utf-8")
     return Known(
         hooks=frozenset({"doc-meta", "rule-layers"}),
-        ruff=frozenset({"BLE", "ANN"}),
+        ruff=frozenset({"BLE", "ANN", "D"}),
+        ignored=frozenset({"D203", "ANN401"}),
         root=tmp_path,
     )
 
@@ -101,3 +102,11 @@ def test_missing_anchor_is_rejected(tmp_path: Path) -> None:
 def test_unknown_kind_is_rejected(tmp_path: Path) -> None:
     """모르는 종류 접두사는 막는다 — 어휘를 조용히 넓히지 않는다."""
     assert verify_reference("무언가:something", make_known(tmp_path)) is not None
+
+
+def test_ignored_ruff_rule_is_rejected(tmp_path: Path) -> None:
+    """🔴 **켜진 군의 꺼진 규칙**은 아무것도 안 막는다 — `D203` 은 `D` 군이지만 `ignore` 다.
+
+    군 접두사만 보면 통과한다. 결핍 주입이 이 구멍을 잡았다(B-13 S6).
+    """
+    assert verify_reference("규칙:D203", make_known(tmp_path)) is not None

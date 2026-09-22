@@ -60,7 +60,8 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+# 🔑 깊이를 세지 않는다 — 폴더를 한 단계 나누는 순간 깨진다(`scripts/gates/README.md`).
+from scripts.gates._root import REPO_ROOT
 
 
 # ── 명령 실행 — 실패를 절대 삼키지 않는다 ────────────────────────────
@@ -146,3 +147,64 @@ def assert_harness_live(probe: Path, canary_source: str, rule: str) -> None:
         f"   ③ exclude glob·.gitignore 에 걸리는가\n"
         f"   🔑 표본은 **실제 위반이 관측된 디렉터리**에 둔다."
     )
+
+
+# ── 문서 게이트용 러너 ────────────────────────────────────────────────
+# 흐름: 게이트 모듈을 **경로 인자와 함께** 돌린다 -> 종료코드만 본다
+# 🔴 `assert_harness_live` 는 `ruff_count()` 위에 있어 **ruff 전용**이다(대장 **D68**).
+#    문서 게이트에는 다른 러너가 필요하다 — 이름만 보고 쓰면 안 된다.
+def run_doc_gate(module: str, sample: Path) -> int:
+    """문서 게이트를 **표본 경로**로 돌린다.
+
+    Args:
+        module: `scripts.gates.doc.check_…` 모듈 경로.
+        sample: 검사할 표본 파일.
+
+    Returns:
+        종료코드. 0 이면 통과.
+    """
+    return run([sys.executable, "-m", module, str(sample)]).returncode
+
+
+# ── ⓪ 하네스가 살아 있나 ──────────────────────────────────────────────
+# 흐름: **손대지 않은 사본**이 Green 인지 먼저 본다 -> 아니면 주입 결과가 무의미하다
+def assert_doc_harness_live(module: str, pristine: Path) -> None:
+    """**주입하기 전에** 러너가 그 게이트에 실제로 닿는지 증명한다.
+
+    Args:
+        module: 게이트 모듈 경로.
+        pristine: 손대지 않은 표본 사본.
+
+    Raises:
+        AssertionError: 원본 사본이 Red 일 때 — 주입 결과가 전부 무의미해진다.
+    """
+    code = run_doc_gate(module, pristine)
+    assert code == 0, (
+        f"🔴 하네스가 죽어 있다 — 손대지 않은 사본에 {module} 이 rc={code} 를 냈다. "
+        "① 경로 인자를 안 받는 게이트인가 ② 사본이 깨졌나 ③ 게이트가 정본을 보고 있나. "
+        "🔑 이 상태에서 «주입했더니 Red» 는 아무것도 증명하지 않는다."
+    )
+
+
+# ── 주입 — 단언을 건다 ───────────────────────────────────────────────
+# 흐름: 원본에 그 문자열이 **있었는지** -> 치환 -> 전후가 **달라졌는지**
+# 🔴 단언이 없으면 «기대 = Red» 인 케이스가 **아무것도 안 해도** 통과한다(대장 **D46**).
+def inject(text: str, old: str, new: str) -> str:
+    """표본에 결핍을 주입한다. 주입 자체에 단언을 건다.
+
+    Args:
+        text: 원본 전문.
+        old: 바꿀 문자열. **정확히 1회** 나와야 한다.
+        new: 바꿔 넣을 문자열.
+
+    Returns:
+        주입된 전문.
+
+    Raises:
+        AssertionError: 원본에 없었거나 여러 번 있었거나 전후가 같을 때.
+    """
+    seen = text.count(old)
+    assert seen == 1, f"🔴 주입 대상이 {seen}건이다(1건이어야 한다): {old[:60]!r}"
+    injected = text.replace(old, new, 1)
+    assert injected != text, f"🔴 치환이 안 먹었다 — 전후가 같다: {old[:60]!r}"
+    return injected

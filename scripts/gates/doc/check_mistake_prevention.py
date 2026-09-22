@@ -92,11 +92,13 @@ class Known:
     Attributes:
         hooks: `.pre-commit-config.yaml` 이 실제로 배선한 훅 id.
         ruff: `pyproject.toml` 의 `select` 값(규칙군 접두사).
+        ignored: `ignore` 로 **꺼 둔** 규칙 코드. 🔴 켜진 군에 속해도 **꺼져 있으면 아무것도 안 막는다.**
         root: `스크립트:`·`CI:`·`문서:` 경로의 기준 디렉터리.
     """
 
     hooks: frozenset[str]
     ruff: frozenset[str]
+    ignored: frozenset[str]
     root: Path
 
 
@@ -115,18 +117,19 @@ def parse_hook_ids(text: str) -> set[str]:
 
 
 # ── Ruff select ───────────────────────────────────────────────────────
-def parse_ruff_select(path: Path) -> set[str]:
-    """`pyproject.toml` 의 `[tool.ruff.lint] select` 를 읽는다.
+def parse_ruff_lint(path: Path) -> tuple[set[str], set[str]]:
+    """`pyproject.toml` 의 `[tool.ruff.lint]` 에서 `select` 와 `ignore` 를 읽는다.
 
     Args:
         path: `pyproject.toml` 경로.
 
     Returns:
-        규칙군 접두사 집합.
+        (켜진 규칙군, 꺼 둔 규칙 코드).
     """
     with path.open("rb") as handle:
         data = tomllib.load(handle)
-    return set(data.get("tool", {}).get("ruff", {}).get("lint", {}).get("select", []))
+    lint = data.get("tool", {}).get("ruff", {}).get("lint", {})
+    return set(lint.get("select", [])), set(lint.get("ignore", []))
 
 
 # ── 참조 디스패치 ─────────────────────────────────────────────────────
@@ -157,6 +160,10 @@ def _verify_rule(value: str, known: Known) -> str | None:
     Returns:
         문제 설명 또는 `None`.
     """
+    # 🔴 `ignore` 를 먼저 본다 — `D203` 은 `D` 군(켜짐)에 속하지만 **꺼져 있다.**
+    #    군 접두사만 보면 «켜진 군의 꺼진 규칙» 이 통과한다(결핍 주입이 이걸 잡았다).
+    if value in known.ignored:
+        return f"ruff `ignore` 로 꺼 둔 규칙이다: `{value}` — 꺼진 규칙은 아무것도 안 막는다"
     if any(value.startswith(group) for group in known.ruff):
         return None
     return f"ruff `select` 가 켜지 않은 규칙이다: `{value}` — 안 켠 규칙은 아무것도 안 막는다"
@@ -293,9 +300,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"❌ {exc}")
         return 1
 
+    selected, ignored = parse_ruff_lint(REPO_ROOT / "pyproject.toml")
     known = Known(
         hooks=frozenset(parse_hook_ids((REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))),
-        ruff=frozenset(parse_ruff_select(REPO_ROOT / "pyproject.toml")),
+        ruff=frozenset(selected),
+        ignored=frozenset(ignored),
         root=REPO_ROOT,
     )
 
