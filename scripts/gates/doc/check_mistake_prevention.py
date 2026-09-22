@@ -56,7 +56,7 @@ import sys
 import tomllib
 
 from scripts.gates._root import REPO_ROOT
-from scripts.gates.doc.mistake_ledger import DEFAULT_LEDGER, MarkerError, parse_ledger
+from scripts.gates.doc.mistake_ledger import DEFAULT_LEDGER, Entry, MarkerError, parse_ledger
 
 # 한글·이모지를 인쇄하므로 Windows cp949 콘솔에서 죽지 않게 먼저 방어한다(대장 D36).
 if hasattr(sys.stdout, "reconfigure"):
@@ -132,7 +132,7 @@ def parse_ruff_select(path: Path) -> set[str]:
 # ── 참조 디스패치 ─────────────────────────────────────────────────────
 # 흐름: 종류 접두사 분리 -> 종류마다 다른 검증기 -> 문제 문장 또는 None
 # 🔑 if 사슬이 아니라 **표**로 둔다 — 종류는 늘어난다(`CI:` 가 S2 에서 늘었다).
-def _verify_hook(value: str, known: "Known") -> str | None:
+def _verify_hook(value: str, known: Known) -> str | None:
     """훅 id 가 실제로 배선됐나.
 
     Args:
@@ -147,7 +147,7 @@ def _verify_hook(value: str, known: "Known") -> str | None:
     return f"`.pre-commit-config.yaml` 에 그 훅 id 가 없다: `{value}` (은퇴했거나 오타)"
 
 
-def _verify_rule(value: str, known: "Known") -> str | None:
+def _verify_rule(value: str, known: Known) -> str | None:
     """Ruff 규칙이 `select` 로 켜져 있나.
 
     Args:
@@ -162,7 +162,7 @@ def _verify_rule(value: str, known: "Known") -> str | None:
     return f"ruff `select` 가 켜지 않은 규칙이다: `{value}` — 안 켠 규칙은 아무것도 안 막는다"
 
 
-def _verify_path(value: str, known: "Known") -> str | None:
+def _verify_path(value: str, known: Known) -> str | None:
     """파일이 실재하나 (`스크립트:`·`CI:`).
 
     Args:
@@ -177,7 +177,7 @@ def _verify_path(value: str, known: "Known") -> str | None:
     return f"파일이 없다: `{value}`"
 
 
-def _verify_doc(value: str, known: "Known") -> str | None:
+def _verify_doc(value: str, known: Known) -> str | None:
     """**앵커 주석**이 그 문서에 실재하나.
 
     Args:
@@ -246,11 +246,11 @@ def count_archived(directory: Path) -> int:
 
 # ── 항목 하나 ─────────────────────────────────────────────────────────
 # 흐름: 줄 존재 -> 형식 -> 값 어휘 -> 동반값 유무 -> 참조 실재
-def check_entry(entry: object, known: Known) -> tuple[str | None, str | None]:
+def check_entry(entry: Entry, known: Known) -> tuple[str | None, str | None]:
     """항목 하나의 예방 값을 검사한다.
 
     Args:
-        entry: `mistake_ledger.Entry`.
+        entry: 대장 항목.
         known: 대조 근거.
 
     Returns:
