@@ -221,6 +221,19 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # 실수 대장 **태그 ↔ CLAUDE.md 라우팅 표** 양방향 정합 (pre-push · 차단)
+      # 막는 이유: 태그가 빠지면 그 항목은 **어느 작업에서도 안 읽힌다**(영구 미도달).
+      # 표에만 있고 항목이 0건인 축은 **읽어도 아무것도 안 나오는 주소**라 더 나쁘다 —
+      # 절차는 통과하는데 내용이 없다(헛된 초록).
+      - id: mistake-routing
+        name: 🧭 실수 대장 라우팅 정합
+        entry: uv run python -m scripts.gates.doc.check_mistake_routing
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       # 규칙이 **발동하는 층**에 닿았는지 (pre-push · 🟡 보고 전용) — 정본 = FILING §1-1
       # 규칙을 정본에만 적으면 "세운 것 같은 감각"만 남고 Read 를 안 부르면 발동하지 않는다.
       # 손으로 전수 대조해 3건을 찾은 것(D44)을 기계가 대신 찾게 만든 것이다.
