@@ -42,10 +42,15 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 SETTINGS = REPO_ROOT / ".claude" / "settings.json"
 HOOK_SCRIPT = REPO_ROOT / "scripts" / "hooks" / "read_precondition.py"
 
-# 🔑 실측이다. 2026-09-22 기준 `PreToolUse` 1종 — 계승 계획의 정지 규칙이 «1종으로 시작» 이다.
+# 🔑 실측이다. 2026-09-22 기준 2 이벤트 — `PreToolUse`(읽기 전제조건·주입) +
+#    `PostCompact`(압축 후 주입 기록 초기화). 둘 다 같은 스크립트를 부른다(훅 «1종» 원칙).
+#    🔴 **이벤트마다 요구 조각이 다르다** — `PostCompact` 는 `--reset-injection` 서브커맨드가
+#    빠지면 **호출은 되는데 아무 일도 안 한다**(조용한 무효화).
+REQUIRED: dict[str, str] = {
+    "PreToolUse": "read_precondition",
+    "PostCompact": "--reset-injection",
+}
 MIN_HOOK_ENTRIES = 1
-REQUIRED_EVENT = "PreToolUse"
-REQUIRED_FRAGMENT = "read_precondition"
 
 
 # ── 훅 배선을 센다 ────────────────────────────────────────────────────
@@ -72,17 +77,20 @@ def main() -> int:
         print(f"❌ `.claude/settings.json` 이 깨졌다 — **그 파일의 설정이 통째로 죽는다**: {exc}")
         return 1
 
-    entries = data.get("hooks", {}).get(REQUIRED_EVENT, [])
-    if len(entries) < MIN_HOOK_ENTRIES:
-        problems.append(f"`{REQUIRED_EVENT}` 훅이 **{len(entries)}개**로 바닥값 {MIN_HOOK_ENTRIES} 아래다")
-
-    commands = [str(h.get("command", "")) for entry in entries for h in entry.get("hooks", []) if isinstance(h, dict)]
-    if not any(REQUIRED_FRAGMENT in c for c in commands):
-        problems.append(
-            f"`{REQUIRED_EVENT}` 훅이 **`{REQUIRED_FRAGMENT}` 를 부르지 않는다** — "
-            f"읽기 전제조건이 돌지 않는다. 실제 명령: {commands or '없음'}"
-        )
-
+    for event, fragment in REQUIRED.items():
+        entries = data.get("hooks", {}).get(event, [])
+        if len(entries) < MIN_HOOK_ENTRIES:
+            problems.append(f"`{event}` 훅이 **{len(entries)}개**로 바닥값 {MIN_HOOK_ENTRIES} 아래다")
+            continue
+        commands = [
+            str(h.get("command", "")) for entry in entries for h in entry.get("hooks", []) if isinstance(h, dict)
+        ]
+        if not any(fragment in c for c in commands):
+            problems.append(
+                f"`{event}` 훅이 **`{fragment}` 를 부르지 않는다** — "
+                f"{'읽기 전제조건' if event == 'PreToolUse' else '압축 후 주입 초기화'}가 돌지 않는다. "
+                f"실제 명령: {commands or '없음'}"
+            )
     if not HOOK_SCRIPT.exists():
         problems.append(
             f"설정은 있는데 **스크립트가 없다**: {HOOK_SCRIPT.relative_to(REPO_ROOT).as_posix()} — "
@@ -96,8 +104,8 @@ def main() -> int:
         return 1
 
     print(
-        f"✅ Claude 훅 배선 — `{REQUIRED_EVENT}` {len(entries)}종(바닥값 {MIN_HOOK_ENTRIES}) · "
-        "스크립트 실재. ⚠️ **발동 여부는 여기서 못 본다**(한계 선언)."
+        f"✅ Claude 훅 배선 — 이벤트 {len(REQUIRED)}종({' · '.join(REQUIRED)}) · "
+        "각 요구 조각 확인 · 스크립트 실재. ⚠️ **발동 여부는 여기서 못 본다**(한계 선언)."
     )
     return 0
 

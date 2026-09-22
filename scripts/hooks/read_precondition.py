@@ -48,6 +48,8 @@ MARKER_ROOT = Path(tempfile.gettempdir()) / "doseph-read-precondition"
 
 # 읽어야 통과하는 문서 — 키는 마커 이름, 값은 파일명 조각.
 GATED_DOC = "FILING.md"
+# 「상시 세트를 이미 주입했다」 기록. `PostCompact` 가 이것만 지운다.
+INJECTED = "상시세트-주입됨"
 # 규약 밖 구역은 묻지 않는다(미분류·죽은 문서를 옮기는 일이 막히면 오탐이 된다).
 EXEMPT_PARTS = ("/_unfiled/", "/_legacy/")
 
@@ -104,10 +106,10 @@ def decide(payload: dict[str, object]) -> dict[str, object] | None:
         # 🔴 상시 세트는 **세션당 한 번만** 주입한다.
         #    한 번 들어오면 이미 컨텍스트에 있으므로 같은 340자를 매 편집마다 다시 넣는 것은
         #    순수한 낭비다(실측: 25회 편집 = 약 7,000 토큰 → 1회 = 약 283 토큰).
-        #    ⚠️ **대가**: 압축 이후에는 주입분이 컨텍스트에서 사라지는데 마커는 남아 있어
-        #    다시 오지 않는다. 그 자리를 메우는 것이 `PostCompact` 훅이고, 그건 다음 구간이다
-        #    (정지 규칙 — 훅 1종). 그때까지는 **최소 핵 8줄(`CLAUDE.md` §6-5)**이 그 공백을 받는다.
-        injected = marker_path(session, "상시세트-주입됨")
+        #    ⚠️ **대가**: 압축 이후에는 주입분이 컨텍스트에서 사라지는데 마커는 남는다.
+        #    → **`PostCompact` 훅이 `--reset-injection` 으로 이 마커를 지운다**(2026-09-22, B-10 2구간).
+        #    그래도 훅이 통째로 꺼진 경우엔 **최소 핵 8줄(`CLAUDE.md` §6-5)**이 그 공백을 받는다.
+        injected = marker_path(session, INJECTED)
         if injected.exists():
             return None
         injected.parent.mkdir(parents=True, exist_ok=True)
@@ -143,6 +145,28 @@ def decide(payload: dict[str, object]) -> dict[str, object] | None:
     }
 
 
+# ── `PostCompact` — 압축이 컨텍스트를 갈아엎었으니 주입 기록을 무른다 ──
+# 흐름: 세션 마커 폴더 -> «주입됨» 만 삭제 -> 다음 PreToolUse 가 다시 주입
+# 🔑 **«읽음» 마커는 지우지 않는다.** 압축돼도 *"내가 그 문서를 읽었다"* 는 사실 자체는
+#    변하지 않는다. 다시 읽으라고 막으면 그건 **오탐**이다.
+#    지워야 하는 건 *"컨텍스트에 있다"* 를 뜻하는 **주입 마커뿐**이다.
+# 🔴 왜 직접 주입하지 않나: `PostCompact` 가 `additionalContext` 를 지원하는지
+#    **실측하지 않았다.** 이 방식은 훅이 **돌기만** 하면 되므로 그 미지수에 기대지 않는다.
+def reset_injection(session_id: str) -> int:
+    """압축 후 «상시 세트 주입됨» 기록만 지운다.
+
+    Args:
+        session_id: 훅 입력의 `session_id`. 비어 있으면 모든 세션을 훑는다.
+
+    Returns:
+        종료코드 — 항상 0.
+    """
+    targets = [marker_path(session_id, INJECTED)] if session_id else list(MARKER_ROOT.glob(f"*/{INJECTED}"))
+    for t in targets:
+        t.unlink(missing_ok=True)  # 없어도 죽지 않는다 — 압축이 두 번 와도 안전
+    return 0
+
+
 def main() -> int:
     """Stdin 을 읽어 판정하고 stdout 으로 답한다.
 
@@ -151,6 +175,8 @@ def main() -> int:
     """
     try:
         payload = json.loads(sys.stdin.read() or "{}")
+        if "--reset-injection" in sys.argv:
+            return reset_injection(str(payload.get("session_id", "")) if isinstance(payload, dict) else "")
         out = decide(payload if isinstance(payload, dict) else {})
     except Exception as exc:
         json.dump({"systemMessage": f"⚠️ read-precondition 훅 내부 오류(통과시킴): {exc}"}, sys.stdout)
