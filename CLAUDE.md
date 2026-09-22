@@ -234,7 +234,7 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
 
 ## 6-5. 🧭 실수 대장 — **작업별로 «그 자리만» 읽는다**
 
-정본 = `docs-private/AGENT_실수-오류-기록.md` (**87건 · 165 KB**).
+정본 = `docs-private/AGENT_실수-오류-기록.md` (**88건 · 165 KB**).
 🔴 **전체를 읽으라는 지시는 실행 불가능하고, 그래서 실제로 안 읽힌다** — 그 상태가
 `D52`·`D63` 을 *규칙으로 적어 둔 채* 다시 밟게 만들었다. 그래서 **주소로 연다.**
 
@@ -246,7 +246,7 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
 |---|---|
 | `셸-원격실행` | PowerShell·ssh·bash·docker 명령을 짤 때 (11건) |
 | `배포-인프라` | GCP·VM·CI/CD·CF Pages 를 건드릴 때 (12건) |
-| `문서-닫기` | PLAN·완료기록·스냅샷·색인을 닫거나 옮길 때 (19건) |
+| `문서-닫기` | PLAN·완료기록·스냅샷·색인을 닫거나 옮길 때 (20건) |
 | `게이트-검사기` | 게이트·테스트·검사기를 만들거나 고칠 때 (16건) |
 | `git-커밋` | 커밋·푸시할 때 (2건) |
 | `파일편집` | 스크립트로 파일을 고칠 때 (2건) |
