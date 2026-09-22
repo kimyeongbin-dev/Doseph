@@ -187,12 +187,13 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
     1. **Section header line**: `# ── [섹션 제목] ──…──` (use U+2500 `─` box-drawing characters to pad to ~70 columns).
     2. **Flow line(s)**: `# 흐름: [Step 1] -> [Step 2] -> [Step 3]`. If the flow wraps, continuation lines MUST align the arrow under the first step: `#       -> [Step 4]`.
     3. Optional additional context lines may follow (e.g., expiry, side effects, preconditions) — each on its own `#` line, concise and in Korean.
-* **Canonical Example**:
+* **Canonical Example** (🔑 **실재하는 코드에서 가져온다** — 예시가 없는 파이프라인을 들면 «그게 있다» 는 인상을 남긴다. 실제로 그렇게 읽고 없는 전처리를 찾은 적이 있다, `문서-26`):
     ```python
-    # ── OCR 전체 파이프라인 (RQ Task) ────────────────────────────────────
-    # 흐름: OpenCV 전처리 -> CLOVA OCR -> 텍스트 후처리 -> LLM 파싱
-    #       -> Redis에 결과 저장 (10분 만료)
-    async def run_ocr_pipeline(...):
+    # ── 채팅 턴 진입점 (RAG 4단 + 위치 검색 + 회수 조회) ────────────────
+    # 흐름: ownership -> history+summary -> Query Rewriter (4o-mini)
+    #       -> intent 분기 -> (1) 즉시 응답 (2) 위치 검색 (3) 회수 조회
+    #                        (4) RAG 4단 retrieval -> 4o 응답
+    async def ask_with_tools(...):
         ...
     ```
 * **Prohibited**: Do not write these section/flow comments in English. Do not omit the flow line for non-trivial orchestration code. Do not place them inside a function body as a substitute — they belong immediately above the `def` / `class` / block opener.
