@@ -103,6 +103,7 @@ class ScrubFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Mask JWT and Bearer tokens in the record before it is emitted."""
         message = record.getMessage()
         scrubbed = _JWT_SCRUB.sub(_MASK, message)
         scrubbed = _BEARER_SCRUB.sub(lambda m: f"{m.group(1)} {_MASK}", scrubbed)

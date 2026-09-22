@@ -18,6 +18,7 @@ _FUZZY_LIMIT = 1
 
 
 async def search_candidates_in_open_db(candidates: list[str]) -> list[ExtractedMedicine]:
+    """Search the open drug DB for each OCR candidate name."""
     if not candidates:
         return []
 
@@ -80,6 +81,7 @@ async def search_candidates_in_open_db(candidates: list[str]) -> list[ExtractedM
 
 
 def match_candidates_to_medicines(candidates: list[str]) -> list[ExtractedMedicine]:
+    """Match OCR candidates to medicines, owning the DB lifecycle (sync entry point)."""
     return asyncio.run(_run_with_db_lifecycle(candidates))
 
 

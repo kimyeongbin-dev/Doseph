@@ -972,6 +972,7 @@ async def process_medicines(  # noqa: PLR0915  # batch loop + per-medicine + pro
 
 
 def parse_args() -> argparse.Namespace:
+    """명령줄 인자를 파싱한다."""
     parser = argparse.ArgumentParser(
         description="medicine_info → medicine_chunk 청킹 + 임베딩 batch (1회성)",
     )
@@ -1017,6 +1018,7 @@ def parse_args() -> argparse.Namespace:
 
 
 async def main_async(args: argparse.Namespace) -> None:
+    """Tortoise 를 띄우고 청킹·임베딩 배치를 돌린 뒤 반드시 내린다."""
     await Tortoise.init(config=TORTOISE_ORM)
     try:
         ids: list[int] | None = None
@@ -1063,6 +1065,7 @@ async def main_async(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    """CLI 진입점."""
     args = parse_args()
     asyncio.run(main_async(args))
 

@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field
 
 
 class DrugInteraction(BaseModel):
+    """One drug-to-drug interaction entry."""
+
     drug: str = Field(description="상호작용 약품명")
     description: str = Field(description="상호작용 설명")
 
@@ -19,6 +21,8 @@ class PrecautionSection(BaseModel):
 
 
 class DrugInfoResponse(BaseModel):
+    """Aggregated drug information returned to the client."""
+
     medicine_name: str = Field(description="약품명")
     warnings: list[PrecautionSection] = Field(
         default_factory=list,

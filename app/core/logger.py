@@ -67,6 +67,7 @@ class JsonFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
+        """Render the record as a single JSON line."""
         payload: dict[str, object] = {
             "ts": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
@@ -93,6 +94,7 @@ class TruncateFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Truncate over-long messages so a single log cannot exhaust memory."""
         message = record.getMessage()
         if len(message) > _MAX_MSG_LEN:
             dropped = len(message) - _MAX_MSG_LEN
@@ -109,6 +111,7 @@ class RequestIdFilter(logging.Filter):
     """현재 컨텍스트의 request_id 를 record 에 부착(모든 핸들러 공통)."""
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Attach the current request id to the record."""
         record.request_id = request_id_var.get()
         return True
 

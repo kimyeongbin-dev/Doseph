@@ -131,6 +131,7 @@ def inspect(path: Path) -> tuple[list[str], list[str]]:
 # ── 게이트 본문 ─────────────────────────────────────────────────────────
 # 흐름: portfolio/*.md 순회 -> 문서별 판정 -> 오류는 차단, 경고는 보고
 def main() -> int:
+    """포트폴리오 문서의 sync 블록을 훑어 근거 실재와 신선도를 본다."""
     # fail-closed: 폴더가 없거나 대상 0건이면 "동기화됐다"가 아니라 "검사하지 못했다"이다.
     if not PORTFOLIO_DIR.exists():
         print(f"❌ 포트폴리오 폴더가 없다 — {PORTFOLIO_DIR}")

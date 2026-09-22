@@ -52,6 +52,7 @@ EXCLUDE = {"__init__.py"}
 #       -> `file=sys.stderr` 면 stderr, 아니면 stdout 으로 분류
 # 주석·docstring 은 세지 않는다 — 출력되지 않으므로 크래시와 무관하다.
 def non_ascii_targets(source: str) -> set[str]:
+    """소스에서 비-ASCII 를 인쇄하는 스트림 이름을 모은다."""
     targets: set[str] = set()
     try:
         tree = ast.parse(source)
@@ -86,6 +87,7 @@ MIN_EXPECTED = 5
 
 
 def main() -> int:
+    """대상 스크립트가 UTF-8 출력 방어를 갖췄는지 세고 인쇄한다."""
     offenders: list[str] = []
     checked = 0
 

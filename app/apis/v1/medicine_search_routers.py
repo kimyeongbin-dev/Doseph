@@ -17,6 +17,7 @@ router = APIRouter(prefix="/medicines", tags=["Medicines"])
 
 
 def get_medicine_search_service() -> MedicineSearchService:
+    """Provide a MedicineSearchService instance for DI."""
     return MedicineSearchService()
 
 

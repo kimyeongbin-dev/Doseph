@@ -60,6 +60,7 @@ class DailySymptomLogRepository:
         symptoms: list[str],
         note: str | None = None,
     ) -> DailySymptomLog:
+        """Insert one daily symptom log row."""
         return await self.upsert(profile_id, log_date, symptoms, note)
 
     async def get_recent_by_profile(

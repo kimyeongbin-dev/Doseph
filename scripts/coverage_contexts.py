@@ -64,6 +64,7 @@ def _docker(*args: str) -> list[str]:
 # ("이 줄은 아무 테스트도 안 덮는다"가 거짓이 된다).
 # ⚠️ 반드시 Docker 안에서 돈다. DB 층 테스트가 진짜 PostgreSQL 을 요구하기 때문이다.
 def collect() -> int:
+    """전체 스위트를 순서대로 돌려 커버리지 컨텍스트를 모은다."""
     subprocess.run(_docker("rm", "-f", CONTAINER_DATA_FILE), check=False)
     for index, suite in enumerate(SUITES):
         append = ["--append"] if index else []
@@ -96,6 +97,7 @@ def collect() -> int:
 # 흐름: .coverage 의 mtime 과 추적 중인 .py 최신 mtime 비교 -> 오래됐으면 경고
 # 실패시키지 않는다. 오래된 데이터는 "없음"보다 위험하지만, 판단은 사람이 한다.
 def warn_if_stale() -> bool:
+    """수집 데이터가 없거나 낡았으면 경고하고 False 를 돌려준다."""
     if not DATA_FILE.exists():
         print(f"⚠️  {DATA_FILE.name} 이 없다. 먼저 `collect` 를 돌려라 (Docker 안에서).")
         return False
@@ -121,6 +123,7 @@ def warn_if_stale() -> bool:
 # 흐름: CoverageData 로드 -> measured_files 에서 대상 찾기 -> contexts_by_lineno
 #       -> 테스트별로 줄을 묶어 출력 (context 가 빈 줄 = 덮는 테스트 0건)
 def contexts_for(path: str) -> dict[int, list[str]]:
+    """한 파일의 줄별 커버리지 컨텍스트를 모아 돌려준다."""
     data = CoverageData(basename=str(DATA_FILE))
     data.read()
     target = path.replace("\\", "/")
@@ -134,6 +137,7 @@ def contexts_for(path: str) -> dict[int, list[str]]:
 
 
 def show(path: str, line: int | None, by_line: bool) -> int:
+    """한 파일(또는 한 줄)의 컨텍스트를 사람이 읽을 형태로 인쇄한다."""
     if not warn_if_stale():
         return 1
     mapping = contexts_for(path)
@@ -175,6 +179,7 @@ def show(path: str, line: int | None, by_line: bool) -> int:
 # ── CLI ─────────────────────────────────────────────────────────────────
 # 흐름: 인자 파싱 -> collect | show | check 분기
 def main() -> int:
+    """CLI 진입점 — collect / show 서브커맨드를 가른다."""
     parser = argparse.ArgumentParser(description="coverage dynamic context 수집·조회")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("collect", help="전체 스위트를 돌려 컨텍스트를 수집한다 (Docker 안에서)")

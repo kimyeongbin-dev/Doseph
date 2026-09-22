@@ -26,6 +26,7 @@ class RequestContextMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Bind a request id to the context for the lifetime of one HTTP scope."""
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return

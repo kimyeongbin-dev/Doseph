@@ -63,6 +63,7 @@ PENDING_WORDS = ("대기", "pending", "미착수", "다음은", "진행 예정",
 # ⚠️ 처음엔 `- [` 목록 항목만 봤는데, 상단 상시규칙 배너(`> 🧹 ... [정책](x.md)`)에서
 #    링크된 파일이 orphan 으로 잘못 걸렸다. **도달 가능성**이 기준이지 서식이 아니다.
 def index_entries() -> dict[str, str]:
+    """메모리 인덱스에서 (파일명 -> 설명) 쌍을 긁어낸다."""
     entries: dict[str, str] = {}
     for line in INDEX.read_text(encoding="utf-8").splitlines():
         for match in LINK.finditer(line):
@@ -73,6 +74,7 @@ def index_entries() -> dict[str, str]:
 # ── 검사 본문 ───────────────────────────────────────────────────────────
 # 흐름: 인덱스 수집 -> dangling/orphan(실패) -> 상태어 충돌(보고)
 def main() -> int:
+    """인덱스와 실제 메모리 파일을 대조하고 결과를 인쇄한다."""
     # fail-closed: 인덱스를 못 찾으면 "정합하다"가 아니라 "검사하지 못했다"이다.
     # 이 훅은 pre-push 로컬 전용이라 메모리가 없을 이유가 없다.
     if not INDEX.exists():

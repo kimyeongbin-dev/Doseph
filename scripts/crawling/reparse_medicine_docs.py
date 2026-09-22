@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
+    """명령줄 인자를 파싱한다."""
     parser = argparse.ArgumentParser(
         description="Reparse medicine_info raw XML into structured columns (no API calls).",
     )
@@ -97,6 +98,7 @@ async def reparse_all(batch_size: int) -> tuple[int, int]:
 
 
 async def main_async(batch_size: int) -> None:
+    """Tortoise 를 띄우고 재파싱을 돌린 뒤 반드시 내린다."""
     await Tortoise.init(config=TORTOISE_ORM)
     try:
         processed, updated = await reparse_all(batch_size)
@@ -106,6 +108,7 @@ async def main_async(batch_size: int) -> None:
 
 
 def main() -> None:
+    """CLI 진입점."""
     args = parse_args()
     asyncio.run(main_async(args.batch_size))
 

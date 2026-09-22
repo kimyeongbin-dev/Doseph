@@ -52,6 +52,7 @@ BASELINE_ARGS = ["--baseline-path", ".mypy-baseline.txt", "--sort-baseline"]
 # ── mypy 실행 + 이식성 정규화 ───────────────────────────────────────────
 # 흐름: mypy(plain·상대경로) 실행 -> stderr 통과 -> 경로 백슬래시를 슬래시로 치환
 def run_mypy_normalized() -> str:
+    """MyPy 를 돌리고 경로 표기를 정규화한 출력을 돌려준다."""
     # 실행파일은 uv 관리 venv 의 PATH 로 해석(부분경로 의도적) -> S607 예외
     proc = subprocess.run(
         ["mypy", *MYPY_TARGETS, *MYPY_PLAIN_FLAGS],  # noqa: S607
@@ -71,6 +72,7 @@ def run_mypy_normalized() -> str:
 # 흐름: 인자(sync|filter, 기본 filter) -> mypy 정규화 출력 -> mypy-baseline 전달
 #       -> filter 는 신규 오류 있으면 non-zero 로 커밋/CI 차단
 def main() -> int:
+    """신규 오류만 차단한다 — baseline 과 대조해 이미 있던 것은 통과시킨다."""
     subcommand = sys.argv[1] if len(sys.argv) > 1 else "filter"
     normalized = run_mypy_normalized()
     result = subprocess.run(
