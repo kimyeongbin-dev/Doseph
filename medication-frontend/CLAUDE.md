@@ -39,7 +39,8 @@ Claude AI-specific guide for the medication management system frontend.
 
 ## Performance
 
-- Use skeleton UI (`src/components/common/Skeleton.jsx`) during loading states.
+- Show a loading state with `src/components/common/LoadingSpinner.jsx`, or a page-local
+  skeleton where the layout is known. ⚠️ There is **no shared `Skeleton.jsx`** — do not import one.
 - Leverage Next.js caching and code splitting.
 
 ## API Calls
@@ -59,7 +60,7 @@ Claude AI-specific guide for the medication management system frontend.
 7. **Accessibility**: provide appropriate aria-labels for all interactive elements.
 8. **SEO**: mandatory page-specific metadata.
 9. **Error Handling**: user-friendly handling on all API calls.
-10. **Skeleton UI**: use during loading states.
+10. **Loading state**: `LoadingSpinner` or a page-local skeleton (no shared `Skeleton.jsx`).
 11. **Code Quality**: ESLint + Prettier via pre-commit.
 12. **Emoji Prohibition**: no emoji in any code or comments.
 

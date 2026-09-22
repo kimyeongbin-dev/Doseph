@@ -10,9 +10,10 @@ dataset), this script collects a small sample and populates the RAG stack:
      and MedicineInfoRepository.bulk_upsert so the ingestion contract
      matches the team's production path.
   3. For each upserted medicine, generates section-level chunks from the
-     non-null text fields and embeds them locally with
-     SentenceTransformer (ko-sroberta-multitask, 768d). Embeddings are
-     L2-normalized for cosine similarity in pgvector.
+     non-null text fields and embeds them with the canonical model
+     (``app.services.rag.config`` — OpenAI text-embedding-3-large, 3072d).
+     Embeddings are L2-normalized for cosine similarity in pgvector.
+     ⚠️ 모델·차원을 여기 다시 적지 않는다 — 정본은 그 모듈이다(2026-09-23, 문서-5).
 
 CLI:
     # 운영 기본 — 200 rows (RAG 응답 다양성 확보용 권장 값)

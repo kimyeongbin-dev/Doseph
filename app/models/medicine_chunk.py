@@ -1,13 +1,16 @@
 """Medicine chunk model module.
 
 This module defines the MedicineChunk model storing section-level
-text chunks and their dense vector embeddings (pgvector VECTOR(768),
-using the `jhgan/ko-sroberta-multitask` sentence-transformer) for
-RAG similarity search.
+text chunks and their dense vector embeddings (pgvector `halfvec(3072)`,
+using OpenAI `text-embedding-3-large`) for RAG similarity search.
 
-The actual `vector(768)` column type and the HNSW index are applied
-via manual SQL inside the Aerich migration because Tortoise ORM does
-not natively understand the pgvector extension type.
+The actual `halfvec(3072)` column type is applied via manual SQL inside
+the Aerich migration because Tortoise ORM does not natively understand
+the pgvector extension type.
+
+⚠️ **차원·모델의 정본은 `app.services.rag.config`** 다 — 여기 수치를 적을 때는 거기와 맞춘다.
+2026-09-23 까지 **폐기된 임베딩 설정**(옛 차원·옛 모델)을 8곳에서 설명하고 있었다(`문서-5`).
+🔴 **HNSW 인덱스는 아직 배포돼 있지 않다** — 있다고 적지 않는다(`문서-23` · `ROADMAP` v2.7).
 """
 
 from enum import StrEnum
@@ -46,7 +49,7 @@ class MedicineChunk(models.Model):
 
     One medicine_info row yields multiple chunks (one per section, or
     several when an ARTICLE exceeds the model context window). The
-    embedding column is materialised as `vector(768)` by a manual
+    embedding column is materialised as `halfvec(3072)` by a manual
     SQL migration step.
 
     Attributes:
@@ -56,7 +59,7 @@ class MedicineChunk(models.Model):
         chunk_index: Sub-chunk order when an ARTICLE is split by token limit.
         content: Final embedding-target string with header prefix applied.
         token_count: Token count for monitoring and chunk-size tuning.
-        embedding: pgvector(768) dense embedding (managed via raw SQL).
+        embedding: pgvector `halfvec(3072)` dense embedding (managed via raw SQL).
         model_version: Embedding model identifier for re-embedding tracking.
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
@@ -88,7 +91,7 @@ class MedicineChunk(models.Model):
 
     # ── 청크 본문 및 임베딩 ────────────────────────────────────────────
     # content: 헤더 프리픽스 포함 최종 임베딩 대상 텍스트
-    # embedding: 실제 타입은 vector(768), Aerich 수동 SQL로 적용
+    # embedding: 실제 타입은 halfvec(3072), Aerich 수동 SQL로 적용
     content = fields.TextField(
         description="Final embedding-target text with header prefix",
     )
@@ -98,14 +101,14 @@ class MedicineChunk(models.Model):
     )
     embedding = fields.TextField(
         null=True,
-        description="pgvector VECTOR(768) - materialised via manual SQL",
+        description="pgvector halfvec(3072) - materialised via manual SQL",
     )
 
     # ── 재임베딩 추적용 모델 버전 ──────────────────────────────────────
     # model 교체/업그레이드 시 부분 재임베딩의 기준이 되는 컬럼
     model_version = fields.CharField(
         max_length=64,
-        description="Embedding model version (e.g. ko-sroberta-multitask-v1)",
+        description="Embedding model version (e.g. text-embedding-3-large)",
     )
 
     # ── 상호작용 태그 JSONB (스키마 락 ④, v2) ─────────────────────────

@@ -196,7 +196,9 @@ flowchart TD
 4. **데이터**: 정부 마스터 다운로드+조인, **품목/성분 2레이어 정규화 DB**, 낱알식별 포함.
 5. **등록**: 검색·바코드·낱알식별 **우선**, 처방전 OCR **보조**(이미지 미저장), 마이데이터 **장기**.
 6. **타깃**: 환자·보호자 우선, 의료진 장기.
-7. **배포**: Cloudflare(FE) + Oracle ARM(BE) — [v2_0_redeployment.md](plans/v2_0_redeployment.md) 참조.
+7. **배포**: Cloudflare Pages(FE) + **GCP VM**(BE, Cloudflare Tunnel) + Neon(DB).
+   ⚠️ 2026-09-23 정정 — 이 줄은 **Oracle ARM** 이라 적고 있었고 참조 링크도 **죽어 있었다**.
+   무료 티어 검토 끝에 GCP 로 갔다. 배포 상세는 비공개 운영 문서에서 관리한다.
 8. **네이밍**: **Doseph** 확정 (도메인 `doseph.com` 구매 완료 2026-08-08). ‘Doseph’ 대체. 복약 도우미 캐릭터로 챗봇 의인화 활용.
 
 ---

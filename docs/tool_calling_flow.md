@@ -290,8 +290,9 @@ Phase Y 범위에서는 `assistant_message.content` 는 **순수 자연어**만 
 ## 6. 참고
 
 - **백엔드 설계 상세**: `PLAN.md` §0-§11 (Phase Y 전체 설계)
-- **서비스 계약 테스트**: `app/tests/test_message_service_tool_branching.py`,
-  `app/tests/test_message_service_pending_callback.py`
-- **HTTP 통합 테스트**: `app/tests/test_message_routers_tools.py`
+- **서비스 계약 테스트**: `app/tests/test_message_service_pending_callback.py` ·
+  `app/tests/test_tool_schemas.py` · `app/tests/test_recall_checker_tool.py`
+  > ⚠️ 2026-09-23 정정 — `test_message_service_tool_branching.py` 와
+  > `test_message_routers_tools.py` 를 들고 있었으나 **둘 다 없는 파일**이었다.
 - **OpenAPI 스키마**: `/api/docs` 에서 `/messages/ask` · `/messages/tool-result`
   의 200/202/400/403/410 응답 형태 직접 확인 가능

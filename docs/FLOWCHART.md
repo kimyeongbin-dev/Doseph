@@ -141,8 +141,8 @@ flowchart LR
     Q["❓ 사용자 질문<br />예: '타이레놀<br />언제 먹어요?'"]
 
     subgraph EMBED ["① 질문 이해하기"]
-        E1["jhgan/ko-sroberta-multitask<br />(로컬 모델, ~420MB)"]
-        E2["질문 → 숫자 벡터 (768차원)<br />[0.12, -0.87, 0.34 ...]"]
+        E1["OpenAI text-embedding-3-large<br />(원격 API)"]
+        E2["질문 → 숫자 벡터 (3072차원)<br />[0.12, -0.87, 0.34 ...]"]
         E1 --> E2
     end
 
@@ -181,4 +181,4 @@ flowchart LR
 | **OCR 2단계** | 매칭된 결과를 불러와 사용자가 확인·수정 | Redis (임시 저장소) |
 | **OCR 3단계** | 최종 확정 후 DB 저장 + 복약 가이드 생성 | PostgreSQL + GPT-4o-mini |
 | **챗봇** | 사용자 질문에 약사 AI가 답변 | RAG + GPT-4o-mini |
-| **RAG** | 답하기 전에 실제 약품 DB에서 정보 검색 | ko-sroberta-multitask (로컬) + pgvector |
+| **RAG** | 답하기 전에 실제 약품 DB에서 정보 검색 | OpenAI text-embedding-3-large + pgvector(halfvec) |
