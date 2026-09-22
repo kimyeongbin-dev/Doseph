@@ -349,7 +349,7 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
 
 ## 6-5. 🧭 실수 대장 — **작업별로 «그 자리만» 읽는다**
 
-정본 = `docs-private/AGENT_실수-오류-기록.md` (**84건 · 152 KB**).
+정본 = `docs-private/AGENT_실수-오류-기록.md` (**85건 · 160 KB**).
 🔴 **전체를 읽으라는 지시는 실행 불가능하고, 그래서 실제로 안 읽힌다** — 그 상태가
 `D52`·`D63` 을 *규칙으로 적어 둔 채* 다시 밟게 만들었다. 그래서 **주소로 연다.**
 
@@ -368,7 +368,7 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
 | `프론트엔드` | FE 코드·테스트를 만질 때 (2건) |
 | `시크릿` | `.env`·토큰·키를 다룰 때 (1건) |
 | `상시-측정` | 🔴 **항상** — 무엇이든 셀 때 (9건) |
-| `상시-주장` | 🔴 **항상** — 무엇이든 주장·확인할 때 (12건) |
+| `상시-주장` | 🔴 **항상** — 무엇이든 주장·확인할 때 (13건) |
 
 <!-- 실수대장-라우팅 끝 -->
 
