@@ -171,7 +171,14 @@ To prevent Messy Data, strictly adhere to the following principles:
 
 * **Asynchronous Programming (Async)**: Actively utilize **Async/Await** for all I/O operations (Network, File I/O, CPU-bound operations) to optimize responsiveness.
 * **HTTP Client**: All external API calls MUST use `httpx.AsyncClient` (no `requests` library). The `requests` library is synchronous and MUST NOT be used anywhere in the project.
-* **Model Migration**: When any model is changed, `aerich migrate` + `docs/db_schema.dbml` update is mandatory.
+* **Model Migration**: 모델을 바꾸면 **`aerich migrate` 는 필수**다.
+    * 🔴 **ERD(`.dbml`) 는 «갱신 의무» 가 아니다.** 실물은 `docs-private/portfolio/` 에 **2건**
+      (`2026-04-01_db_schema_v1_initial.dbml` · `2026-05-05_db_schema.dbml`)이고 **둘 다 팀 시절**이며,
+      **자동 생성기가 없어** 손으로 쓴 것이라 현재 모델과 이미 어긋나 있다.
+      ⇒ **ERD 를 고칠 사람은 그 짝 문서(포트폴리오)를 고칠 때 같이 고친다.**
+    * ✏️ **2026-09-23 정정** — 이 줄은 **`docs/db_schema.dbml` 갱신을 의무**라고 지시했는데
+      **그 파일은 존재한 적이 없다**(`git log --all` 0건). **매 턴 재주입되는 층이 거짓을 명령**하고
+      있었다(`문서-11`). 🔑 **없는 파일을 가리키는 의무는 «안 지켜지는 규칙» 이 아니라 «못 지키는 규칙»** 이다.
 
 
 ### 4.3 Multilingual Processing & Documentation Rules
