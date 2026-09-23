@@ -76,7 +76,7 @@ NONE_CEILING = 43
 #: 🔴 **배출을 막지 않는 바닥값.** 항목 수에 바닥을 두면 `FILING` §7-2 배출이 차단된다.
 #:    그래서 **모집단 + 배출 스냅샷** 의 합을 센다 — 배출해도 합은 안 줄고,
 #:    파서가 눈멀면 합이 무너진다.
-MIN_TOTAL = 91
+MIN_TOTAL = 92
 
 #: 배출 목적지. 아직 없어도 정상이다(배출한 적이 없다).
 ARCHIVE_DIR = REPO_ROOT / "docs-private" / "mistake"
