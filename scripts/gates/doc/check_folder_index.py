@@ -52,7 +52,7 @@ TARGETS = {"study": "-study", "portfolio": "-portfolio"}
 
 #: 🔑 바닥값 — 0건은 *"어긋남이 없다"* 가 아니라 *"못 셌다"* 다. 손으로 올린다.
 #: ⚠️ 2026-09-23 실측: study 54 · portfolio 11.
-MIN_LISTED = {"study": 54, "portfolio": 11}
+MIN_LISTED = {"study": 54, "portfolio": 12}
 
 #: 🔴 **줄머리·칸머리에 앵커를 단다.** 색인 항목은 **목록 항목의 맨 앞** 또는
 #:    **표의 첫 칸**에만 온다 — 산문 한가운데에는 안 온다.
