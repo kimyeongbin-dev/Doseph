@@ -110,3 +110,68 @@ flowchart TD
 - **direct_answer**: greeting / out_of_scope / ambiguous — Query Rewriter 가 `direct_answer` 필드를 채우면 즉시 그 텍스트를 assistant 응답으로 persist. RAG 호출 안 함.
 - **location_search**: 카카오 Local API 호출. mode=keyword 면 즉시, mode=gps 면 PendingTurn (TTL=60s) 으로 사용자 위치 토글 응답 대기.
 - **recall_check**: `check_user_medications_recall` (mode=user) 또는 `check_manufacturer_recalls` (mode=manufacturer). drug_recall 테이블 매칭 → 4o 자연어 변환. 데이터 0건이면 "확인되지 않았어요" 응답 (식약처 sync 필요).
+
+---
+
+## 권한(Authorization)이 걸리는 자리
+
+> 📥 **2026-09-23 — `docs/chatbot_flow.md` 에서 흡수**(`문서-22`). 옮기며 **전수 실재 확인**했다.
+
+| 권한 | 검증 위치 | 검증 주체 | 어떻게 |
+|---|---|---|---|
+| **세션 소유권** | `MessageService` 진입 | `_verify_session_ownership` | DB 의 `chat_session.account_id` == 현재 account |
+| **PendingTurn 소유권** | `/tool-result` 콜백 | `_claim_and_authorize` | Redis 의 `pending.account_id` == 현재 account |
+| **GPS 권한** | 🌐 **브라우저**(백엔드 아님) | OS·브라우저 다이얼로그 | `navigator.geolocation` |
+
+> 🔑 **GPS 권한은 백엔드가 모른다.** 프론트가 좌표를 보내거나 `denied` 만 알려주고,
+> 백엔드는 **그 status 만 신뢰**해서 처리한다.
+
+### GPS 파킹 분기 — 한 턴이 두 요청으로 쪼개진다
+
+```
+POST /api/v1/messages/ask        (mode=gps 로 판정된 경우)
+  1. user 메시지 저장
+  2. _enqueue_gps_pending_turn:
+     PendingTurn(turn_id, session_id, account_id, snapshot, tool_calls) 을 Redis 에 TTL 로
+  3. → 202 ChatAskPendingResponse (turn_id, ttl_sec)
+
+[프론트엔드 — navigator.geolocation 으로 좌표 수신]
+
+POST /api/v1/messages/tool-result   (turn_id + status + lat/lng)
+  4. _claim_and_authorize: PendingTurn 을 atomic 하게 claim(Redis pop) + 소유권 대조
+  5. _collect_tool_results: status='ok' 면 좌표로 실행, 'denied' 면 error 마킹
+  6. 답변 LLM 생성 + assistant 메시지 저장 → 200
+```
+
+✏️ **옮기며 고친 것**: 옛 문서의 `_park_pending_turn` 은 **개명됐다** → `_enqueue_gps_pending_turn`.
+
+---
+
+## RAG retrieval 은 **두 층이 한 SQL** 이다
+
+> 📥 **2026-09-23 — `portfolio/2026-05-05_chatbot-pipeline-portfolio.md` 에서 흡수**(`문서-22`).
+
+| 층 | 무엇 | 자료구조 |
+|---|---|---|
+| **메타필터** | `ingredients`(필수) + `section`(옵션) + `target_conditions`(옵션) | GIN `jsonb_path_ops` · B-tree |
+| **임베딩 정렬** | 메타필터를 통과한 candidate 안에서 **cosine distance ASC** | `halfvec(3072)` |
+
+두 층이 **1번의 SQL 안에서** 합쳐진다 — DB round-trip 1회다.
+구현 = `app/services/rag/retrievers/hybrid_metadata.py`.
+
+### DB 인덱스 — 🔬 **실측 (2026-09-23, 로컬 DB 직접 조회)**
+
+```sql
+-- 메타필터가 실제로 타는 인덱스
+CREATE INDEX … ON medicine_chunk USING gin (ingredients jsonb_path_ops);
+CREATE INDEX … ON medicine_chunk USING gin (target_conditions jsonb_path_ops);
+CREATE INDEX … ON medicine_chunk USING gin (interaction_tags jsonb_path_ops);
+CREATE INDEX … ON medicine_chunk USING gin (target_lifestyle jsonb_path_ops);
+CREATE INDEX … ON medicine_chunk USING gin (content_tsv);
+CREATE INDEX … ON medicine_chunk (section);   -- B-tree
+```
+
+> 🔴 **벡터 인덱스는 없다.** `medicine_chunk` 의 인덱스 10개 중 **벡터용 0개**다 —
+> 즉 cosine 정렬은 **전체 스캔**이다. 깔 시점은 `ROADMAP` v2.7 이다.
+> ⚠️ 발표용 포트폴리오 문서는 `USING hnsw (...)` 를 **있는 것처럼** 적고 있다 —
+> **그쪽이 설계 의도이고 이쪽이 실측**이다. 옮기며 그대로 베끼지 않았다(`문서-23`).
