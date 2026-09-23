@@ -39,6 +39,7 @@ force push 가 필요하다(2026-09-15 사용자 판단: **고치지 않는다**
 """
 
 from pathlib import Path
+import re
 import sys
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -48,8 +49,63 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 # 이모지·대괄호·`@`·공백·BOM·한글 접두. (2026-09-15 규약 전환: 팀 시절 이모지 규약 폐기)
 ASCII_LETTERS = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
+#: 🔴 **허용 타입 — Conventional Commits 표준 11종 + `merge`**(2026-09-23, `문서-3`).
+#:
+#: 규약이 6종만 말하는 동안 **히스토리에는 16종이 더 있었다**(실측 2026-09-23):
+#: `merge` 24 · `ci` 13 · `design` 6 · `ux` 5 · `security` 5 · `style` 4 · `perf` 3 …
+#: 그중 `ci`·`perf`·`style`·`revert` 는 **표준인데 규약이 빠뜨린 것**이었고,
+#: `mypage`·`ocr`·`chatbot`·`mainpage` 는 **기능명을 앞머리로 쓴 것**(scope 자리다), `paln` 은 오타다.
+#:
+#: 🔑 **어휘를 넓히되 기계가 잡게 한다** — 문서에만 두면 또 갈린다. 그게 `문서-3` 이었다.
+#: ⚠️ `merge` 는 git 이 만드는 제목이라 사람이 고르는 타입이 아니다. 그래서 별도로 허용한다.
+ALLOWED_TYPES = frozenset({
+    "feat",
+    "fix",
+    "docs",
+    "style",
+    "refactor",
+    "perf",
+    "test",
+    "build",
+    "ci",
+    "chore",
+    "revert",
+    "merge",
+})
+
+#: `type(scope): 설명` 또는 `type: 설명`. scope 는 선택이고 `!`(breaking)도 받는다.
+CONVENTIONAL = re.compile(r"^([a-z]+)(\([^)]+\))?!?: ")
+
 # BOM 은 소스에 날것으로 두면 눈에 안 보여 다음 사람이 지운다 -> 이름을 붙여 고정한다.
 BOM = "﻿"
+
+
+# ── 앞머리 위생 ───────────────────────────────────────────────────────
+# 흐름: 첫 글자가 ASCII 영문자인가 -> 아니면 «왜» 인지 이름을 붙인다
+# 🔑 «깨끗한가» 와 «약속한 타입인가» 는 다른 질문이라 함수를 나눈다.
+def hygiene_reason(subject: str) -> str:
+    """앞머리가 오염됐으면 그 이유를, 깨끗하면 빈 문자열을 돌려준다.
+
+    Args:
+        subject: 커밋 제목.
+
+    Returns:
+        오염 이유. 깨끗하면 `""`.
+    """
+    first = subject[0]
+    if first in ASCII_LETTERS:
+        return ""
+    if first.isspace():
+        return "제목이 공백으로 시작한다"
+    if first == BOM:
+        return "제목이 BOM(보이지 않는 문자)으로 시작한다"
+    if first == "@":
+        return "제목이 '@' 로 시작한다 (붙여넣기 잔재)"
+    if first == "[":
+        return "제목이 대괄호로 시작한다 — 팀 시절 스타일이고 지금 규약이 아니다"
+    if not first.isascii():
+        return f"제목이 ASCII 가 아닌 문자({first!r})로 시작한다 — 이모지·한글 접두 금지"
+    return f"제목이 영문자가 아닌 {first!r} 로 시작한다"
 
 
 # ── 커밋 제목 위생 검사 (commit-msg 훅) ─────────────────────────────────
@@ -82,21 +138,7 @@ def main() -> int:
         print("[거부] 커밋 제목이 비어 있다.", file=sys.stderr)
         return 1
 
-    first = subject[0]
-    reason = ""
-    if first not in ASCII_LETTERS:
-        if first.isspace():
-            reason = "제목이 공백으로 시작한다"
-        elif first == BOM:
-            reason = "제목이 BOM(보이지 않는 문자)으로 시작한다"
-        elif first == "@":
-            reason = "제목이 '@' 로 시작한다 (붙여넣기 잔재)"
-        elif first == "[":
-            reason = "제목이 대괄호로 시작한다 — 팀 시절 스타일이고 지금 규약이 아니다"
-        elif not first.isascii():
-            reason = f"제목이 ASCII 가 아닌 문자({first!r})로 시작한다 — 이모지·한글 접두 금지"
-        else:
-            reason = f"제목이 영문자가 아닌 {first!r} 로 시작한다"
+    reason = hygiene_reason(subject)
 
     if reason:
         print(f"\n[거부] 커밋 제목 앞머리가 오염됐다 — {reason}.\n", file=sys.stderr)
@@ -106,6 +148,39 @@ def main() -> int:
             "\n  이모지 접두는 팀 시절 규약이고 지금은 금지다(2026-09-15 규약 전환)."
             "\n  2026-09-13 에 8개 커밋이 '@ ' 로 시작한 채 박혔고 원격 15개 브랜치에 퍼져"
             "\n  되돌릴 수 없게 됐다. 앞머리를 지우고 다시 커밋하라.\n",
+            file=sys.stderr,
+        )
+        return 1
+
+    # ── 타입 어휘 (2026-09-23 신설, `문서-3`) ──────────────────────────
+    # 🔴 앞머리가 «깨끗한가» 와 «약속한 타입인가» 는 다른 질문이다.
+    #    전자는 2026-09-15 부터 봤고, 후자는 아무도 안 봐서 16종이 새로 생겼다.
+    # 🔴 git 이 **스스로 만드는** 제목은 사람이 고른 타입이 아니다 — 면제한다.
+    #    `Merge branch 'x'` · `Revert "..."` 는 대문자로 시작하고 콜론이 없다.
+    #    ⚠️ 이걸 안 빼면 **모든 머지가 막힌다** — 과잉 차단하는 게이트는 사람이 끄고,
+    #    그러면 옆의 정확한 게이트까지 죽는다(`QUALITY_GATES` §2-1).
+    if subject.startswith(("Merge ", "Revert ")):
+        return 0
+
+    matched = CONVENTIONAL.match(subject)
+    if matched is None:
+        print("\n[거부] 커밋 제목이 `type: 설명` 꼴이 아니다.\n", file=sys.stderr)
+        print(f"  제목: {subject!r}", file=sys.stderr)
+        print(
+            "\n  꼴: `type: 설명` 또는 `type(scope): 설명` (예: `fix(fe): ...`)."
+            f"\n  타입: {' · '.join(sorted(ALLOWED_TYPES))}\n",
+            file=sys.stderr,
+        )
+        return 1
+
+    kind = matched.group(1)
+    if kind not in ALLOWED_TYPES:
+        print(f"\n[거부] `{kind}` 은 약속한 타입이 아니다.\n", file=sys.stderr)
+        print(f"  제목: {subject!r}", file=sys.stderr)
+        print(
+            f"\n  타입: {' · '.join(sorted(ALLOWED_TYPES))}"
+            "\n  🔑 **기능명은 앞머리가 아니라 scope 다** — `ocr: ...` 이 아니라 `feat(ocr): ...`."
+            "\n  정본 = `CLAUDE.md` §6 · 경위 = `DOC_TRUTH_DRIFT` §C-2(`문서-3`).\n",
             file=sys.stderr,
         )
         return 1

@@ -225,8 +225,18 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
 
 ## 6. Commit Rules
 
-> 🔴 **semantic prefix**(`feat`·`fix`·`refactor`·`docs`·`test`·`chore`)는 `commit-subject-hygiene`
-> 훅이, **트레일러**는 `no-ai-trailers` 훅이 `commit-msg` 단계에서 **막는다.**
+> 🔴 **제목 꼴 `type(scope): 설명`** 과 **타입 어휘**는 `commit-subject-hygiene` 훅이,
+> **트레일러**는 `no-ai-trailers` 훅이 `commit-msg` 단계에서 **막는다.**
+>
+> **타입 12종** — Conventional Commits 표준 11 + `merge`:
+> `feat` `fix` `docs` `style` `refactor` `perf` `test` `build` `ci` `chore` `revert` `merge`
+>
+> 🔑 **기능명은 앞머리가 아니라 scope 다** — `ocr: …` 이 아니라 **`feat(ocr): …`**.
+> ✏️ **2026-09-23 재작성**(`문서-3`) — 규약이 **6종**만 말하는 동안 히스토리에는 **16종이 더** 있었다
+> (`ci` 13 · `design` 6 · `ux` 5 · `security` 5 · `style` 4 · `perf` 3 · 오타 `paln` …).
+> 그중 `ci`·`perf`·`style`·`revert` 는 **표준인데 규약이 빠뜨린 것**이었다.
+> 🔴 **어휘를 넓히되 기계가 잡게 했다** — 문서에만 두면 또 갈린다(그게 `문서-3` 이었다).
+> ⚠️ git 이 만드는 `Merge …`·`Revert …` 는 **면제**한다 — 안 그러면 모든 머지가 막힌다.
 
 1. **Single Responsibility Commits**: 기능·수정 하나당 커밋 하나. **무관한 작업을 한 커밋에 섞지 않는다**(`refactor` + `feat` 금지).
 2. **Backward Compatibility Check**: 커밋 전에 기존 시스템의 하위 호환이 깨지지 않는지 확인한다.
