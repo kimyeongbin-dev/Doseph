@@ -110,6 +110,10 @@ STATE_CANONS = frozenset({
     "LOCAL_RESIDUE.md",
     "ARCHITECTURE.md",  # 2026-09-21 루트에서 이관(B-9 S7)
     "FOLLOWUP_INDEX.md",  # 🤖 생성물 — build_followup_index.py 가 만든다
+    # 🤖 생성물 — build_structure_map.py 가 만든다. **커밋하지 않는다**(gitignore 안):
+    #    커밋하는 순간부터 낡기 시작하고, 그게 앞 판(`PROJECT_STRUCTURE_REPORT.md`)이
+    #    12개 항목을 틀린 채 5개월을 산 이유다. 없어도 정상이다 — 읽고 싶을 때 만든다.
+    "STRUCTURE_MAP.md",
 })
 ALLOWED_TOP = WORK_BUFFERS | STATE_CANONS
 
