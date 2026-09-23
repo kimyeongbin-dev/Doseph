@@ -1,6 +1,7 @@
 """사용자 의학 컨텍스트 빌더 — medication + Profile.health_survey → system prompt 섹션.
 
-PLAN.md (feature/RAG) §2/§3 Step 0:
+사라진 계획 «feature/RAG» §2/§3 Step 0:
+🔑 계약의 정본은 이 모듈과 `app/tests/` 다 — 계획은 사라졌고 *왜* 만 남았다.
 - medication 테이블에서 사용자 복용약 list 조회
 - profiles.health_survey JSONField 에서 conditions/allergies/is_smoking 등 조회
 - markdown 한국어 섹션으로 조립 → 2nd LLM 의 system prompt 의 [사용자 의학 컨텍스트]

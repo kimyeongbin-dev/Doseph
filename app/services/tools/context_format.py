@@ -1,6 +1,7 @@
 """RAG context formatter — chunks list → 2nd LLM system prompt 의 검색 결과 섹션.
 
-PLAN.md (feature/RAG) §3 F1 — `[약: name][section]: content` 포맷 명시.
+사라진 계획 «feature/RAG» §3 F1 — `[약: name][section]: content` 포맷 명시.
+🔑 **정본은 이 파일이다** — chunk 헤더 포맷을 여기서 만든다.
 
 정책:
 - top-N cap (기본 15) 으로 token 폭발 차단

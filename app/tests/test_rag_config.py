@@ -26,7 +26,8 @@ class TestEmbeddingConfigConstants:
     def test_embedding_defaults_match_current_model(self) -> None:
         """Current defaults: OpenAI text-embedding-3-large, 3072 dimensions.
 
-        PLAN.md (feature/RAG) §0 — ko-sroberta (768d) 폐기, OpenAI 통합.
+        사라진 계획 «feature/RAG» §0 — ko-sroberta (768d) 폐기, OpenAI 통합.
+        🔑 정본 = `app/services/rag/config.py`. 이 테스트가 그것을 잠근다.
         """
         assert rag_config.EMBEDDING_MODEL_NAME == "text-embedding-3-large"
         assert rag_config.EMBEDDING_DIMENSIONS == 3072

@@ -1,6 +1,6 @@
 """brand 약 이름 → 활성성분 매핑 service (DB lookup, 유사도 X).
 
-PLAN.md (feat/ingredient-grounded-rag) §B - 의약품 도메인의 본질은 성분 단위
+`plan/2026-08-11_rag-query-rewriter-plan.md` (ingredient-grounded) §B - 의약품 도메인의 본질은 성분 단위
 (병용금기, 부작용, 주의사항이 성분으로 정의됨). 사용자 medication 또는
 질의에 등장하는 brand 이름을 medicine_info ↔ medicine_ingredient SQL lookup
 으로 활성성분명 list 로 변환한다.

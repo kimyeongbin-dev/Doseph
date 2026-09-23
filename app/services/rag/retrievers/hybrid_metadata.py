@@ -1,6 +1,6 @@
 """Hybrid Metadata Retriever — JSONB ?| 메타 필터 + halfvec cosine top-K.
 
-PLAN.md (RAG 재설계 PR-C). Query Rewriter (PR-B) 의 QueryMetadata 와 임베딩
+`plan/2026-08-11_rag-query-rewriter-plan.md` (PR-C). Query Rewriter (PR-B) 의 QueryMetadata 와 임베딩
 1회로 통합 검색.
 
 이전 흐름 (HybridRetriever fan-out + RRF intra-query) 폐기:

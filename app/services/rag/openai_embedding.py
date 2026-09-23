@@ -1,6 +1,7 @@
 """OpenAI text-embedding-3-large query-side 임베딩 — 3072d.
 
-PLAN.md (feature/RAG) §0 결정 — chunk 임베딩과 동일 모델/dim 사용.
+사라진 계획 «feature/RAG» §0 결정 — chunk 임베딩과 동일 모델/dim 사용.
+🔑 모델·차원의 정본 = `app/services/rag/config.py`.
 
 medicine_chunk 의 embedding 컬럼은 vector(3072) (28번 마이그). 사용자 query 도
 같은 모델 + 같은 dim 으로 임베딩해야 cosine 유사도 비교 정확.

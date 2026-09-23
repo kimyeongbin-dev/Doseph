@@ -1,6 +1,6 @@
 """Step 0 + 1st LLM 통합 오케스트레이터.
 
-PLAN.md (RAG 재설계 PR-D) - ask_with_tools 의 1st LLM 진입 직선화.
+`plan/2026-08-11_rag-query-rewriter-plan.md` (PR-D) - ask_with_tools 의 1st LLM 진입 직선화.
 
 흐름:
   profile_id -> build_medical_context (medication + survey)

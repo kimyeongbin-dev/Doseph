@@ -37,7 +37,8 @@ def uuid_token() -> str:
     return uuid.uuid4().hex[:8]
 
 
-# PLAN.md (feature/RAG) §0 결정 — recent history = 6 messages (3 user + 3 assistant).
+# 사라진 계획 «feature/RAG» §0 결정 — recent history = 6 messages (3 user + 3 assistant).
+# 🔑 값의 정본은 이 모듈의 상수와 테스트다.
 # 6 turn 마다 chat_sessions.summary 갱신 (옵션 D) 와 정확히 일치 → token 절감.
 _HISTORY_LIMIT = 6
 _STATUS_OK = "ok"
@@ -982,7 +983,7 @@ class MessageService:
 
 
 # ── 2nd LLM system prompt 조립 ──────────────────────────────────────
-# PLAN.md (RAG 재설계 PR-D) - 사용자 brand <-> 검색결과 성분명 단절 방지를
+# `plan/2026-08-11_rag-query-rewriter-plan.md` (PR-D) - 사용자 brand <-> 검색결과 성분명 단절 방지를
 # 위한 안전장치 섹션 순서:
 #   1. persona + output rule (성분 grounded 강화)
 #   2. [사용자 의학 컨텍스트] (사용자 복용약/기저질환/알레르기 brand 표기)

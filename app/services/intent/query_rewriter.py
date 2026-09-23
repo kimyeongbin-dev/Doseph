@@ -1,6 +1,6 @@
 """Query Rewriter — 1st LLM (gpt-4o-mini) Structured Output 단일 호출.
 
-PLAN.md (RAG 재설계 PR-B) — 사용자 raw 질의 + medical_context (DB prepend)
+`plan/2026-08-11_rag-query-rewriter-plan.md` (PR-B) — 사용자 raw 질의 + medical_context (DB prepend)
 를 입력받아 의도 분류 + 재작성 질의 + 메타데이터 + 대명사 풀이를 한번에.
 
 이전 IntentClassifier (`classifier.py`) 의 책임 + fanout_queries 분산 폐기 +

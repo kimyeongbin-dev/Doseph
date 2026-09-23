@@ -1,6 +1,6 @@
 """Query Rewriter (1st LLM) Pydantic schema — Structured Output.
 
-PLAN.md (RAG 재설계 PR-B) — 사용자 raw 질의 + medical_context (DB 자동 prepend)
+`plan/2026-08-11_rag-query-rewriter-plan.md` (PR-B) — 사용자 raw 질의 + medical_context (DB 자동 prepend)
 를 입력받아 단일 호출로 다음을 모두 산출:
 
 1. intent 분류 (greeting / out_of_scope / domain_question / ambiguous)

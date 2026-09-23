@@ -1,6 +1,7 @@
 """RAG tool_results → 2nd LLM system prompt 의 [검색된 약품 정보] 섹션 조립.
 
-PLAN.md (feature/RAG) §3 Step 4 + F1 결정.
+사라진 계획 «feature/RAG» §3 Step 4 + F1 결정.
+🔑 포맷의 정본 = `app/services/tools/context_format.py`.
 
 흐름:
   fanout 으로 search_medicine_knowledge_base x N 호출

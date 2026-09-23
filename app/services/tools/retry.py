@@ -1,6 +1,7 @@
 """자체 retry decorator — tenacity 외부 의존 없이 ~50 라인.
 
-PLAN.md (feature/RAG) §4 D1 결정 — tenacity 가 아닌 자체 구현 채택.
+사라진 계획 «feature/RAG» §4 D1 결정 — tenacity 가 아닌 자체 구현 채택.
+🔑 **정본은 이 파일이다** — 재시도 정책을 여기서 정한다.
 
 정책:
 - max_attempts=2 (기본). 즉 첫 호출 + 1회 재시도 = 총 2회.

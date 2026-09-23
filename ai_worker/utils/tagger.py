@@ -10,7 +10,8 @@ the chunking pipeline batch, not on the request path.
 
 Reference:
     - Seed dictionary: ai_worker/data/interaction_tags.json (v1-seed)
-    - PLAN.md §1.5.6 v2 (schema lock ④)
+    - 사라진 계획 §1.5.6 v2 (schema lock ④)
+    🔑 정본 = `ai_worker/data/interaction_tags.json`(v1-seed)과 이 모듈.
 """
 
 import json

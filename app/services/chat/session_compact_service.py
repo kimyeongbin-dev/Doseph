@@ -4,7 +4,8 @@ Responsibilities (this phase):
 1. Take a chronological message list plus each user turn's classified intent
    (read from ``messages.metadata`` by the caller).
 2. Drop USER/ASSISTANT turn pairs classified as OUT_OF_SCOPE / GENERAL_CHAT
-   so the summarising LLM never sees non-medical noise (PLAN.md Z-5).
+   so the summarising LLM never sees non-medical noise (사라진 계획 «세션 컴팩트 Z-5»).
+   🔑 규칙의 정본은 이 모듈과 `app/tests/` 다 — 계획은 사라졌다.
 3. Delegate to the injected RAG generator (worker LLM) to produce the
    merged summary and surface the structured SummaryResult.
 
@@ -86,7 +87,7 @@ class SessionCompactService:
     def filter_noise(self, messages: list[CompactMessage]) -> list[CompactMessage]:
         """Drop USER turns classified as noise along with their paired ASSISTANT turn.
 
-        Rules (PLAN.md Z-5):
+        Rules (사라진 계획 «세션 컴팩트 Z-5»):
         - If a USER turn's ``intent`` is in :data:`_NOISE_INTENTS`, remove it
           and the immediately following ASSISTANT turn (if any).
         - Missing/None intent is kept — losing medical context is worse than
