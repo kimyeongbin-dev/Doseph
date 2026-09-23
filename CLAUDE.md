@@ -267,7 +267,7 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
 | `셸-원격실행` | PowerShell·ssh·bash·docker 명령을 짤 때 (12건) |
 | `배포-인프라` | GCP·VM·CI/CD·CF Pages 를 건드릴 때 (12건) |
 | `문서-닫기` | PLAN·완료기록·스냅샷·색인을 닫거나 옮길 때 (20건) |
-| `게이트-검사기` | 게이트·테스트·검사기를 만들거나 고칠 때 (18건) |
+| `게이트-검사기` | 게이트·테스트·검사기를 만들거나 고칠 때 (19건) |
 | `git-커밋` | 커밋·푸시할 때 (2건) |
 | `파일편집` | 스크립트로 파일을 고칠 때 (2건) |
 | `프론트엔드` | FE 코드·테스트를 만질 때 (2건) |
