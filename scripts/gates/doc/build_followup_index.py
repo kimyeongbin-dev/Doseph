@@ -149,6 +149,27 @@ def open_count(rows: list[tuple[str, list[str]]], ledger: str) -> tuple[int, str
     return opened, None
 
 
+# ── 트랙 B 구간 잘라내기 ─────────────────────────────────────────────
+# 흐름: `## 트랙 B` 부터 **다음 `## `** 까지 — 하위 절(`###`·`####`)은 그 안에 남긴다
+# 🔴 예전엔 `split("###")[0]` 로 잘랐는데, 트랙 B 머리에 `####` 대응표가 들어오자
+#    **표 앞에서 잘려 B 를 0건**으로 셌다(2026-09-23, 문서-13). 앵커 없는 분할이다(D47).
+def track_b_block(roadmap: str) -> str:
+    """`## 트랙 B` 절 전체를 돌려준다.
+
+    Args:
+        roadmap: `ROADMAP.md` 전문.
+
+    Returns:
+        그 절의 본문. 없으면 빈 문자열.
+    """
+    marker = "## 트랙 B"
+    if marker not in roadmap:
+        return ""
+    rest = roadmap.split(marker, 1)[1]
+    following = re.search(r"(?m)^## ", rest)
+    return rest[: following.start()] if following else rest
+
+
 # ── 색인 본문 생성 ──────────────────────────────────────────────────
 # 흐름: 5개 원장 긁기 -> 바닥값 대조 -> 마크다운 조립
 def build() -> tuple[str, dict[str, int]]:
@@ -167,8 +188,7 @@ def build() -> tuple[str, dict[str, int]]:
         key=lambda kv: (kv[0].split("-")[0], int(kv[0].split("-")[1])),
     )
     btrack = [
-        (f"B-{num}", [tidy(title), tidy(state, 60)])
-        for num, title, state in BSTEP.findall(roadmap_body.split("## 트랙 B")[1].split("###")[0])
+        (f"B-{num}", [tidy(title), tidy(state, 60)]) for num, title, state in BSTEP.findall(track_b_block(roadmap_body))
     ]
 
     counts = {"QA": len(qa), "문서": len(docs), "L": len(local), "ROADMAP": len(tracks), "B": len(btrack)}
