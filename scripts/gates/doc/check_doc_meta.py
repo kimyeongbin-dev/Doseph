@@ -205,15 +205,21 @@ def table_row(lines: list[str], marker: str) -> str | None:
         아무 칸이나 보면 산문이 섞여 *"있다"* 가 늘 참이 된다(대장 **D47**).
         그리고 후보가 둘이면 **None** 이다 — 어느 행인지 모르는 채로 diff 하면
         엉뚱한 절을 비교한다(fail-closed).
+
+    🔴 **정확일치를 먼저 본다** (2026-09-28)
+        부분일치만 쓰면 짧은 마커가 넓게 걸린다 — 실측: ``ROADMAP#11`` 이
+        ``| **11** |`` 과 ``| **C-11 설문…** |`` **둘**에 걸려 모호로 막혔다.
+        첫 칸에서 꾸밈(``*``·`` ` ``·공백)을 벗긴 값이 마커와 **같으면** 그것이 답이다.
+        같은 것이 없을 때만 부분일치로 내려간다(``C-6 잔손질`` 처럼 뒤에 말이 붙는 경우).
     """
     want = re.compile(r"^\|(?P<head>[^|]*)\|", re.IGNORECASE)
-    hits = [
-        line
+    heads = [
+        (line, found["head"])
         for line in lines
-        if (found := want.match(line.strip()))
-        and marker.lower() in found["head"].lower()
-        and not re.fullmatch(r"[\s:|-]*", found["head"])
+        if (found := want.match(line.strip())) and not re.fullmatch(r"[\s:|-]*", found["head"])
     ]
+    exact = [line for line, head in heads if head.strip().strip("*` ").lower() == marker.lower()]
+    hits = exact or [line for line, head in heads if marker.lower() in head.lower()]
     return hits[0] if len(hits) == 1 else None
 
 

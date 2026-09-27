@@ -90,3 +90,26 @@ def test_heading_wins_over_table_row() -> None:
     assert found is not None
     assert "내용 B-14." in found
     assert "표 행 쪽" not in found
+
+
+def test_exact_first_cell_wins_over_substring() -> None:
+    """🔴 **정확일치를 먼저 본다** (2026-09-28).
+
+    실측: `ROADMAP#11` 이 `| **11** |` 과 `| **C-11 설문…** |` **둘**에 걸려 모호로 막혔다.
+    짧은 마커는 부분일치만으로는 넓다 — 꾸밈을 벗긴 첫 칸이 **같으면** 그것이 답이다.
+    """
+    numbered = """| 단계 | 내용 |
+|---|---|
+| **11** | CLAUDE.md 축소 |
+| **C-11 설문 SSOT 단일화** | 진입 경로마다 선택지가 다르다 |"""
+    found = section_text(numbered, "11")
+    assert found is not None, "정확일치가 모호를 갈라야 한다"
+    assert "CLAUDE.md 축소" in found
+    assert "설문" not in found
+
+
+def test_substring_still_works_when_no_exact_match() -> None:
+    """정확일치가 없으면 부분일치로 내려간다 — `C-6` ↔ `**C-6 잔손질**`."""
+    found = section_text(TABLED, "C-6")
+    assert found is not None
+    assert "LOCAL_RESIDUE" in found

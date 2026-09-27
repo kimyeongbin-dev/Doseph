@@ -74,7 +74,8 @@ MIN_ANCHORS = 36
 MAX_CANDIDATES = 0
 #: 🔴 **줄 수 천장** — 2026-09-27 착수 시 605, 앵커를 표제 줄에 붙여 598 로 내려왔다.
 #:    B-11 2구간이 본문을 압축하면 **이 값도 같이 내린다.**
-MAX_LINES = 598
+MAX_LINES = 588  # B-11 2구간: 598 -> 588. 강조는 글자를 안 지우지만, 정정 배너 4건을
+#:                 «되돌리려는 힘이 없다» 는 기준으로 압축해 10줄이 내려갔다.
 
 #: 🔴 **매 턴 컨텍스트에 문자열을 주입하는 파일** — 층②와 같은 무게인데 게이트가 없었다(대장 **D67**).
 #:    그 훅이 *「축 `문서-닫기`(18건)」* 를 주입하는 동안 게이트는 **19** 를 인쇄했다.
@@ -84,6 +85,21 @@ MAX_LINES = 598
 #:    *문서를 훑는 패스가 구조적으로 못 본다.*
 INJECTORS = (REPO_ROOT / "scripts" / "hooks" / "read_precondition.py",)
 COUNT_IN_PROSE = re.compile(r"\d+\s*건")
+
+#: 🔴 **강조 천장** — 규약 정본 = ``FILING.md`` §3-2 *«강조는 희소할 때만 신호다»*.
+#:    공식 지침: *«emphasize many lines → none stands out»*. 볼드 381개는 볼드 0개와 같다.
+#:    ⚠️ **기준을 문장으로만 두면 다시 는다** — 1구간이 *«강조 인플레이션 63%»* 를 적어 두고
+#:    닫았는데 엿새 뒤 **61%** 였다. 그래서 천장을 기계에 건다(줄어들 수만 있다).
+MAX_MULTI_EMPHASIS = 0
+#: 🔴 는 *«어기면 되돌릴 수 없는 피해»* 에만. 표제에는 쓰지 않는다(표제는 이미 구조로 두드러진다).
+#:    2026-09-28: **43 → 11**.
+MAX_RED = 11
+
+BOLD = re.compile(r"\*\*([^*\n]+)\*\*")
+#: ID 인용(`**D62**`)은 **강조가 아니라 관례**다 — 섞어 세면 숫자가 뜻을 잃는다(대장 `D43`).
+ID_CITE = re.compile(r"^`?(?:D\d+|QA-\d+|문서-\d+|L-\d+|[ABC]-\d+|v2\.\d)`?$")
+#: 목록 항목 머리의 라벨 — `* **Principles**:` 는 *그 항목의 이름*이지 강조가 아니다.
+LABEL_HEAD = re.compile(r"^\s*(?:[*\-+]|\d+\.|\*\s*\d+-\d+\.)\s+\*\*([^*\n]+)\*\*\s*:")
 
 ANCHOR = re.compile(r"<!-- rule:(?P<name>\S+) 강제:(?P<force>[^\s>]+)(?: 잔류:(?P<stay>[^>]*?))? -->")
 #: 페이로드가 없는 앵커 — 1구간 형식이 남아 있는 것이다.
@@ -188,7 +204,61 @@ def audit(text: str, ledger: str, known: Known) -> tuple[list[str], list[Rule]]:
     # ⑨ 주입 문자열에 건수가 박혔나 (대장 D67 이 B-13 에 넘긴 판단)
     problems.extend(check_injectors())
 
+    # ⑩ · ⑪ 강조 인플레이션 (B-11 2구간)
+    problems.extend(check_emphasis(text))
+
     return problems, rules
+
+
+def emphases(line: str) -> list[str]:
+    """그 줄의 **순수 강조** 조각 — 이름표와 ID 인용은 빼고 센다.
+
+    🔴 세는 대상을 안 가르면 숫자가 뜻을 잃는다(대장 **D43**). 강조가 아닌 볼드가 둘 있다 —
+    표 **첫 칸**의 이름표와 목록 항목 머리의 라벨, 그리고 ``**D62**`` 같은 **ID 인용**.
+
+    Args:
+        line: 한 줄.
+
+    Returns:
+        순수 강조 조각들.
+    """
+    stripped = line.strip()
+    scope = line
+    if stripped.startswith("|"):
+        cells = stripped.split("|")
+        scope = "|".join(cells[2:]) if len(cells) > 2 else line
+    label = LABEL_HEAD.match(line)
+    return [
+        frag
+        for frag in BOLD.findall(scope)
+        if not ID_CITE.match(frag.strip()) and not (label and frag == label.group(1))
+    ]
+
+
+def check_emphasis(text: str) -> list[str]:
+    """강조가 희소한가 — 규약 정본 = ``FILING.md`` §3-2.
+
+    Args:
+        text: `CLAUDE.md` 본문.
+
+    Returns:
+        문제 목록.
+    """
+    problems: list[str] = []
+    multi = [(no, line) for no, line in enumerate(text.splitlines(), 1) if len(emphases(line)) >= 2]
+    if len(multi) > MAX_MULTI_EMPHASIS:
+        head = " · ".join(str(no) for no, _ in multi[:8])
+        problems.append(
+            f"**한 줄에 강조가 둘 이상**인 줄이 {len(multi)}건이다(천장 {MAX_MULTI_EMPHASIS}) — {head}행. "
+            "둘이면 어느 쪽이 요점인지 독자가 고를 수 없다(`FILING` §3-2)"
+        )
+    red = text.count("🔴")
+    if red > MAX_RED:
+        problems.append(
+            f"🔴 가 **{red}건**으로 천장 {MAX_RED} 을 넘었다 — "
+            "🔴 는 «어기면 되돌릴 수 없는 피해» 에만 쓴다(표제에는 쓰지 않는다)"
+        )
+    return problems
 
 
 def check_injectors() -> list[str]:
@@ -244,6 +314,8 @@ def main() -> int:
     print(
         f"✅ 규칙 강제 열 — 앵커 {len(rules)}개(바닥값 {MIN_ANCHORS}) · "
         f"강제 {enforced} · 없음 {len(rules) - enforced} · 삭제후보 {sum(1 for r in rules if r.candidate)} · "
+        f"강조2+ {sum(1 for ln in text.splitlines() if len(emphases(ln)) >= 2)}(천장 {MAX_MULTI_EMPHASIS}) · "
+        f"🔴 {text.count(chr(0x1F534))}(천장 {MAX_RED}) · "
         f"{len(text.splitlines())}줄(천장 {MAX_LINES})."
     )
     return 0
