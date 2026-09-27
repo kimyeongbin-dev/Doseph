@@ -257,6 +257,19 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # 규칙마다 «무엇이 이것을 강제하나» 가 적혀 있나 (pre-push · 차단)
+      # 🔴 층②는 매 턴 재주입돼 언제나 읽히므로 규칙이 자꾸 여기로 모이는데,
+      # **무엇이 이미 기계에 있는지**를 아무도 세지 않았다. 실측: 나흘 만에 571 → 605줄.
+      # 늘린 것은 대부분 «옳은 정정» 이었다 — 문제는 옳은 추가에도 상한이 없다는 것이다.
+      # 줄 수 천장까지 함께 본다: «늘리려면 같은 만큼 줄여라».
+      - id: rule-enforcement
+        name: 📐 규칙 강제 열
+        entry: uv run python -m scripts.gates.doc.check_rule_enforcement
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
       # 원장의 «다음 신규 = ID» 가 실측 최대 +1 인가 (pre-push · 차단)
       # 🔴 이 한 줄이 **5번 연속** 어긋났다. 원장이 정정 배너를 3개 달아 두고도 또 틀렸고,
       # 그중 하나는 «손으로 유지하면 구조적으로 썩는다» 고 **원인까지 규명**해 놓았다.

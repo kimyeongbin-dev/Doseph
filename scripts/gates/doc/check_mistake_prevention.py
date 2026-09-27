@@ -71,7 +71,7 @@ VALUES = frozenset({"기계", "절차", "없음"})
 #: 🔑 **스냅샷 시점 집합에만** 건다는 뜻이 아니라, 올릴 때 **의식적으로** 올린다는 뜻이다.
 #:    새 실수는 대개 `없음` 으로 태어나므로(D67 이 그랬다) 천장을 올리는 일 자체는 정상이다.
 #:    올리면서 **왜 못 막는지**를 같이 적는 것이 이 상수의 존재 이유다.
-NONE_CEILING = 43
+NONE_CEILING = 42
 
 #: 🔴 **배출을 막지 않는 바닥값.** 항목 수에 바닥을 두면 `FILING` §7-2 배출이 차단된다.
 #:    그래서 **모집단 + 배출 스냅샷** 의 합을 센다 — 배출해도 합은 안 줄고,
@@ -200,7 +200,13 @@ def _verify_doc(value: str, known: Known) -> str | None:
         return f"파일이 없다: `{document}`"
     if not anchor:
         return f"앵커가 비었다: `{value}` — 절 전체를 가리키면 열어도 그 규칙이 안 보인다"
-    if f"<!-- rule:{anchor} -->" in target.read_text(encoding="utf-8", errors="replace"):
+    # 🔴 **완전 일치가 아니라 접두 + 경계**다 (2026-09-27, B-13 2구간).
+    #    앵커에 페이로드가 붙는다 — `<!-- rule:2패스 강제:훅:doc-meta -->`.
+    #    완전 일치(`"<!-- rule:{anchor} -->"`)로 두면 페이로드를 다는 순간
+    #    대장의 `문서:` 참조 **24건이 한꺼번에** 「읽어도 아무것도 안 나오는 주소」가 된다.
+    # 🔑 뒤 공백이 **경계**다 — `-->` 앞에도, 페이로드 앞에도 공백이 있어 둘 다 걸리고,
+    #    `rule:2패스` 가 `rule:2패스점검` 을 **잘못 먹지 않는다**(D47: 앵커 없는 접두는 넓다).
+    if f"<!-- rule:{anchor} " in target.read_text(encoding="utf-8", errors="replace"):
         return None
     return f"앵커 주석이 없다: `{value}` — *읽어도 아무것도 안 나오는 주소*다"
 
