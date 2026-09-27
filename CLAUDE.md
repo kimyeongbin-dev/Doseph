@@ -103,7 +103,22 @@ All feature development and session tasks MUST follow this loop. This project fo
 4. **Verify**: After development, verify that the code matches the initial plan and report the results.
 
 ### 2.2 Micro Loop: The 3-Step Development Cycle
-All feature implementations and modifications MUST strictly adhere to the following 3-step cycle:
+
+> 🔴 **적용 범위 = 배포에 올라가는 서비스 코드**(`app/` · `ai_worker/` · `medication-frontend/`).
+> §1.2 의 *"core business logic"* 과 **같은 범위**다.
+>
+> ⚠️ **2026-09-27 정정** — 이 줄이 *"All feature implementations and modifications"* 라고
+> 적혀 있어 §1.2 와 **범위가 모순**됐다. 그 «모든» 때문에 **게이트·스크립트·문서 도구까지**
+> 서비스 코드의 TDD 의식(Red 먼저 → pytest 파일)에 쓸려 들어왔다.
+> 🔬 실측: 게이트 20개 중 단위테스트를 가진 것은 **2개뿐**이었는데(관행이 아니었다)
+> 내가 «모든» 을 문자 그대로 읽고 **4개를 더 붙였다**. 그 부작용도 실재했다 —
+> 테스트가 게이트 모듈을 **mypy 의 import 그래프로 끌어들여** 잠자던 타입오류가 깨어났다.
+>
+> 📐 **게이트·검사기·스크립트는 §6-1 의 «결핍 주입 + 음성 대조» 로 검증한다.** 그게 정본 절차다.
+> 단위테스트는 **금지가 아니라 선택**이다 — *앵커·경계·모호성 같은 판단이 든 순수 함수*라면
+> 붙일 값이 있다(이미 붙인 4개는 사용자 결정으로 **유지**한다).
+
+아래 3단 주기는 **서비스 코드**의 구현·수정에 적용한다:
 
 * **Step 1: Tidy First**
     * **Objective**: Organize the related code structure before implementation to facilitate modifications.

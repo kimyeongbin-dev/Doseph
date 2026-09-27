@@ -45,8 +45,14 @@ from pathlib import Path
 import re
 import sys
 
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+# 🔴 `type: ignore` 를 붙인 이유 — **두 게이트가 서로 다른 것을 요구한다.**
+#    `utf8-output-guard` 는 이 **두 줄을 문자 그대로** 찾는다(텍스트 검사라 `isinstance`
+#    로 감싸면 «방어 없음» 으로 잡힌다). mypy 는 `sys.stdout` 이 `TextIO | Any` 라
+#    `reconfigure` 를 모른다. ⇒ 형태는 게이트에 맞추고 타입만 잠근다.
+#    ⚠️ 이 2건은 **내 테스트가 이 모듈을 import 하면서 처음 드러났다** — 그전까지
+#    mypy 대상(`app`·`ai_worker`)의 import 그래프에 이 파일이 없었다.
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import PRIVATE  # noqa: E402
@@ -163,7 +169,8 @@ def section_text(text: str, marker: str) -> str | None:
     """``§5`` / ``RAG`` 같은 표식이 가리키는 절의 본문을 잘라 낸다.
 
     절 번호(``5``)면 ``## 5.`` · ``## §5`` 형태를, 그 외에는 제목에 그 말이 든 절을 찾는다.
-    찾지 못하면 None — 호출자가 *"선언한 절이 실재하지 않는다"* 로 판정한다.
+    표제가 없으면 **표 한 행**을 절로 본다(아래). 찾지 못하면 None —
+    호출자가 *"선언한 절이 실재하지 않는다"* 로 판정한다.
     """
     lines = text.splitlines()
     start = None
@@ -177,11 +184,37 @@ def section_text(text: str, marker: str) -> str | None:
             start = i
             break
     if start is None:
-        return None
+        return table_row(lines, marker)
     for j in range(start + 1, len(lines)):
         if re.match(r"^#{2,3}\s", lines[j]):
             return "\n".join(lines[start:j])
     return "\n".join(lines[start:])
+
+
+def table_row(lines: list[str], marker: str) -> str | None:
+    """표제가 없는 항목 — **표 한 행**을 절로 본다 (2026-09-27 신설, ``문서-36``).
+
+    왜 필요한가
+        ``ROADMAP`` 트랙 A·B 는 ``### B-14`` 처럼 절 제목을 갖는데 **트랙 C 는
+        ``## 트랙 C`` 하나 아래 표 한 줄씩**이다. 그래서 ``affects: ROADMAP#C-6`` 이
+        *"없음"* 으로 **차단**됐다 — 실재하는 항목인데 가리킬 수가 없었다.
+        그 결과 트랙 C 항목 14개는 절 단위 신선도 검사(``FILING`` §9-1)가
+        **원리적으로 안 돌았다.**
+
+    🔴 마커는 **행의 첫 칸**에만 있어야 한다
+        아무 칸이나 보면 산문이 섞여 *"있다"* 가 늘 참이 된다(대장 **D47**).
+        그리고 후보가 둘이면 **None** 이다 — 어느 행인지 모르는 채로 diff 하면
+        엉뚱한 절을 비교한다(fail-closed).
+    """
+    want = re.compile(r"^\|(?P<head>[^|]*)\|", re.IGNORECASE)
+    hits = [
+        line
+        for line in lines
+        if (found := want.match(line.strip()))
+        and marker.lower() in found["head"].lower()
+        and not re.fullmatch(r"[\s:|-]*", found["head"])
+    ]
+    return hits[0] if len(hits) == 1 else None
 
 
 # ── ⑤ affects 가 거짓말하는지 ──────────────────────────────────────────
@@ -251,7 +284,7 @@ def links(meta: dict[str, str], field: str) -> list[str]:
     return [x.strip() for x in meta.get(field, "").split(",") if x.strip() and x.strip() != NO_SUCCESSION]
 
 
-def verify_supersedes(meta: dict[str, str], path: Path, axis: str | None, where: str, errors: list[Finding]) -> None:
+def verify_supersedes(meta: dict[str, str], path: Path, axis: str | None, where: str, errors: list[Finding]) -> int:
     """계승 링크를 **양쪽에서** 대조한다.
 
     ``kind: plan`` 에만 적용한다. **판 교체형 정본**(``filing/``·``deploy/`` …)은 후속이

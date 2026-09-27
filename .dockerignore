@@ -72,6 +72,17 @@ server_log.txt
 # =========================================
 README.md
 **/README.md
+
+# 🧰 개발 전용 설정·기준선 — 런타임은 읽지 않는다 (2026-09-27, L-11).
+# 실측: app/·ai_worker/ 의 비-테스트 코드에서 참조 0건. L-6 을 검증하려고 체크아웃
+# 컨텍스트로 이미지를 열어 보다가 남아 있는 것을 봤다. 비밀은 없지만(.env* 실값은 제외됨)
+# 이 파일들이 바뀔 때마다 이미지가 달라져 deploy.yml 의 「이미지가 동일하다」 판정을 흐린다.
+.pre-commit-config.yaml
+.mypy-baseline.txt
+.coverage-baseline.json
+.gitignore
+.gitattributes
+.env.example
 docs/
 docs-private/
 csv/
