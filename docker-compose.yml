@@ -98,9 +98,26 @@ services:
       # pyproject 마운트: ruff/pytest 설정 변경이 즉시 반영되도록(의존성 변경만 재빌드).
       # 미마운트 시 이미지 내장 stale 설정으로 로컬 ruff 가 거짓 양성을 냄.
       - ./pyproject.toml:/app/pyproject.toml:ro
+      # 🔴 uv.lock 도 같이 마운트한다 (2026-09-23, L-12).
+      # 위 주석의 논리가 **두 파일 중 하나에만** 적용돼 있었다 — pyproject 는 신선한데
+      # uv.lock 은 이미지 내장(실측: 컨테이너 2026-05-03 vs 호스트 2026-09-21, 4.5개월 차)이라
+      # `uv sync` 가 낡은 잠금으로 «이미 맞다» 고 답했다. 그동안 테스트가 돈 이유는
+      # **컨테이너 쓰기 레이어에 남아 있던 수동 설치** 뿐이고, `--force-recreate` 한 번에 사라졌다
+      # (freezegun·respx 미설치 → 수집 에러 3건). 🔑 이미지가 아니라 **그 컨테이너**가 정답을 들고 있었다.
+      - ./uv.lock:/app/uv.lock:ro
       - ./logs/fastapi:/app/logs
       - static_volume:/app/templates
     environment:
+      # 🔴 호스트가 컴파일한 .pyc 를 컨테이너가 읽지 못하게 한다 (L-8).
+      # app/·ai_worker/·scripts/ 는 **바인드 마운트**라 호스트의 __pycache__ 가 그대로 보인다.
+      # 실측 2026-09-23: 호스트(3.13.12)와 컨테이너(3.13.14)의 **매직이 같아**(f30d0d0a)
+      # 컨테이너가 그 .pyc 를 그대로 적재한다 — co_filename 이 호스트 절대경로인 채 커버리지에
+      # 박혀 `coverage json` 이 *No source for code* 로 죽는다(2026-09-21 실발생 · 당시 3건).
+      # 🔑 테스트는 그대로 초록이라 **틀렸다는 신호가 측정 단계에서만** 나온다.
+      # PYTHONPYCACHEPREFIX 는 캐시를 마운트 **밖**으로 옮겨 읽기·쓰기를 동시에 끊는다.
+      # ⚠️ 호스트에 .pyc 를 안 만들게 하는 길(PYTHONDONTWRITEBYTECODE)은 **호스트 설정**이라
+      #    그 자체가 git 밖 잔재가 된다 — 그래서 안 쓴다(L 원장을 늘리는 해법은 해법이 아니다).
+      PYTHONPYCACHEPREFIX: /tmp/pycache
       LOG_DIR: /app/logs
       # 로컬 전용 상향 — E2E 스위트는 단일 IP 에서 짧은 시간에 수백 건을 보낸다.
       # 운영 기본값(GET 200/분)이면 스위트 중반부터 429 가 나고, FE 는 그 실패를
@@ -155,8 +172,25 @@ services:
       - ./scripts:/app/scripts
       # pyproject 마운트: 로컬 설정 stale 방지(fastapi 서비스와 동일 이유).
       - ./pyproject.toml:/app/pyproject.toml:ro
+      # 🔴 uv.lock 도 같이 마운트한다 (2026-09-23, L-12).
+      # 위 주석의 논리가 **두 파일 중 하나에만** 적용돼 있었다 — pyproject 는 신선한데
+      # uv.lock 은 이미지 내장(실측: 컨테이너 2026-05-03 vs 호스트 2026-09-21, 4.5개월 차)이라
+      # `uv sync` 가 낡은 잠금으로 «이미 맞다» 고 답했다. 그동안 테스트가 돈 이유는
+      # **컨테이너 쓰기 레이어에 남아 있던 수동 설치** 뿐이고, `--force-recreate` 한 번에 사라졌다
+      # (freezegun·respx 미설치 → 수집 에러 3건). 🔑 이미지가 아니라 **그 컨테이너**가 정답을 들고 있었다.
+      - ./uv.lock:/app/uv.lock:ro
       - ./logs/ai-worker:/app/logs
     environment:
+      # 🔴 호스트가 컴파일한 .pyc 를 컨테이너가 읽지 못하게 한다 (L-8).
+      # app/·ai_worker/·scripts/ 는 **바인드 마운트**라 호스트의 __pycache__ 가 그대로 보인다.
+      # 실측 2026-09-23: 호스트(3.13.12)와 컨테이너(3.13.14)의 **매직이 같아**(f30d0d0a)
+      # 컨테이너가 그 .pyc 를 그대로 적재한다 — co_filename 이 호스트 절대경로인 채 커버리지에
+      # 박혀 `coverage json` 이 *No source for code* 로 죽는다(2026-09-21 실발생 · 당시 3건).
+      # 🔑 테스트는 그대로 초록이라 **틀렸다는 신호가 측정 단계에서만** 나온다.
+      # PYTHONPYCACHEPREFIX 는 캐시를 마운트 **밖**으로 옮겨 읽기·쓰기를 동시에 끊는다.
+      # ⚠️ 호스트에 .pyc 를 안 만들게 하는 길(PYTHONDONTWRITEBYTECODE)은 **호스트 설정**이라
+      #    그 자체가 git 밖 잔재가 된다 — 그래서 안 쓴다(L 원장을 늘리는 해법은 해법이 아니다).
+      PYTHONPYCACHEPREFIX: /tmp/pycache
       LOG_DIR: /app/logs
     networks:
       - frontend  # OpenAI / Kakao Local / CLOVA OCR 외부 호출
