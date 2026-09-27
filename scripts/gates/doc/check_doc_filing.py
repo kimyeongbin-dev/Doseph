@@ -109,13 +109,20 @@ STATE_CANONS = frozenset({
     "DTO_DESIGN_RULES.md",
     "LOCAL_RESIDUE.md",
     "ARCHITECTURE.md",  # 2026-09-21 루트에서 이관(B-9 S7)
-    "FOLLOWUP_INDEX.md",  # 🤖 생성물 — build_followup_index.py 가 만든다
-    # 🤖 생성물 — build_structure_map.py 가 만든다. **커밋하지 않는다**(gitignore 안):
-    #    커밋하는 순간부터 낡기 시작하고, 그게 앞 판(`PROJECT_STRUCTURE_REPORT.md`)이
-    #    12개 항목을 틀린 채 5개월을 산 이유다. 없어도 정상이다 — 읽고 싶을 때 만든다.
-    "STRUCTURE_MAP.md",
+    "FOLLOWUP_INDEX.md",  # 🤖 생성물이지만 **커밋된다** — `pre-push` 가 «생성물 == 커밋된 것»을 대조한다
 })
-ALLOWED_TOP = WORK_BUFFERS | STATE_CANONS
+
+# 🔴 **직하에 있어도 되지만 «없어도 정상»인 생성물** (2026-09-28 분리)
+#    `STRUCTURE_MAP.md` 는 커밋하지 않는다 — 커밋하는 순간부터 낡기 시작하고, 그게 앞 판
+#    (`PROJECT_STRUCTURE_REPORT.md`)이 12개 항목을 틀린 채 5개월을 산 이유다.
+#    `FILING.md` §5: *«없는 것이 정상이다. 읽고 싶을 때 만든다.»*
+# 🔑 **왜 따로 뒀나**: `STATE_CANONS` 가 두 일을 겸하고 있었다 —
+#    ①*직하에 있어도 되는 목록* ②*없으면 결함인 목록*. 여기 넣으면 ②까지 따라붙어
+#    게이트가 규약과 **정반대**를 말한다(실제로 그랬다: 규약은 «없어도 정상», 게이트는 «없으면 결함»).
+#    `READING_LOG.md` 가 같은 자리에서 같은 이유로 틀렸었다(위 주석) — **두 번째다.**
+GENERATED_OPTIONAL = frozenset({"STRUCTURE_MAP.md"})
+
+ALLOWED_TOP = WORK_BUFFERS | STATE_CANONS | GENERATED_OPTIONAL
 
 DATED = re.compile(r"^(\d{4}-\d{2}-\d{2})_([a-z0-9]+(?:-[a-z0-9]+)*)-([a-z]+)\.md$")
 STATUS = re.compile(r"^status:\s*(\S+)\s*$", re.MULTILINE)
