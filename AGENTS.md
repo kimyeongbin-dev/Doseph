@@ -82,8 +82,18 @@ docker compose exec -T fastapi uv run --no-sync pytest app/tests -q
 | Python 코드 스타일 · import · 로깅 | §7~9 |
 | 리서치 체크리스트 · 계획 리뷰 | §10~11 |
 
-**하위 디렉터리에는 각자의 지침이 따로 있다** — `app/AGENTS.md` · `ai_worker/AGENTS.md` ·
-`medication-frontend/AGENTS.md`. 그쪽 작업이면 그 파일도 읽는다.
+**하위 디렉터리에는 각자의 지침이 따로 있다** — `app/CLAUDE.md` · `ai_worker/CLAUDE.md` ·
+`medication-frontend/CLAUDE.md`. 그쪽 작업이면 **그 파일을 열어 읽는다.**
+
+> 🔤 **2026-09-28(B-12) — 이 줄이 `*/AGENTS.md` 를 가리키고 있었고, 그 3개를 삭제했다.**
+> 왜 지웠나: 셋 다 같은 폴더 `CLAUDE.md` 와 **갈린 채 아무 세션에서도 읽히지 않았고**(한 디렉터리에
+> 둘 다 있으면 `CLAUDE.md` 만 읽힌다), 그 사이 **거짓 17건**이 쌓였다 — FE 는 *"Vercel 로 배포"* 와
+> **존재하지 않는 `Skeleton.jsx` 구현 54줄**을, `ai_worker` 는 리팩터로 사라진 **경로 5종**을 가리켰다.
+> 살아 있던 내용은 같은 폴더 `CLAUDE.md` 로 **흡수**했다. `GEMINI.md` 4종도 같은 이유로 지웠다.
+> 경위 = `문서-30` · 조사 = `docs-private/report/2026-09-28_agent-instruction-files-report.md`.
+>
+> 🔑 **이 파일이 2026-09-16 에 스스로 택한 원칙을 하위에 적용한 것이다** —
+> *«같은 내용을 두 파일에 두면 한쪽은 반드시 썩는다.»* 이제 지시 파일은 **`CLAUDE.md` 4개 + 이 파일**뿐이다.
 
 ---
 

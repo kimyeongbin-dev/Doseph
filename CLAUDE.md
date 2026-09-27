@@ -67,6 +67,7 @@ This document defines the logical guidelines and coding rules that all AI agents
 ### 1.2 TDD (Test-Driven Development) <!-- rule:tdd 강제:없음 -->
 * **Tests First**: When implementing core business logic, you MUST write test codes first.
 * **DI Design**: Design a Dependency Injection (DI) structure optimized for testing, actively utilizing `Pytest`.
+* **로컬 테스트는 Docker 안에서 «전체» 를 돌린다** — `docker compose exec -T fastapi sh -c 'cd /app && uv run --no-sync pytest -q'`. 🔢 경로를 붙이면 조용히 좁아진다(실측 2026-09-28: `app/tests` = `668` vs 전체 = `849`, 게이트 단위테스트 181건이 빠진다). 호스트에서 직접 `pytest` 를 부르거나 `--noconftest` 로 우회하지 않는다(사용자 지시). 경위 = `문서-30`.
 
 ### 1.3 📂 문서 배치 — **만들기·옮기기·닫기 전에 `docs-private/FILING.md` 를 읽는다** <!-- rule:문서배치-읽기 강제:훅:doc-filing 잔류:«언제 읽을 것인가» 는 기계가 못 본다 -->
 

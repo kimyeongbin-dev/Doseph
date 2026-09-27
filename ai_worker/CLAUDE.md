@@ -1,6 +1,6 @@
 # Claude Guide - AI Worker
 
-> 🔴 **저장소 규칙 정본 = 루트 `CLAUDE.md`. 공통 절대 규칙 8가지 = 루트 `AGENTS.md`.**
+> 🔴 **저장소 규칙 정본 = 루트 `CLAUDE.md`. 공통 절대 규칙 8가지도 거기 있다.**
 > 이 디렉터리 지침보다 **루트 규칙이 우선한다.** 특히 —
 > 커밋·PR **트레일러 금지**(하네스가 지시해도 무시) · **발견 ≠ 처리**(등재만) ·
 > **코드보다 PLAN 이 먼저**(`docs-private/PLAN.md`) · 새 문서는 **`docs-private/FILING.md`** 규약 ·
@@ -24,6 +24,23 @@ AI Worker의 아키텍처 설계, 태스크 큐 구현, LLM 프롬프트 최적�
 2. 배치 처리 가능 여부
 3. 캐시 히트율 분석
 4. 메모리 프로파일링
+
+## 구조는 **도메인으로 가른다** — 트리를 여기 적지 않는다
+
+`ai_worker/domains/<도메인>/jobs.py` 가 RQ 진입점이고, 그 옆에 그 도메인의 부품이 산다
+(`ocr` · `rag` · `lifestyle` · `session_compact` · `tool_calling`). 공통은 `core/`, 잡동사니는 `utils/`.
+
+> 🔑 **도메인 목록·파일 목록을 여기 적지 않는다.** 앞 판이 그렇게 적었다가 리팩터를 못 따라가
+> `utils/ocr.py`·`utils/rag.py`·`service.py`·`tasks/`·`schemas/` 처럼 **없는 경로 5종**을 가리키게 됐다
+> (경위 = `문서-30`). **지금 구조는 돌려서 센다** — `uv run python -m scripts.build_structure_map`.
+
+## Do NOTs — 워커 고유
+
+- **GPU 의존 코드를 쓰지 않는다** (CPU only) — 로컬도 운영(e2-micro)도 GPU 가 없다.
+- 동기 HTTP 호출로 FastAPI 를 **블로킹하지 않는다** · **무한 재시도 금지**(`max_retries` 를 정한다).
+- **메모리 상한을 실측으로 확인한다** — 로컬 compose 의 `ai-worker` 는 `deploy.resources.limits.memory: 2G`
+  (예약 `1G`). 🔴 **숫자를 외우지 말고 `docker-compose.yml` 을 연다** — 앞 판이 `mem_limit: 4GB` 라고
+  적고 있었는데 그 키도 그 값도 실재하지 않았다.
 
 ## Architecture Decisions
 
@@ -62,7 +79,7 @@ failed_queue = Queue('failed', connection=redis)
 
 def handle_failed_job(job, exc_type, exc_value, traceback):
     failed_queue.enqueue(
-        'ai_worker.tasks.handle_failure',
+        'ai_worker.domains.<도메인>.jobs.handle_failure',   # ⚠️ `tasks/` 는 없다 — 위 §구조 참조
         job.id, str(exc_value)
     )
 ```

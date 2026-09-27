@@ -1,6 +1,6 @@
 # Claude Guide - Backend (FastAPI)
 
-> 🔴 **저장소 규칙 정본 = 루트 `CLAUDE.md`. 공통 절대 규칙 8가지 = 루트 `AGENTS.md`.**
+> 🔴 **저장소 규칙 정본 = 루트 `CLAUDE.md`. 공통 절대 규칙 8가지도 거기 있다.**
 > 이 디렉터리 지침보다 **루트 규칙이 우선한다.** 특히 —
 > 커밋·PR **트레일러 금지**(하네스가 지시해도 무시) · **발견 ≠ 처리**(등재만) ·
 > **코드보다 PLAN 이 먼저**(`docs-private/PLAN.md`) · 새 문서는 **`docs-private/FILING.md`** 규약 ·
@@ -32,6 +32,24 @@
      (cascade)는 삭제 전 고지·유예를 검토한다. 예: `GET /lifestyle-guides/{id}/delete-impact`
 4. 에러 핸들링 적절성
 5. SQL Injection / XSS 취약점
+
+## 계층 규칙 — 금지 목록
+
+`Router → Service → Repository → Model` 을 거스르지 않는다. 기계가 보는 것은 계약에 든 경계뿐이므로
+(`CLAUDE.md` §4.1) 아래는 **사람이 지킨다**:
+
+- Router 에서 **직접 Model 쿼리 금지** — HTTP 요청·응답만 처리한다.
+- Service 에서 **직접 `await Model.filter()` 금지** — Repository 를 통한다.
+- **`= Depends()` 직접 사용 금지** → `Annotated[T, Depends(...)]`. 타입 별칭으로 뽑는다:
+  `CurrentAccount = Annotated[Account, Depends(get_current_account)]`
+- `from app.models import *` 금지(명시적 import) · 하드코딩 설정값 금지(`config` 사용) · sync 함수로 DB 접근 금지.
+
+### ⚠️ `soft_delete` 라는 이름은 과거 잔재다
+
+메서드 이름이 남아 있지만(`challenge_repository` · `chat_session_repository`) **실제로는 행을 물리 삭제**한다
+(QA-01, 2026-09-15). 자식 행은 **손으로 지우지 않는다** — FK 가 `ON DELETE CASCADE` 라 DB 가 원자적으로
+함께 지운다. 같은 일을 두 곳에서 하면 두 경로가 어긋날 때 조용한 불일치가 생기고, 그게 QA-01 이 고친
+결함의 형태였다.
 
 ## Architecture Decisions
 
@@ -88,6 +106,20 @@ async def get_paginated(
 ```
 
 ## Security Focus
+
+### 이중 방어 (Zero Trust + RS256)
+
+모든 서버는 **전달받은 토큰을 신뢰하지 않고 스스로 검증**한다.
+
+| | Next.js (FE) | FastAPI (BE) |
+|---|---|---|
+| 역할 | 세션 인증 Gatekeeper | 리소스 인증 + **최종 인가** |
+| 키 | RS256 **Public** Key | RS256 **Private** Key |
+| 검증 | 서명 유효성 (Authentication) | 재인증 + **소유권 검증** (Authorization) |
+
+- **Algorithm Pinning**: `algorithms=["RS256"]` 을 명시해 **HS256 교체 공격**을 차단한다.
+- 위조(`InvalidSignatureError`)와 만료(`ExpiredSignatureError`)를 **따로 잡아** 401 로 매핑한다.
+- 인증된 UID 로 DB 를 조회해 **요청 리소스의 소유권을 최종 승인**한다 — 토큰만 보고 통과시키지 않는다.
 
 ### Input Validation
 - Pydantic으로 1차 검증

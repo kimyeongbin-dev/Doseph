@@ -389,6 +389,10 @@ MIN_SUCCESSION = 1      # 0건은 "위반이 없다" 가 아니라 "아무것도
 - `docs/TESTING_SAFETY_NET_RULES.md` — R1~R17 전부 현행
 - `docs/QUALITY_GATES.md` — 게이트 목록이 `.pre-commit-config.yaml` 실측과 일치
 - `app/CLAUDE.md`·`app/AGENTS.md`·`app/GEMINI.md` 의 soft delete 언급 — **전부 "쓰지 말라"는 올바른 경고**
+  - 🔤 **2026-09-28(B-12) 정정** — 뒤의 두 파일은 **삭제됐다.** 같은 폴더 `CLAUDE.md` 와 갈린 채
+    어느 세션에서도 읽히지 않았고(한 디렉터리에 둘 다 있으면 `CLAUDE.md` 만 읽힌다), 살아 있던 내용은
+    `app/CLAUDE.md` 로 흡수했다. **위 측정은 그때의 사실이므로 지우지 않는다** — 이 대조군의 요지
+    (*"세어 보니 틀린 것만 있는 게 아니다"*)는 그대로 유효하다. 경위 = `문서-30`.
 
 > 단 `FLOWCHART_FEATURES.md` 의 **변경 이력 표는 비어 있다**(`- | - | AS-IS 최초 작성`).
 
