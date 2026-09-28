@@ -86,7 +86,7 @@ This document defines the logical guidelines and coding rules that all AI agents
 
 ⚠️ 이 문서는 **자동으로 로드되지 않는다** — `Read` 를 호출해야 온다. 위 지시가 그 호출의 근거다.
 🤖 `PreToolUse` 훅이 `docs-private/**.md` 편집 전에 **읽었는지 확인**한다(`scripts/hooks/read_precondition.py`).
-🔴 다만 압축 후에는 그 보증이 빈다(`QA-50`) — 압축을 겪었으면 **다시 연다.**
+🔴 다만 압축 후에는 그 보증이 빈다(`QA-50`) — 작은 파일은 본문이 돌아오지만 **정본은 본문이 안 오니 다시 연다**(경위 `문서-46`).
 
 ## 2. Development Process & 3-Step Cycle (SDLC & 3-Step Cycle)
 
