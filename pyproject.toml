@@ -296,9 +296,6 @@ ignore = [
 "app/tests/test_oauth.py" = [
     "ANN201",  # Missing return type in test functions (existing code)
 ]
-"ai_worker/utils/rag.py" = [
-    "T201",    # print for error logging (TODO: replace with proper logging)
-]
 "ai_worker/*" = [
     "T201",    # print statements allowed in AI worker modules
 ]
