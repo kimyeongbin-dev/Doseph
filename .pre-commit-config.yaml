@@ -295,6 +295,17 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # 원장의 **표가 렌더될 때 깨지나** (pre-push · 차단)
+      # 빌더도 다른 게이트도 줄 단위라 통과한다 — 깨지는 것은 읽는 화면뿐이다(문서-37).
+      - id: table-shape
+        name: 📐 표 모양 정합
+        entry: uv run python -m scripts.gates.doc.check_table_shape
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       # Claude `PreToolUse` 훅이 **조용히 사라졌나** (pre-push · 차단)
       # 막는 이유: `.claude/` 는 gitignore 라 훅이 없어져도 **diff 에 안 뜬다**(L-9).
       # 그리고 훅은 «성공하면 아무것도 안 보이는» 장치라 부재가 티나지 않는다(D61).
