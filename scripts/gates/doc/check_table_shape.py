@@ -8,18 +8,28 @@ r"""표 모양 게이트 — **표가 렌더될 때 깨지는 것**을 막는다
 - `check_doc_meta`·`check_doc_filing` 은 **머리말과 파일명**을 본다 — 통과한다.
 - 깨지는 것은 **읽는 화면**뿐이다.
 
-🔬 실측이 두 종류를 잡았다:
+🔬 실측이 세 종류를 잡았다:
 
 1. **칸 수 어긋남 4곳**(2026-09-27) — 셀 안의 **이스케이프 안 된 ``|``** 이 칸을 쪼개거나
    칸이 모자란다. 백틱 안이라도 GFM 은 칸 구분자로 읽는다(``\\|`` 만 예외).
 2. **표를 쪼개는 빈 줄**(2026-09-28) — 표 행 사이에 빈 줄이 하나 들어가면 그 아래 행은
    **표 밖으로 떨어져 나간다.** 🔴 **하루에 3회 발생**했다. 원장에 항목을 «추가» 하는
    스크립트가 앵커 앞에 삽입하면서 매번 이 모양을 만들었다.
+3. **끝 파이프 결손**(2026-09-29, `QA-59`) — 🔬 **렌더는 멀쩡하다.**
+   ``markdown-it`` 으로 재니 ``| a | b`` 와 ``| a | b |`` 가 **똑같이** ``td`` 6개였다
+   (GFM 에서 양끝 파이프는 선택이다). 그런데도 잡는 이유는 **우리 편집 방식** 때문이다 —
+   행을 파이프로 잘라 **마지막 칸을 대입**하면 그 파이프가 **데이터째 사라진다.**
+   🔴 **같은 날 3회 재발**했다.
 
-🔑 **①만 검사하면 ②를 원리적으로 못 본다**
--------------------------------------------
+🔑 **하나만 검사하면 나머지를 원리적으로 못 본다**
+--------------------------------------------------
 칸 수 검사는 *표 안의 행*을 본다. 그런데 ②는 **행이 표 밖으로 나간 것**이라
-검사 대상 자체에서 사라진다 — **0건으로 초록**이 난다. 그래서 둘을 한 게이트에 둔다.
+검사 대상 자체에서 사라진다 — **0건으로 초록**이 난다. 그래서 셋을 한 게이트에 둔다.
+
+⚠️ **③은 앞 판이 «검사» 하기는커녕 «오보» 를 냈다.** 끝 파이프를 요구하던 ``cell_count``
+가 그런 행을 «표 행이 아님» 으로 보고 **표를 거기서 끊었고**, 뒤따르는 멀쩡한 행들을
+**고아로 보고**했다(실측 2건). 🔑 **모델이 GFM 과 어긋나면 «못 잡는 것» 으로 끝나지 않는다 —
+«엉뚱한 것을 잡는다».** 오탐은 사람이 게이트를 끄는 경로이므로 더 비싸다.
 
 🔴 왜 **직하 정본만** 보나 (범위 선언)
 --------------------------------------
@@ -31,6 +41,8 @@ r"""표 모양 게이트 — **표가 렌더될 때 깨지는 것**을 막는다
 -----------------------------------------
 - **내용이 맞는지 모른다.** 칸 수가 맞으면 통과한다.
 - **정렬·너비**를 모른다. 렌더 결과를 보는 것이 아니라 구분자를 세는 것이다.
+- 🔑 **③은 렌더 결함이 아니라 «우리 편집 도구가 깨지는 모양» 이다.** 다른 저장소에서는
+  이 검사가 **순수한 스타일 규칙**이다 — 그 구분을 흐리면 «왜 막히나» 를 설명할 수 없다.
 - **코드 펜스 안**은 통째로 건너뛴다 — 거기 있는 ``|`` 는 표가 아니다.
 
 사용
@@ -60,7 +72,8 @@ FENCE = re.compile(r"^\s*(```|~~~)")
 
 #: 구분선 — ``|---|:---:|`` 꼴. **하이픈이 하나는 있어야** 한다
 #: (없으면 ``| a | b |`` 같은 평범한 행도 구분선으로 읽힌다).
-SEPARATOR = re.compile(r"^\|[\s:|-]*-[\s:|-]*\|$")
+#: 🔤 2026-09-29: **끝 파이프를 선택으로** 바꿨다 — GFM 이 그렇다(아래 ``cell_count``).
+SEPARATOR = re.compile(r"^\|[\s:|-]*-[\s:|-]*$")
 
 #: 이스케이프된 파이프. GFM 은 ``\|`` 만 칸을 안 쪼갠다 — **백틱 안이어도 쪼갠다.**
 ESCAPED_PIPE = "\\|"
@@ -70,6 +83,14 @@ _PLACEHOLDER = "\x00"
 def cell_count(line: str) -> int | None:
     """표 행의 칸 수. 표 행이 아니면 ``None``.
 
+    🔬 **끝 파이프는 요구하지 않는다**(2026-09-29 실측, `QA-59`). GFM 에서 양끝 파이프는
+    **선택**이라 ``| a | b`` 도 ``| a | b |`` 와 **똑같이 렌더된다**(``markdown-it`` 으로
+    재니 둘 다 ``td`` 6개). 끝 파이프를 요구하던 앞 판은 그런 행을 «표 행이 아님» 으로 보고
+    **거기서 표를 끊었고**, 뒤따르는 멀쩡한 행들을 **고아로 오보**했다(실측 2건).
+
+    🔑 **앞 파이프는 여전히 요구한다.** GFM 은 그것도 선택이지만, 풀면 산문 ``a | b`` 가
+    표 행으로 읽힌다 — **오탐은 사람이 게이트를 끄게 만든다.**
+
     Args:
         line: 원본 한 줄.
 
@@ -77,7 +98,7 @@ def cell_count(line: str) -> int | None:
         칸 수, 또는 표 행이 아니면 ``None``.
     """
     body = line.strip()
-    if len(body) < 2 or not body.startswith("|") or not body.endswith("|"):
+    if len(body) < 2 or not body.startswith("|"):
         return None
     masked = body.replace(ESCAPED_PIPE, _PLACEHOLDER)
     return len(masked.strip("|").split("|"))
@@ -90,6 +111,7 @@ class Report:
     tables: int = 0
     mismatched: list[str] = field(default_factory=list)
     orphans: list[str] = field(default_factory=list)
+    dangling: list[str] = field(default_factory=list)
 
 
 def audit(path: Path) -> Report:
@@ -103,6 +125,17 @@ def audit(path: Path) -> Report:
     """
     report = Report()
     lines = path.read_text(encoding="utf-8").split("\n")
+
+    def flag(text: str, at: int) -> None:
+        """끝 파이프가 빠진 표 행을 모은다.
+
+        Args:
+            text: 그 줄.
+            at: 0-기반 줄 번호.
+        """
+        if not text.strip().endswith("|"):
+            report.dangling.append(f"{path.name}:{at + 1}  {text.strip()[:60]}")
+
     in_fence = False
     index = 0
     while index < len(lines):
@@ -129,6 +162,8 @@ def audit(path: Path) -> Report:
             continue
 
         report.tables += 1
+        flag(line, index)
+        flag(following, index + 1)
         separator_cells = cell_count(following)
         if separator_cells != head:
             report.mismatched.append(f"{path.name}:{index + 2}  구분선 {separator_cells}칸 vs 머리 {head}칸")
@@ -137,6 +172,7 @@ def audit(path: Path) -> Report:
             body = cell_count(lines[index])
             if body is None or FENCE.match(lines[index]):
                 break
+            flag(lines[index], index)
             if body != head:
                 report.mismatched.append(
                     f"{path.name}:{index + 1}  칸 {body} vs 머리 {head}  | {lines[index].strip()[:55]}"
@@ -177,11 +213,13 @@ def main(argv: list[str] | None = None) -> int:
     tables = 0
     mismatched: list[str] = []
     orphans: list[str] = []
+    dangling: list[str] = []
     for path in files:
         report = audit(path)
         tables += report.tables
         mismatched.extend(report.mismatched)
         orphans.extend(report.orphans)
+        dangling.extend(report.dangling)
 
     # 🔑 표본 모드에서도 바닥값을 **0 으로 낮추지 않는다** — 0 이면 파서가 죽은 것이다.
     floor = 1 if sample_mode else MIN_TABLES
@@ -195,6 +233,11 @@ def main(argv: list[str] | None = None) -> int:
         problems.append(f"**칸 수 어긋남 {len(mismatched)}건** — 렌더될 때 표가 깨진다")
     if orphans:
         problems.append(f"**표 밖으로 떨어진 행 {len(orphans)}건** — 표 행 사이에 빈 줄이 들어갔거나 구분선이 없다")
+    if dangling:
+        problems.append(
+            f"**끝 파이프가 빠진 표 행 {len(dangling)}건** — 렌더는 멀쩡하다. "
+            "행을 파이프로 잘라 마지막 칸을 대입하는 편집이 그 파이프를 데이터째 날린 것이다"
+        )
 
     if problems:
         print("❌ 표 모양 검사 실패")
@@ -204,10 +247,15 @@ def main(argv: list[str] | None = None) -> int:
             print(f"     · {line}")
         for line in orphans[:12]:
             print(f"     · {line}")
+        for line in dangling[:12]:
+            print(f"     · {line}")
         print("   🔑 빌더도 게이트도 줄 단위라 통과한다 — 깨지는 것은 읽는 화면뿐이다.")
         return 1
 
-    print(f"✅ 표 모양 — 파일 {len(files)}건 · 표 머리 {tables}개(바닥값 {floor}) · 칸 어긋남 0 · 고아 행 0.")
+    print(
+        f"✅ 표 모양 — 파일 {len(files)}건 · 표 머리 {tables}개(바닥값 {floor}) · "
+        "칸 어긋남 0 · 고아 행 0 · 끝 파이프 결손 0."
+    )
     return 0
 
 
