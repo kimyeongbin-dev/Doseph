@@ -226,8 +226,30 @@ def table_row(lines: list[str], marker: str) -> str | None:
 # ── ⑤ affects 가 거짓말하는지 ──────────────────────────────────────────
 # 흐름: affects 파싱 -> 정본 찾기 -> 절 잘라내기 -> 직전 스냅샷의 같은 절과 비교
 # 스냅샷이 없으면(첫 판) 비교 대상이 없으므로 검사를 건너뛴다 — 거짓이 아니라 미지다.
-def verify_affects(meta: dict[str, str], where: str, errors: list[Finding]) -> int:
-    """``affects`` 선언을 검증하고 실제로 대조한 건수를 돌려준다."""
+def verify_affects(meta: dict[str, str], where: str, errors: list[Finding], axis: str | None = None) -> int:
+    """``affects`` 선언을 검증하고 실제로 대조한 건수를 돌려준다.
+
+    🔴 **«안 고쳤다» 판정은 직하(작업버퍼)에만 건다.** 닫힌 스냅샷의 ``affects`` 는
+    *그때의 판*에 대한 주장인데, 이 검사는 **언제나 가장 새 스냅샷**과 비교한다
+    (``snaps[-1]``). 그래서 판이 한 번 더 갈리면 **과거 판정이 뒤집힌다.**
+
+    🔬 실측 2026-09-28: `filing/` 에 새 판 하나를 넣자 **닫힌 문서 3건**이 빨개졌다
+    (`mistake-prevention-column-plan` §7-2 · `doc-drift-ledger-sweep-record` §5·§7·§8).
+    셋 다 닫을 당시에는 참이었고 **아무것도 변하지 않았는데** 기준선만 움직였다.
+
+    ⚠️ **모양·실재 검사는 닫힌 문서에도 그대로 건다** — 그건 시점과 무관한 사실이다.
+    그리고 대조 **건수는 계속 센다**: 바닥값(``MIN_AFFECTS``)의 목적은 «파서가 죽었나» 이지
+    «위반이 있나» 가 아니라서, 직하만 세면 진행 중 PLAN 이 없는 날 게이트가 눈이 먼다.
+
+    Args:
+        meta: 그 문서의 ``doc-meta``.
+        where: 보고에 쓸 문서 이름.
+        errors: 위반을 담을 목록.
+        axis: 축 폴더 이름. ``None`` 이면 직하(작업버퍼)다.
+
+    Returns:
+        실제로 대조한 절의 수.
+    """
     raw = meta.get("affects", "")
     checked = 0
     for item in (x.strip() for x in raw.split(",") if x.strip()):
@@ -246,13 +268,17 @@ def verify_affects(meta: dict[str, str], where: str, errors: list[Finding]) -> i
             errors.append(Finding(where, f"`affects` 가 없는 절을 가리킨다 — `{canon.name}` 에 `{marker}` 없음"))
             continue
 
-        axis = PRIVATE / canon.stem.lower()
-        snaps = sorted(axis.glob("*.md")) if axis.is_dir() else []
+        # ⚠️ 이름을 `axis` 로 두면 **매개변수 `axis` 를 가린다** — 그러면 아래 직하 판정이
+        #    항상 참이 되어 검사가 통째로 죽는다(2026-09-28 실측: 결핍 주입이 Red 를 못 냈다).
+        axis_dir = PRIVATE / canon.stem.lower()
+        snaps = sorted(axis_dir.glob("*.md")) if axis_dir.is_dir() else []
         if not snaps:
             continue  # 첫 판이라 비교 대상이 없다. 미지이지 거짓이 아니다.
         snap_body = snaps[-1].read_text(encoding="utf-8", errors="replace")
         previous = snap_body if marker is None else section_text(snap_body, marker)
         checked += 1
+        if axis is not None:
+            continue  # 닫힌 스냅샷은 «그때의 판» 에 대한 주장이다 — 새 기준선으로 재판정하지 않는다
         if previous is not None and previous.strip() == current.strip():
             errors.append(
                 Finding(
@@ -458,7 +484,7 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, i
     parent_checked[0] += verify_parent(meta, path, axis, where, errors)
     done_marks_checked[0] += verify_done_marks(meta, path, where, errors)
     links_checked = verify_supersedes(meta, path, axis, where, errors)
-    return verify_affects(meta, where, errors), links_checked
+    return verify_affects(meta, where, errors, axis), links_checked
 
 
 # ── ⑨ partial 이 나머지를 가리키는가 ─────────────────────────────────
