@@ -557,24 +557,22 @@ git status --porcelain && git stash list && git log --oneline @{u}..HEAD
 ## 10. Research Checklist <!-- rule:리서치-체크리스트 강제:없음 -->
 
 Before starting any implementation, the agent MUST verify the following:
-- [ ] Check official documentation (2024-2025 latest version, year required)
+- [ ] Check official documentation (latest stable) — 🔤 확인한 연도를 함께 적는다. ✏️ 2026-09-30 정정: 이 줄은 `2024-2025` 를 박아 두고 있었다 — **연도를 박으면 썩는다**
 - [ ] Research external Best Examples (official repos, production cases, source + year required)
 - [ ] Confirm similar implementation patterns within the project (`app/services/`, `app/repositories/`)
 - [ ] Check if new environment variables are needed (based on `.env.example`)
 - [ ] Identify related models (`app/models/` related tables)
-- [ ] Check related P0/P1 issues in `QA_AUDIT_PLAN.md` (conflict check)
+- [ ] 열린 후속 과제와 충돌하나 — `docs-private/FOLLOWUP_QUEUE.md`(`QA-##`) · `DOC_TRUTH_DRIFT.md`(`문서-N`). ✏️ 2026-09-30 정정: 이 줄은 **없는 파일**(`QA_AUDIT_PLAN.md`)의 확인을 의무로 지시했다 — `문서-11` 과 같은 «못 지키는 규칙»
 
 ---
 
 ## 11. Plan Review (Required before GO) <!-- rule:plan-리뷰 강제:없음 -->
 
-### Sub-agent Parallel Review <!-- rule:서브에이전트-리뷰 강제:없음 -->
-The AI MUST review plans from these 3 perspectives simultaneously:
-- **Architect**: Layered architecture violations, dependency direction between layers
-- **Critic**: Edge cases, missing exception handling, security vulnerabilities
-- **Document Specialist**: Missing Affected Files, DBML update requirements
-
-Review MUST reference external Best Examples from the Research Checklist (source + year required).
+### 3관점 자문 <!-- rule:서브에이전트-리뷰 강제:없음 -->
+계획을 세 관점으로 스스로 훑는다. ✏️ 2026-09-30 정정: 이 절은 *«Sub-agent Parallel Review»* 라며 서브에이전트 병렬 리뷰를 의무로 지시했는데 한 번도 안 돌았다(이 절을 고치는 계획까지 포함해서). 🔑 **안 도는 의무는 규칙이 아니라 장식이다** — 도구를 부르라는 지시 대신 물어야 할 질문으로 남긴다.
+- **Architect**: 레이어 위반 · 계층 간 의존 방향
+- **Critic**: 엣지 케이스 · 빠진 예외 처리 · 보안
+- **Document Specialist**: `affects` 누락 · 내 변경이 거짓으로 만드는 정본. ✏️ 이 자리에 *«DBML update requirements»* 가 있었다 — §4.2 가 *«ERD 는 갱신 의무가 아니다»* 로 2026-09-23 에 고쳤는데 여기는 안 따라왔다(층② 안의 모순)
 
 ### Review Checklist <!-- rule:리뷰-체크리스트 강제:없음 -->
 - [ ] Is the Goal clearly defined with completion criteria?
