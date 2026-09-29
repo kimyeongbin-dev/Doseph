@@ -193,14 +193,14 @@ To prevent Messy Data, strictly adhere to the following principles:
 
 
 ### 4.3 Multilingual Processing & Documentation Rules <!-- rule:언어규칙 강제:없음 -->
-* **English Use (LLM/Internal)**: Docstrings, `.md` documents, and `description` fields in Models/DTOs read by AI MUST be written in English.
-* **Korean Use (User/External)**: User Interfaces (UI), log output messages, human-readable DB/DTO `descriptions`, in-code comments (section headers, flow descriptions, inline explanations), and user responses MUST be written in Korean.
+* **한글이 기본이다** — `.md` 문서 · docstring · 주석 · 로그 · UI · DB/DTO `description` · 사용자 응답. ✏️ 2026-09-30 정정: 이 줄은 *«`.md` 와 docstring 은 영어로»* 라고 지시했는데, 실측 `.md` 246건 중 225건이 한글이고 영어 21건 중 18건은 `_legacy`·팀시절 스냅샷이라 얼어 있다. 경위 = `문서-50`
+* 🔤 영어로 남기는 것 — 코드 식별자 · 표준 어휘(`Conventional Commits` 타입 등) · 외부 공개 API 스키마의 **필드명**. ⚠️ «누가 읽나» 로 가르지 않는다 — 그 경계는 실측에서 안 지켜졌다(DTO `description` 한글 113개 · 영어 142개)
 
 ### 4.4 Section & Flow Comments (Mandatory — Korean) <!-- rule:섹션주석 강제:없음 -->
 Whenever the agent generates or meaningfully modifies a function, class, pipeline task, router handler, or any major logical block, it MUST prepend a **Korean section header comment** with a flow description. This improves top-to-bottom scannability and makes data flow traceable without reading the full implementation.
 
 * **Scope**: Apply to all newly generated/modified top-level callables (functions, async tasks, service methods, router endpoints) and to any logically distinct code block that represents a pipeline step, orchestration stage, or cross-layer coordination.
-* **Language**: The comment body MUST be written in **Korean (한글)**. This takes precedence over the general "English for code comments" convention, because these comments target human readers (developers), not LLM parsing.
+* **Language**: The comment body MUST be written in **Korean (한글)**. ✏️ 2026-09-30 정정: 이 자리에 *«영어 주석 관행보다 우선한다»* 가 있었는데, §4.3 이 한글을 기본으로 바꿔서 우선할 대상이 사라졌다(경위 `문서-50`).
 * **Required Format**:
     1. **Section header line**: `# ── [섹션 제목] ──…──` (use U+2500 `─` box-drawing characters to pad to ~70 columns).
     2. **Flow line(s)**: `# 흐름: [Step 1] -> [Step 2] -> [Step 3]`. If the flow wraps, continuation lines MUST align the arrow under the first step: `#       -> [Step 4]`.
