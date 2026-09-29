@@ -138,11 +138,8 @@ All feature development and session tasks MUST follow this loop. This project fo
 **변수는 열 · 관측은 행 · 관측 단위는 표** — 모델과 응답 스키마를 그렇게 짠다. ✏️ 2026-09-30: 세 줄로 나뉜 원칙 인용이었다.
 
 ### 3.2 Tidy Coding <!-- rule:tidy-coding 강제:훅:ruff-check-final 잔류:SRP·스캔성·표준라이브러리 우선은 Ruff 가 못 본다 -->
-* **Consistent Naming**: Adhere to code style rules to maintain intuitive and uniform naming.
-* **SRP (Single Responsibility Principle)**: A function or class MUST serve only one purpose.
-* **Scannability**: Structure code so it reads easily from top to bottom.
-* **Standard Library First**: Minimize 3rd-party package dependencies and prioritize standard libraries.
-* **Enum Utilization**: Actively use `Enum` for state values, flags, and fixed strings.
+* **SRP**: 함수·클래스는 한 가지만 한다 · **스캔성** — 위에서 아래로 읽히게 짠다 · 표준 라이브러리 우선 — 3rd-party 의존을 줄인다.
+* **Enum**: 상태값·플래그·고정 문자열에 쓴다. ✏️ 2026-09-30: «일관된 명명» 을 뺐다 — `N` 규칙으로 Ruff 가 강제한다(§7~9).
 
 ---
 
@@ -174,14 +171,9 @@ All feature development and session tasks MUST follow this loop. This project fo
 * 🔤 영어로 남기는 것 — 코드 식별자 · 표준 어휘(`Conventional Commits` 타입 등) · 외부 공개 API 스키마의 **필드명**. ⚠️ «누가 읽나» 로 가르지 않는다 — 그 경계는 실측에서 안 지켜졌다(DTO `description` 한글 113개 · 영어 142개)
 
 ### 4.4 Section & Flow Comments (Mandatory — Korean) <!-- rule:섹션주석 강제:없음 -->
-Whenever the agent generates or meaningfully modifies a function, class, pipeline task, router handler, or any major logical block, it MUST prepend a **Korean section header comment** with a flow description. This improves top-to-bottom scannability and makes data flow traceable without reading the full implementation.
-
-* **Scope**: Apply to all newly generated/modified top-level callables (functions, async tasks, service methods, router endpoints) and to any logically distinct code block that represents a pipeline step, orchestration stage, or cross-layer coordination.
+함수·클래스·비동기 태스크·서비스 메서드·라우터 엔드포인트, 그리고 파이프라인 단계·오케스트레이션·계층 간 조율처럼 논리적으로 구분되는 블록을 **새로 만들거나 의미 있게 고칠 때마다** 그 바로 위에 한글 섹션 주석과 흐름 설명을 단다. 구현을 다 읽지 않고도 데이터 흐름을 따라갈 수 있게 하려는 것이다.
 * **Language**: The comment body MUST be written in **Korean (한글)**. ✏️ 2026-09-30 정정: 이 자리에 *«영어 주석 관행보다 우선한다»* 가 있었는데, §4.3 이 한글을 기본으로 바꿔서 우선할 대상이 사라졌다(경위 `문서-50`).
-* **Required Format**:
-    1. **Section header line**: `# ── [섹션 제목] ──…──` (use U+2500 `─` box-drawing characters to pad to ~70 columns).
-    2. **Flow line(s)**: `# 흐름: [Step 1] -> [Step 2] -> [Step 3]`. If the flow wraps, continuation lines MUST align the arrow under the first step: `#       -> [Step 4]`.
-    3. Optional additional context lines may follow (e.g., expiry, side effects, preconditions) — each on its own `#` line, concise and in Korean.
+* **꼴**: ①표제 `# ── [섹션 제목] ──…──`(U+2500 `─` 로 70칸쯤 채운다) ②흐름 `# 흐름: [1] -> [2] -> [3]` — 줄이 넘어가면 첫 단계 아래로 화살표를 맞춘다(`#       -> [4]`) ③만료·부수효과·전제 같은 맥락은 각각 `#` 한 줄씩 짧게.
 * **Canonical Example** (🔑 실재하는 코드에서 가져온다 — 예시가 없는 파이프라인을 들면 «그게 있다» 는 인상을 남긴다. 실제로 그렇게 읽고 없는 전처리를 찾은 적이 있다, `문서-26`):
     ```python
     # ── 채팅 턴 진입점 (RAG 4단 + 위치 검색 + 회수 조회) ────────────────
@@ -191,7 +183,7 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
     async def ask_with_tools(...):
         ...
     ```
-* **Prohibited**: Do not write these section/flow comments in English. Do not omit the flow line for non-trivial orchestration code. Do not place them inside a function body as a substitute — they belong immediately above the `def` / `class` / block opener.
+* **금지**: 흐름 줄을 빼먹지 않는다(조율 코드라면 더더욱). 함수 안에 넣어 대신하지 않는다 — 자리는 `def`·`class`·블록 여는 줄 **바로 위**다.
 
 ---
 
@@ -199,15 +191,10 @@ Whenever the agent generates or meaningfully modifies a function, class, pipelin
 
 > Ruff 통과 · 스타일 준수 · Early Return 은 **`pre-commit` 이 강제**한다(§7~9). 여기 안 적는다.
 
-1. **Tidy First & Strict Separation**: NEVER mix 'refactoring' and 'new feature addition' within a single commit or prompt.
-    * 1-1. Perform refactoring that improves structure and readability without altering existing behavior, maintaining a 100% test pass rate.
-    * 1-2. Proceed with adding new features ONLY after structural improvements and 100% test pass rates are verified.
-2. **Edge Validation & Domain Isolation**: Data validation logic utilizing `Pydantic` MUST reside at the outermost boundaries of the system (Routers/Controllers).
-    * 2-1. Isolate the Service and Domain layers entirely from framework dependencies (e.g., FastAPI) to enable independent unit testing using Pure Python code.
-3. **Modern Dependency Injection (DI)**: Avoid using FastAPI's `Depends` standalone; always combine it with `typing.Annotated`.
-    * **Good**: `service: Annotated[OCRService, Depends(get_ocr_service)]`
-    * **Bad**: `service: OCRService = Depends(get_ocr_service)`
-4. **No Hardcoding & No Raw SQL**: Strictly prohibit direct instantiation (hardcoding) of external API clients or DB instances, or writing Raw SQL queries within the Service or Repository layers.
+1. **Tidy 와 기능 추가를 한 커밋에 섞지 않는다**: 먼저 행동을 안 바꾸는 구조 개선만 하고 테스트 100% 통과를 확인한 뒤, 그다음에 기능을 넣는다.
+2. **엣지에서 검증한다**: `Pydantic` 검증은 바깥 경계(Router)에 둔다. Service·Domain 은 프레임워크 의존을 끊어 순수 파이썬으로 단위테스트할 수 있게 한다.
+3. **DI 는 `typing.Annotated` 와 함께**: ✅ `service: Annotated[OCRService, Depends(get_ocr_service)]` · ❌ `service: OCRService = Depends(get_ocr_service)`
+4. **하드코딩·Raw SQL 금지**: 외부 API 클라이언트·DB 인스턴스를 직접 만들지 않고, Service·Repository 에서 Raw SQL 을 쓰지 않는다.
 
 ---
 
@@ -533,12 +520,10 @@ git status --porcelain && git stash list && git log --oneline @{u}..HEAD
 
 ## 10. Research Checklist <!-- rule:리서치-체크리스트 강제:없음 -->
 
-Before starting any implementation, the agent MUST verify the following:
-- [ ] Check official documentation (latest stable) — 🔤 확인한 연도를 함께 적는다. ✏️ 2026-09-30 정정: 이 줄은 `2024-2025` 를 박아 두고 있었다 — **연도를 박으면 썩는다**
-- [ ] Research external Best Examples (official repos, production cases, source + year required)
-- [ ] Confirm similar implementation patterns within the project (`app/services/`, `app/repositories/`)
-- [ ] Check if new environment variables are needed (based on `.env.example`)
-- [ ] Identify related models (`app/models/` related tables)
+착수 전에 센다:
+- [ ] 공식 문서 최신 안정판 · 외부 Best Example(공식 repo·프로덕션 사례) — 출처와 확인 연도를 함께 적는다. ✏️ 2026-09-30 정정: 이 줄은 `2024-2025` 를 박아 뒀다 — **연도를 박으면 썩는다**
+- [ ] 저장소 안의 **같은 패턴** — `app/services/` · `app/repositories/`
+- [ ] 새 환경변수(`.env.example`)와 관련 모델(`app/models/`)
 - [ ] 열린 후속 과제와 충돌하나 — `docs-private/FOLLOWUP_QUEUE.md`(`QA-##`) · `DOC_TRUTH_DRIFT.md`(`문서-N`). ✏️ 2026-09-30 정정: 이 줄은 **없는 파일**(`QA_AUDIT_PLAN.md`)의 확인을 의무로 지시했다 — `문서-11` 과 같은 «못 지키는 규칙»
 
 ---
@@ -552,12 +537,10 @@ Before starting any implementation, the agent MUST verify the following:
 - **Document Specialist**: `affects` 누락 · 내 변경이 거짓으로 만드는 정본. ✏️ 이 자리에 *«DBML update requirements»* 가 있었다 — §4.2 가 *«ERD 는 갱신 의무가 아니다»* 로 2026-09-23 에 고쳤는데 여기는 안 따라왔다(층② 안의 모순)
 
 ### Review Checklist <!-- rule:리뷰-체크리스트 강제:없음 -->
-- [ ] Is the Goal clearly defined with completion criteria?
-- [ ] Were trade-off choices presented to the user first?
-- [ ] Is the external research from Research Checklist completed?
-- [ ] Are TDD Steps correctly split by business logic unit?
-- [ ] Are Affected Files filled in completely?
-- [ ] Is the core flow visualized with a Mermaid flowchart?
+- [ ] Goal 과 **완료 조건**이 적혔나
+- [ ] 트레이드오프를 **사용자에게 먼저** 보였나
+- [ ] §10 리서치를 했나 · TDD Step 이 비즈니스 로직 단위로 갈렸나
+- [ ] `affects` 가 다 찼나 · 핵심 흐름이 **Mermaid** 로 그려졌나
 
 ---
 
