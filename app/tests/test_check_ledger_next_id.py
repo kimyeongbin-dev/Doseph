@@ -110,3 +110,39 @@ def test_floor_catches_a_broken_row_parser() -> None:
     problem, _ = audit(DRIFT, body(ROWS[:1], 2))
     assert problem is not None
     assert "바닥값 3 아래" in problem
+
+
+# ── `문서-49` — 배출된 ID 도 «발급» 이다 ─────────────────────────────
+def test_archived_ids_raise_the_maximum() -> None:
+    """🔴 배출본으로 나간 번호를 안 세면 **그 번호를 다시 내준다.**
+
+    실측 2026-09-29: `QA-58`·`QA-59` 를 배출하자 파일 안 최대가 `57` 이 되어
+    게이트가 «다음 신규 = QA-58» 을 요구했다 — 자기가 막으려던 일이다.
+    """
+    problem, summary = audit(DRIFT, body(ROWS, 6), archived={4, 5})
+    assert problem is None, problem
+    assert "최대 5" in summary
+    assert "배출분 2" in summary
+
+
+def test_archived_ids_are_still_checked_for_reuse() -> None:
+    """배출분이 최대인데 선언이 그 아래면 잡아야 한다."""
+    problem, _ = audit(DRIFT, body(ROWS, 4), archived={4, 5})
+    assert problem is not None
+    assert "문서-5 까지 발급" in problem
+
+
+def test_prose_in_an_archive_does_not_invent_ids() -> None:
+    """🔴 배출본 산문의 «다음 신규 = 문서-99» 는 발급이 아니다(`D69`).
+
+    합집합은 최대값을 **올리기만** 하므로, 산문을 주우면 없는 번호를 발급으로 만든다.
+    """
+    archive = "이 배출본은 *«다음 신규 = `문서-99`»* 였던 시절을 설명한다. 문서-98 도 산문이다."
+    assert issued_ids(archive, "문서") == set()
+
+
+def test_archived_ids_do_not_rescue_a_broken_parser() -> None:
+    """🔑 바닥값은 **원장 자신의** ID 로 본다 — 배출분으로 채우면 파서 고장을 가린다."""
+    problem, _ = audit(DRIFT, body(ROWS[:1], 2), archived={4, 5, 6, 7})
+    assert problem is not None
+    assert "바닥값" in problem
