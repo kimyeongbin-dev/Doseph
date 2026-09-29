@@ -237,7 +237,7 @@ All feature development and session tasks MUST follow this loop. This project fo
 
 | 축 | 이 작업을 할 때 읽는다 |
 |---|---|
-| `셸-원격실행` | PowerShell·ssh·bash·docker 명령을 짤 때 (12건) |
+| `셸-원격실행` | PowerShell·ssh·bash·docker 명령을 짤 때 (13건) |
 | `배포-인프라` | GCP·VM·CI/CD·CF Pages 를 건드릴 때 (12건) |
 | `문서-닫기` | PLAN·완료기록·스냅샷·색인을 닫거나 옮길 때 (20건) |
 | `게이트-검사기` | 게이트·테스트·검사기를 만들거나 고칠 때 (21건) |
