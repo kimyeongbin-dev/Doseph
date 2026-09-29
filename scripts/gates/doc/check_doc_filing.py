@@ -44,11 +44,13 @@ from pathlib import Path
 import re
 import sys
 
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
-from scripts.gates._root import PRIVATE  # noqa: E402
+from scripts.gates._root import PRIVATE
 
 #: 바닥값 — *0건*만이 아니라 **줄어든 것도 실패**다(`CLAUDE.md` §6-1, 대장 D31).
 #: 실제로 `check_utf8_guard` 가 대상 11건 → 1건이 되고도 초록을 냈다.
@@ -201,8 +203,16 @@ def inspect_top_nondoc() -> list[Finding]:
 
 # ── 축 폴더 판정 ───────────────────────────────────────────────────────
 # 흐름: 축 폴더 순회 -> 파일명 모양 -> 접미사==폴더명 -> 예약어 -> status 대조
-def inspect_axes(errors: list[Finding], warnings: list[Finding]) -> int:
-    """축 폴더의 파일들을 판정하고, 검사한 파일 수를 돌려준다."""
+def inspect_axes(errors: list[Finding], warnings: list[Finding]) -> tuple[int, list[str]]:
+    """축 폴더의 파일들을 판정한다.
+
+    Args:
+        errors: 차단할 위반이 쌓이는 곳.
+        warnings: 보고만 할 것이 쌓이는 곳.
+
+    Returns:
+        (검사한 파일 수, 누적형으로 선언된 파일 이름들).
+    """
     seen = 0
     append_only: list[str] = []
     for folder in sorted(p for p in PRIVATE.iterdir() if p.is_dir()):
