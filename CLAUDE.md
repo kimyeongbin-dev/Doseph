@@ -98,34 +98,19 @@ All feature development and session tasks MUST follow this loop. This project fo
 ```
 
 ### 2.1 SDLC Macro Loop <!-- rule:sdlc-루프 강제:없음 -->
-1. **Plan**: Define the scope of work and propose a technical approach via `PLAN.md`.
-2. **Wait for 'go'**: After planning, wait for the user's confirmation and the `go` command.
-3. **Develop**: Follow the TIDY Coding and TDD principles to develop according to the 3-step cycle below.
-4. **Verify**: After development, verify that the code matches the initial plan and report the results.
+`PLAN.md` 로 계획 → **`go` 를 기다린다** → 3단 주기로 구현 → §6-1 로 닫는다.
+✏️ 2026-09-30: 네 항목이 §1.1·§2.2·§2.3·§6-1 을 각각 다시 말하고 있었다 — 지도만 남긴다.
 
 ### 2.2 Micro Loop: The 3-Step Development Cycle <!-- rule:3단주기 강제:없음 -->
 
-> **적용 범위 = 배포에 올라가는 서비스 코드**(`app/` · `ai_worker/` · `medication-frontend/`).
-> §1.2 의 *"core business logic"* 과 **같은 범위**다.
->
-> ⚠️ **2026-09-27 정정** — 이 줄이 *"All feature implementations and modifications"* 라고
-> 적혀 있어 §1.2 와 범위가 모순됐다. 그 «모든» 때문에 게이트·스크립트까지 서비스 코드의
-> TDD 의식에 쓸려 들어왔다(실측: 게이트 20개 중 단위테스트를 가진 것은 2개뿐이었다).
-> 경위 = `문서-38`.
->
-> 📐 **게이트·검사기·스크립트는 §6-1 의 «결핍 주입 + 음성 대조» 로 검증한다.**
-> 단위테스트는 금지가 아니라 선택이다.
+> **적용 범위 = 배포에 올라가는 서비스 코드**(`app/` · `ai_worker/` · `medication-frontend/`) — §1.2 의 *«core business logic»* 과 같은 범위다.
+> ⚠️ 2026-09-27 정정: 이 줄이 *«All feature implementations and modifications»* 라 적혀 있어 §1.2 와 모순됐고, 그 «모든» 때문에 게이트·스크립트까지 TDD 의식에 쓸려 들어왔다(실측: 게이트 20개 중 단위테스트를 가진 것은 2개뿐이었다). 경위 = `문서-38`.
+> 📐 게이트·검사기·스크립트는 §6-1 의 **«결핍 주입 + 음성 대조»** 로 검증한다 — 단위테스트는 금지가 아니라 선택이다.
 아래 3단 주기는 **서비스 코드**의 구현·수정에 적용한다:
 
-* **Step 1: Tidy First**
-    * **Objective**: Organize the related code structure before implementation to facilitate modifications.
-    * **Principles**: Absolutely NO behavioral changes. Focus ONLY on improving readability and structure. After tidying, all existing tests MUST pass.
-* **Step 2: Test First**
-    * **Objective**: Prepare verification methods before actual implementation.
-    * **Principles**: Write test codes for the feature before implementation. The written tests MUST be in a **failing state (Red)**. The test code at this stage acts as a detailed design specification.
-* **Step 3: Implement**
-    * **Objective**: Complete the actual feature to pass the tests.
-    * **Principles**: Write the minimum code necessary to pass the tests. Once passed (Green), perform additional tidying if necessary. **Implementing features without test codes is strictly prohibited.**
+* **Step 1 Tidy**: 고치기 쉽게 구조를 먼저 정돈한다. 행동 변경 **절대 금지**이고, 끝나면 기존 테스트가 전부 통과해야 한다.
+* **Step 2 Test**: 구현 전에 테스트를 쓴다. **Red 여야 정상**이고, 이때의 테스트가 상세 설계서 노릇을 한다.
+* **Step 3 Implement**: 통과할 **최소 코드**만 쓴다. Green 뒤 필요하면 더 정돈한다. 테스트 없는 구현은 금지다.
 
 #### Ruff — **`pre-commit` 이 자동으로 돌린다. 손으로 부르지 않는다**
 
@@ -134,29 +119,23 @@ All feature development and session tasks MUST follow this loop. This project fo
 > 📂 규칙 정본 = `pyproject.toml` `[tool.ruff.lint]` · 켜진 것 목록 = §7~9
 
 ### 2.3 Step-by-Step User Confirmation <!-- rule:단계별-확인 강제:없음 -->
-The agent MUST obtain developer (user) confirmation at the end of each step before proceeding:
-1. **After Tidy**: "구조 정돈이 완료되었습니다. 테스트 작성을 진행할까요?" (Tidy phase complete. Shall we proceed to write tests?)
-2. **After Test**: "테스트 작성이 완료되었습니다. 구현을 시작할까요?" (Test writing complete. Shall we begin implementation?)
+각 단계 **끝에서 멈추고 확인받는다** — Tidy 뒤 *«구조 정돈이 완료되었습니다. 테스트 작성을 진행할까요?»* · Test 뒤 *«테스트 작성이 완료되었습니다. 구현을 시작할까요?»* ✏️ 2026-09-30: 괄호 안 영어 번역을 뺐다(§4.3 이 한글을 기본으로 바꿨다).
 
 ### 2.4 Tidy First Checklist <!-- rule:tidy-체크리스트 강제:훅:ruff-check-final 잔류:F401·I·UP·ANN·RET 만 Ruff 가 본다. 체크리스트 4항은 기계 밖 -->
 
-> 미사용 import 제거(`F401`) · import 정렬(`I`) · 모던 타입 힌트(`UP`·`ANN`) ·
-> Early Return(`RET`) 은 **Ruff 가 강제**한다(§7~9). 아래는 기계가 못 보는 것이다.
+> 미사용 import(`F401`) · import 정렬(`I`) · 모던 타입 힌트(`UP`·`ANN`) · Early Return(`RET`) 은 **Ruff 가 강제**한다(§7~9). 아래는 기계가 못 보는 것이다.
 
-- [ ] Verify Single Responsibility Principle (SRP) (Ensure functions and classes serve only one purpose)
-- [ ] Optimize function length (Recommended: under 20 lines per function)
-- [ ] Manage duplicated code (Check for duplicates and extract to separate functions/modules if found)
-- [ ] Naming clarity (Review if variable, function, and class names clearly convey intent)
+- [ ] **SRP** — 함수·클래스가 한 가지만 하는가
+- [ ] 함수 길이 — 권장 **20줄** 이하
+- [ ] 중복이 있으면 함수·모듈로 뽑았는가
+- [ ] 이름이 의도를 말하는가
 
 ---
 
 ## 3. Tidy Data & Coding Principles
 
 ### 3.1 Tidy Data <!-- rule:tidy-data 강제:없음 -->
-To prevent Messy Data, strictly adhere to the following principles:
-* Every variable forms a column.
-* Every observation forms a row.
-* Every type of observational unit forms a table.
+**변수는 열 · 관측은 행 · 관측 단위는 표** — 모델과 응답 스키마를 그렇게 짠다. ✏️ 2026-09-30: 세 줄로 나뉜 원칙 인용이었다.
 
 ### 3.2 Tidy Coding <!-- rule:tidy-coding 강제:훅:ruff-check-final 잔류:SRP·스캔성·표준라이브러리 우선은 Ruff 가 못 본다 -->
 * **Consistent Naming**: Adhere to code style rules to maintain intuitive and uniform naming.
@@ -170,9 +149,7 @@ To prevent Messy Data, strictly adhere to the following principles:
 ## 4. Code Quality, Architecture & Technical Standards
 
 ### 4.1 Code Quality & Architecture <!-- rule:아키텍처-준수 강제:훅:layer-contracts 잔류:계약에 든 경계만 강제된다 — 나머지는 등재만 돼 있다 -->
-* **Deduplication**: Eliminate duplication to maintain clean, highly readable code.
-* **Architecture Compliance**: Strictly adhere to the structures defined in `docs-private/ARCHITECTURE.md` (FastAPI, Tortoise ORM, Redis, AI-Worker, etc.).
-* **Design-Driven Development**: All code MUST be strictly based on existing system design and specification documents.
+구조의 정본은 **`docs-private/ARCHITECTURE.md`** 다(FastAPI · Tortoise ORM · Redis · AI-Worker). ✏️ 2026-09-30: «중복 제거» 와 «설계 우선» 두 줄을 뺐다 — 앞은 §5 가, 뒤는 §1.1 이 이미 말한다.
 
 ### 4.2 Technical Standards & Performance Optimization <!-- rule:기술표준 강제:훅:layer-contracts,훅:debt-baseline,훅:ruff-check-final 잔류:ERD·마이그레이션 의무는 기계 밖이다 -->
 
