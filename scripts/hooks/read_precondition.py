@@ -26,9 +26,13 @@
   본문에 상주**시켜 훅과 무관하게 살게 했다. 훅에 «전부» 를 걸지 않는다.
 - **성공은 보이지 않는다** — UI 는 훅이 실패하거나 느릴 때만 표시한다. *"돌았나"* 는 따로 재야 한다.
 - **자기 배선을 스스로 못 본다** → `scripts/gates/tooling/check_claude_hooks.py` 가 pre-push 에서 센다.
-- 🔴 **읽음 마커는 압축을 살아남지만 «읽은 내용» 은 안 살아남는다**(2026-09-22 실측, **QA-50**).
-  `Read` 를 불렀다는 사실만 기록하므로, 압축 후에는 **보증이 빈 채로 통과**한다.
-  즉 이 훅이 막는 것은 *"한 번도 안 읽고 고치는 것"* 이지 *"지금 들고 있는가"* 가 아니다.
+- ✅ **압축은 이제 보증을 무른다**(`QA-50` 해소, 2026-09-29). 앞 판은 «읽었다는 사실» 만 남기고
+  압축을 넘겼는데, **읽은 «내용» 은 요약에서 탈락한다**(2026-09-22 실측: 압축 요약에 본문 0줄).
+  🔑 **공짜로 돌아오지도 않는다** — 압축이 되돌려주는 것은 최근 수정 5개까지이고,
+  5,000토큰 넘는 파일은 **경로만** 온다. 직하 정본은 전부 그 선을 넘는다(`문서-46`).
+  ⇒ `PostCompact` 가 읽음 마커에 **«압축됨» 을 새긴다.** 다음 편집은 **막히고**,
+  이유를 *«한 번도 안 읽었다»* 와 **다른 문장**으로 말한다.
+- 🔴 **여전히 읽은 «내용» 은 모른다.** `Read` 호출 사실만 안다 — 훑었는지 정독했는지는 모른다.
 
 🟡 **내부 오류가 나면 «통과» 시킨다(fail-open).** 의도된 선택이다 —
 버그로 전부 막히면 **사람이 훅을 통째로 끄고, 그러면 검출률이 0 이 된다**(`QUALITY_GATES` §2-8).
@@ -51,8 +55,12 @@ MARKER_ROOT = Path(tempfile.gettempdir()) / "doseph-read-precondition"
 
 # 읽어야 통과하는 문서 — 키는 마커 이름, 값은 파일명 조각.
 GATED_DOC = "FILING.md"
-# 「상시 세트를 이미 주입했다」 기록. `PostCompact` 가 이것만 지운다.
+# 「상시 세트를 이미 주입했다」 기록. `PostCompact` 가 이것을 지운다.
 INJECTED = "상시세트-주입됨"
+# 🔴 읽음 마커에 새기는 «압축됨» 표식(`QA-50`). **지우지 않고 표시하는 이유**는
+#    「한 번도 안 읽었다」 와 「읽었는데 압축이 내용을 지웠다」 를 **다른 메시지로** 말하기 위해서다.
+#    지워 버리면 둘이 같은 모양이 되고, 읽는 사람은 왜 막혔는지 모른다.
+COMPACTED = "compacted"
 # 규약 밖 구역은 묻지 않는다(미분류·죽은 문서를 옮기는 일이 막히면 오탐이 된다).
 EXEMPT_PARTS = ("/_unfiled/", "/_legacy/")
 
@@ -72,6 +80,24 @@ def marker_path(session_id: str, name: str) -> Path:
     """
     safe = "".join(c for c in session_id if c.isalnum() or c in "-_")[:64] or "nosession"
     return MARKER_ROOT / safe / name
+
+
+def deny(reason: str) -> dict[str, object]:
+    """편집을 막는 훅 출력.
+
+    Args:
+        reason: 사람에게 보일 이유. **막힌 까닭마다 다른 문장**이어야 한다.
+
+    Returns:
+        훅 출력 dict.
+    """
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
 
 
 def decide(payload: dict[str, object]) -> dict[str, object] | None:
@@ -94,7 +120,8 @@ def decide(payload: dict[str, object]) -> dict[str, object] | None:
         if path.endswith(GATED_DOC):
             m = marker_path(session, GATED_DOC)
             m.parent.mkdir(parents=True, exist_ok=True)
-            m.touch()
+            # 🔑 `touch()` 가 아니라 **비운다** — 앞서 새겨진 «압축됨» 을 걷어내야 한다(`QA-50`).
+            m.write_text("", encoding="utf-8")
         return None
 
     # ② Write/Edit — docs-private 의 문서를 고칠 때만 묻는다.
@@ -105,7 +132,16 @@ def decide(payload: dict[str, object]) -> dict[str, object] | None:
     if any(part in path for part in EXEMPT_PARTS):
         return None
 
-    if marker_path(session, GATED_DOC).exists():
+    marker = marker_path(session, GATED_DOC)
+    if marker.exists():
+        if marker.read_text(encoding="utf-8", errors="replace").strip() == COMPACTED:
+            return deny(
+                f"**압축 이후 첫 `docs-private/` 편집이다 — docs-private/{GATED_DOC} 를 다시 읽어라.** "
+                "🔴 읽었다는 «사실» 은 남았지만 읽은 «내용» 은 압축 요약에서 탈락한다"
+                "(2026-09-22 실측: 압축 요약에 본문 0줄). "
+                "그리고 압축이 되돌려주는 것은 최근 수정 5개까지이고 5,000토큰 넘는 정본은 «경로만» 온다 — "
+                "**본문이 공짜로 돌아오는 경우는 없다**(`QA-50` · `문서-46`)."
+            )
         # 🔴 상시 세트는 **세션당 한 번만** 주입한다.
         #    한 번 들어오면 이미 컨텍스트에 있으므로 같은 340자를 매 편집마다 다시 넣는 것은
         #    순수한 낭비다(실측: 25회 편집 = 약 7,000 토큰 → 1회 = 약 283 토큰).
@@ -135,30 +171,27 @@ def decide(payload: dict[str, object]) -> dict[str, object] | None:
             }
         }
 
-    return {
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": (
-                f"`docs-private/` 문서를 고치기 전에 **docs-private/{GATED_DOC}** 를 먼저 읽어라 "
-                "(§3-1: 파일명은 «모양» 만 보증한다 — 정독 없이 분류하지 않는다, 대장 D38). "
-                "그리고 실수 대장의 축 `문서-닫기` 를 함께 본다."
-            ),
-        }
-    }
+    return deny(
+        f"`docs-private/` 문서를 고치기 전에 **docs-private/{GATED_DOC}** 를 먼저 읽어라 "
+        "(§3-1: 파일명은 «모양» 만 보증한다 — 정독 없이 분류하지 않는다, 대장 D38). "
+        "그리고 실수 대장의 축 `문서-닫기` 를 함께 본다."
+    )
 
 
 # ── `PostCompact` — 압축이 컨텍스트를 갈아엎었으니 주입 기록을 무른다 ──
 # 흐름: 세션 마커 폴더 -> «주입됨» 만 삭제 -> 다음 PreToolUse 가 다시 주입
-# 🔑 **«읽음» 마커는 지우지 않는다** — 지금은. 설계 근거는 *"읽었다는 사실은 압축으로 변하지 않는다"*
-#    였는데, 2026-09-22 실발동 측정에서 **반쪽만 참**임이 드러났다: `Read` 를 불렀다는 사실은 남지만
-#    **읽은 내용은 요약에서 탈락한다.** 그래서 압축 후 첫 편집은 **보증이 빈 채로 통과**한다.
-#    🔴 읽음 마커도 지우는 것이 **오탐이 아니라 정탐**일 수 있다 — 판정 대기 = **QA-50**.
-#    지금 지우는 것은 *"컨텍스트에 있다"* 를 뜻하는 **주입 마커뿐**이다.
+# 🔑 **«읽음» 마커는 지우지 않고 «압축됨» 으로 새긴다**(`QA-50` 해소, 2026-09-29).
+#    앞 판의 설계 근거는 *"읽었다는 사실은 압축으로 변하지 않는다"* 였는데 **반쪽만 참**이었다:
+#    `Read` 를 불렀다는 사실은 남지만 **읽은 내용은 요약에서 탈락한다**(2026-09-22 실측).
+#    ⇒ 막는 것이 **오탐이 아니라 정탐**이다 — 내용이 실제로 사라졌다.
+#    🔑 **지우지 않는 이유**: 지우면 «한 번도 안 읽었다» 와 같은 모양이 되어 **왜 막혔는지 못 말한다.**
+#    🔢 **비용은 피할 수 있는 것이 아니다**(`문서-46`): 압축이 되돌려주는 것은 최근 수정 5개까지이고
+#    5,000토큰 넘는 정본은 **경로만** 온다 — 정본 본문이 공짜로 돌아오는 경우는 없다.
+#    지금까지는 그 비용을 **안 내고 통과**하고 있었던 것이다.
 # 🔴 왜 직접 주입하지 않나: `PostCompact` 가 `additionalContext` 를 지원하는지
 #    **실측하지 않았다.** 이 방식은 훅이 **돌기만** 하면 되므로 그 미지수에 기대지 않는다.
-def reset_injection(session_id: str) -> int:
-    """압축 후 «상시 세트 주입됨» 기록만 지운다.
+def reset_after_compaction(session_id: str) -> int:
+    """압축 후 «주입됨» 을 지우고 «읽음» 에 압축 표식을 새긴다.
 
     Args:
         session_id: 훅 입력의 `session_id`. 비어 있으면 모든 세션을 훑는다.
@@ -166,9 +199,15 @@ def reset_injection(session_id: str) -> int:
     Returns:
         종료코드 — 항상 0.
     """
-    targets = [marker_path(session_id, INJECTED)] if session_id else list(MARKER_ROOT.glob(f"*/{INJECTED}"))
-    for t in targets:
-        t.unlink(missing_ok=True)  # 없어도 죽지 않는다 — 압축이 두 번 와도 안전
+    if session_id:
+        folders = [marker_path(session_id, INJECTED).parent]
+    else:
+        folders = [p for p in MARKER_ROOT.glob("*") if p.is_dir()]
+    for folder in folders:
+        (folder / INJECTED).unlink(missing_ok=True)  # 없어도 죽지 않는다 — 압축이 두 번 와도 안전
+        read_marker = folder / GATED_DOC
+        if read_marker.exists():
+            read_marker.write_text(COMPACTED, encoding="utf-8")
     return 0
 
 
@@ -180,8 +219,11 @@ def main() -> int:
     """
     try:
         payload = json.loads(sys.stdin.read() or "{}")
-        if "--reset-injection" in sys.argv:
-            return reset_injection(str(payload.get("session_id", "")) if isinstance(payload, dict) else "")
+        # 🔤 `--reset-injection` 은 **과도기 별칭**이다(2026-09-29 개명, `QA-50`).
+        #    이제 주입 기록만이 아니라 **읽음 보증까지** 무르므로 옛 이름이 거짓이 됐다.
+        #    🔴 설정 감시자는 세션 시작 시점의 설정을 들고 있어, 옛 이름이 한동안 더 올 수 있다.
+        if {"--after-compact", "--reset-injection"} & set(sys.argv):
+            return reset_after_compaction(str(payload.get("session_id", "")) if isinstance(payload, dict) else "")
         out = decide(payload if isinstance(payload, dict) else {})
     except Exception as exc:
         json.dump({"systemMessage": f"⚠️ read-precondition 훅 내부 오류(통과시킴): {exc}"}, sys.stdout)

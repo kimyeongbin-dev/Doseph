@@ -44,11 +44,11 @@ HOOK_SCRIPT = REPO_ROOT / "scripts" / "hooks" / "read_precondition.py"
 
 # 🔑 실측이다. 2026-09-22 기준 2 이벤트 — `PreToolUse`(읽기 전제조건·주입) +
 #    `PostCompact`(압축 후 주입 기록 초기화). 둘 다 같은 스크립트를 부른다(훅 «1종» 원칙).
-#    🔴 **이벤트마다 요구 조각이 다르다** — `PostCompact` 는 `--reset-injection` 서브커맨드가
+#    🔴 **이벤트마다 요구 조각이 다르다** — `PostCompact` 는 `--after-compact` 서브커맨드가
 #    빠지면 **호출은 되는데 아무 일도 안 한다**(조용한 무효화).
 REQUIRED: dict[str, str] = {
     "PreToolUse": "read_precondition",
-    "PostCompact": "--reset-injection",
+    "PostCompact": "--after-compact",
 }
 MIN_HOOK_ENTRIES = 1
 
