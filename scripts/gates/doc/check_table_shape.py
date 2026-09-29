@@ -37,6 +37,12 @@ r"""표 모양 게이트 — **표가 렌더될 때 깨지는 것**을 막는다
 신선도 게이트의 입력이 오염된다(`FILING` §12-1 · 대장 `D41`).
 ⇒ **조치가 불가능한 대상을 검사하면 사람이 게이트를 끈다.** 고칠 수 있는 것만 본다.
 
+🔴 **검사하는 것과 «세는» 것은 다르다**(`QA-58`)
+-----------------------------------------------
+직하의 **작업 버퍼**(``PLAN``·``REPORT``·``RECORD``)도 표가 깨지면 안 되므로 **검사는 한다.**
+그러나 **바닥값에는 세지 않는다** — 있다가 없어지는 것이 정상이라, 세면 기준선이
+**진행 중인 작업을 따라다닌다.** 실제로 앞 판이 그래서 상수 주석까지 거짓이 됐다.
+
 🔴 이 게이트가 **못 하는 것** (한계 선언)
 -----------------------------------------
 - **내용이 맞는지 모른다.** 칸 수가 맞으면 통과한다.
@@ -56,6 +62,7 @@ import re
 import sys
 
 from scripts.gates._root import PRIVATE
+from scripts.gates.doc.check_doc_filing import STATE_CANONS
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -64,8 +71,28 @@ if hasattr(sys.stderr, "reconfigure"):
 
 #: 🔑 바닥값 — 표 머리를 **0개** 세면 «표가 없다» 가 아니라 **파서가 죽은 것**이다.
 #:    그 상태에서는 어떤 어긋남도 0건이라 **조용히 초록**이 난다.
-#:    ⚠️ 2026-09-28 실측: 직하 정본 10건에서 표 머리 `121`개.
+#:
+#: 🔴 **무엇을 센 수인가** — `STATE_CANONS` **10건의 표 머리 수**다(작업 버퍼 제외).
+#:    🔬 2026-09-29 실측 **115**. 여유 5.
+#:
+#: ⚠️ **앞 판 주석은 거짓이었다**(`QA-58`). *«직하 정본 10건에서 121개»* 라고 적혀 있었는데
+#:    정본만 세면 그때도 `114` 였다. `121` 은 **틀린 수가 아니라 다른 모집단의 수**다(`D43`) —
+#:    잴 때 직하에 `PLAN.md` 가 살아 있었고 그 스냅샷이 표 **8개**를 들고 있다.
+#:
+#: 🔑 **그래서 수만 고치면 안 된다.** 앞 판은 `PRIVATE.glob` 전부를 셌으므로
+#:    **작업 버퍼가 열렸는지에 따라 기준선이 움직였다** — 버퍼가 열린 동안은 느슨해지고
+#:    닫히면 갑자기 조여진다. 바닥값의 목적은 *«파서가 죽었나»* 인데 기준선이
+#:    진행 중인 작업을 따라다니면 그 질문에 답할 수 없다.
+#:    ⇒ **검사는 전부 하고, 세는 것은 정본만 한다.**
+#:
+#: 📉 **줄어들면 실패다** — 배출 등으로 표가 정말 줄었으면 이 값을 **의식적으로** 내리고
+#:    사유를 여기 적는다. 조용히 내려가는 것을 막는 것이 이 상수의 존재 이유다.
 MIN_TABLES = 110
+
+#: 🔴 **모집단 바닥값.** 정본 파일이 줄면 표 머리도 같이 줄어 «표가 없다» 와 구별되지 않는다.
+#:    `check_doc_filing` 도 «상태 정본이 없으면 결함» 을 보지만, **이 게이트의 바닥값이
+#:    의미를 가지려면 이 게이트가 스스로 자기 모집단을 단언**해야 한다.
+MIN_CANON_FILES = len(STATE_CANONS)
 
 #: 코드 펜스 — 여는 줄과 닫는 줄. 안쪽의 ``|`` 는 표가 아니다(mermaid·표 예시).
 FENCE = re.compile(r"^\s*(```|~~~)")
@@ -181,6 +208,21 @@ def audit(path: Path) -> Report:
     return report
 
 
+def counts_toward_floor(path: Path) -> bool:
+    """바닥값에 세는 대상인가 — **상태 정본만**.
+
+    🔑 작업 버퍼(`PLAN`·`REPORT`·`RECORD`)와 커밋하지 않는 생성물은 **검사는 받지만
+    세지는 않는다.** 있다가 없어지는 것이 정상이라, 세면 기준선이 흔들린다(`QA-58`).
+
+    Args:
+        path: 검사 대상 파일.
+
+    Returns:
+        상태 정본이면 ``True``.
+    """
+    return path.name in STATE_CANONS
+
+
 def targets(argv: list[str] | None = None) -> list[Path]:
     """검사 대상. 인자가 없으면 ``docs-private/`` **직하** 마크다운.
 
@@ -211,23 +253,37 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     tables = 0
+    canon_tables = 0
+    canon_files = 0
     mismatched: list[str] = []
     orphans: list[str] = []
     dangling: list[str] = []
     for path in files:
         report = audit(path)
         tables += report.tables
+        if counts_toward_floor(path):
+            canon_tables += report.tables
+            canon_files += 1
         mismatched.extend(report.mismatched)
         orphans.extend(report.orphans)
         dangling.extend(report.dangling)
 
     # 🔑 표본 모드에서도 바닥값을 **0 으로 낮추지 않는다** — 0 이면 파서가 죽은 것이다.
+    #    🔴 정본 모드에서는 **정본만** 센다(`QA-58`) — 작업 버퍼는 있다가 없어지는 것이 정상이라
+    #    세면 기준선이 진행 중인 작업을 따라다닌다.
     floor = 1 if sample_mode else MIN_TABLES
+    counted = tables if sample_mode else canon_tables
     problems: list[str] = []
-    if tables < floor:
+    if counted < floor:
         problems.append(
-            f"표 머리가 **{tables}개**로 바닥값 {floor} 아래다 — "
+            f"표 머리가 **{counted}개**로 바닥값 {floor} 아래다 — "
             "파서가 죽으면 어긋남이 0건으로 보인다(0은 «깨끗» 이 아니라 «못 셌다»)"
+        )
+    if not sample_mode and canon_files < MIN_CANON_FILES:
+        missing = sorted(STATE_CANONS - {p.name for p in files})
+        problems.append(
+            f"상태 정본이 **{canon_files}건**으로 바닥값 {MIN_CANON_FILES} 아래다 — "
+            f"모집단이 줄면 표 머리도 같이 줄어 «파서가 죽은 것» 과 구별되지 않는다: {', '.join(missing)}"
         )
     if mismatched:
         problems.append(f"**칸 수 어긋남 {len(mismatched)}건** — 렌더될 때 표가 깨진다")
@@ -253,7 +309,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     print(
-        f"✅ 표 모양 — 파일 {len(files)}건 · 표 머리 {tables}개(바닥값 {floor}) · "
+        f"✅ 표 모양 — 검사 {len(files)}건(정본 {canon_files}) · "
+        f"표 머리 {tables}개(정본 {canon_tables} · 바닥값 {floor}) · "
         "칸 어긋남 0 · 고아 행 0 · 끝 파이프 결손 0."
     )
     return 0

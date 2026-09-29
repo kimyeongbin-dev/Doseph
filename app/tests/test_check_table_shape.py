@@ -21,7 +21,8 @@ r"""표 모양 게이트 단위 테스트 (트랙 B-14 2판, `문서-37` · `QA-
 
 from pathlib import Path
 
-from scripts.gates.doc.check_table_shape import audit, cell_count
+from scripts.gates.doc.check_doc_filing import STATE_CANONS, WORK_BUFFERS
+from scripts.gates.doc.check_table_shape import audit, cell_count, counts_toward_floor
 
 GOOD = """# 표본
 
@@ -169,3 +170,27 @@ def test_a_head_or_separator_missing_its_trailing_pipe_is_caught(tmp_path: Path)
     assert len(report.dangling) == 1
     assert report.mismatched == [], "구분선 칸 수는 여전히 3이다"
     assert report.tables == 2, "구분선으로 인정돼야 표가 2개다"
+
+
+# ── `QA-58` — 검사하는 것과 «세는» 것은 다르다 ─────────────────────
+def test_work_buffers_are_checked_but_not_counted() -> None:
+    """🔑 작업 버퍼는 **검사는 받되 바닥값에는 안 세어야** 한다.
+
+    있다가 없어지는 것이 정상이라, 세면 기준선이 **진행 중인 작업을 따라다닌다.**
+    앞 판이 그래서 상수 주석까지 거짓이 됐다(`121` 은 `PLAN.md` 가 열려 있을 때의 수였다).
+    """
+    assert WORK_BUFFERS, "버퍼 목록이 비면 이 테스트가 아무것도 안 본다"
+    for name in [*WORK_BUFFERS, "STRUCTURE_MAP.md"]:
+        assert not counts_toward_floor(Path("docs-private") / name), name
+
+
+def test_every_state_canon_counts_toward_the_floor() -> None:
+    """정본은 하나도 빠짐없이 세어야 한다 — 빠지면 바닥값이 조용히 느슨해진다."""
+    assert STATE_CANONS, "정본 목록이 비면 바닥값이 무의미하다"
+    for name in STATE_CANONS:
+        assert counts_toward_floor(Path("docs-private") / name), name
+
+
+def test_the_two_sets_do_not_overlap() -> None:
+    """🔴 겹치면 «검사만» 과 «세기» 의 구분이 무너진다."""
+    assert not (STATE_CANONS & WORK_BUFFERS)
