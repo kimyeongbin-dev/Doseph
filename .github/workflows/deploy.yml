@@ -151,7 +151,7 @@ jobs:
           service_account: github-deployer@doseph-507923.iam.gserviceaccount.com
 
       - name: Set up gcloud
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Deploy over IAP SSH
         run: |
