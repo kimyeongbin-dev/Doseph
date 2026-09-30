@@ -11,21 +11,21 @@ from app.core.logger import setup_logger
 
 
 def get_config() -> Config:
-    """Get application configuration instance.
+  """Get application configuration instance.
 
-    Returns:
-        Config: Application configuration instance.
-    """
-    return Config()
+  Returns:
+      Config: Application configuration instance.
+  """
+  return Config()
 
 
 def get_logger() -> logging.Logger:
-    """Get application logger instance.
+  """Get application logger instance.
 
-    Returns:
-        logging.Logger: Configured logger for the application.
-    """
-    return setup_logger()
+  Returns:
+      logging.Logger: Configured logger for the application.
+  """
+  return setup_logger()
 
 
 # Global instances

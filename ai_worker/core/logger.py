@@ -15,12 +15,12 @@ setup_logger("ai_worker")
 
 
 def get_logger(name: str) -> logging.Logger:
-    """모듈별 자식 logger — 부모 'ai_worker' 의 핸들러로 propagate.
+  """모듈별 자식 logger — 부모 'ai_worker' 의 핸들러로 propagate.
 
-    Args:
-        name: 일반적으로 ``__name__`` (예: ``ai_worker.domains.lifestyle.jobs``).
+  Args:
+      name: 일반적으로 ``__name__`` (예: ``ai_worker.domains.lifestyle.jobs``).
 
-    Returns:
-        propagate=True 인 자식 logger (default). 자체 핸들러 없음.
-    """
-    return logging.getLogger(name)
+  Returns:
+      propagate=True 인 자식 logger (default). 자체 핸들러 없음.
+  """
+  return logging.getLogger(name)

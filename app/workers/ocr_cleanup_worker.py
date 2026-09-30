@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 # ── OCR draft 24h 정리 작업 ────────────────────────────────────────────
 # 흐름: cutoff 계산 -> stale row 일괄 DELETE -> 처리 row 수 로깅
 async def prune_stale_ocr_drafts() -> None:
-    """24h 경과 ocr_drafts row 를 한 번에 삭제하고 결과를 로깅한다.
+  """24h 경과 ocr_drafts row 를 한 번에 삭제하고 결과를 로깅한다.
 
-    Repository 가 단일 ``DELETE WHERE created_at < cutoff`` 로 처리하므로
-    부분 실패가 없다. 운영 디스크/인덱스 부담을 일정하게 유지한다.
-    """
-    repository = OcrDraftRepository()
-    deleted = await repository.delete_stale(max_age_hours=24)
-    logger.info("[OCR_CLEANUP] stale draft 정리 완료 deleted=%d", deleted)
+  Repository 가 단일 ``DELETE WHERE created_at < cutoff`` 로 처리하므로
+  부분 실패가 없다. 운영 디스크/인덱스 부담을 일정하게 유지한다.
+  """
+  repository = OcrDraftRepository()
+  deleted = await repository.delete_stale(max_age_hours=24)
+  logger.info("[OCR_CLEANUP] stale draft 정리 완료 deleted=%d", deleted)

@@ -45,17 +45,17 @@
 import sys
 
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.injection_harness import REPO_ROOT, ruff_count
 
 #: 천장 — **지금 값**이다. 줄면 손으로 내린다(내리는 것이 곧 «갚았다» 는 기록).
 RUFF_CEILINGS: dict[str, int] = {
-    "ANN401": 30,
-    "PLC0415": 26,
+  "ANN401": 30,
+  "PLC0415": 26,
 }
 
 #: `CLAUDE.md` §4.2 — 파일이 이 줄 수를 넘으면 분할을 검토한다.
@@ -71,67 +71,67 @@ PROD_ROOTS = ("app", "ai_worker")
 # ── 300줄 초과 생산 파일 세기 ────────────────────────────────────────
 # 흐름: app·ai_worker 의 .py 수집 -> 테스트·마이그레이션 제외 -> 줄 수 비교
 def oversized_files() -> list[tuple[int, str]]:
-    """300줄을 넘는 생산 파이썬 파일을 (줄 수, 경로)로 돌려준다.
+  """300줄을 넘는 생산 파이썬 파일을 (줄 수, 경로)로 돌려준다.
 
-    Returns:
-        줄 수 내림차순 목록.
-    """
-    found: list[tuple[int, str]] = []
-    for root in PROD_ROOTS:
-        for path in (REPO_ROOT / root).rglob("*.py"):
-            parts = path.relative_to(REPO_ROOT).parts
-            if "migrations" in parts or "tests" in parts:
-                continue
-            lines = len(path.read_text(encoding="utf-8", errors="replace").splitlines())
-            if lines > MAX_FILE_LINES:
-                found.append((lines, path.relative_to(REPO_ROOT).as_posix()))
-    return sorted(found, reverse=True)
+  Returns:
+      줄 수 내림차순 목록.
+  """
+  found: list[tuple[int, str]] = []
+  for root in PROD_ROOTS:
+    for path in (REPO_ROOT / root).rglob("*.py"):
+      parts = path.relative_to(REPO_ROOT).parts
+      if "migrations" in parts or "tests" in parts:
+        continue
+      lines = len(path.read_text(encoding="utf-8", errors="replace").splitlines())
+      if lines > MAX_FILE_LINES:
+        found.append((lines, path.relative_to(REPO_ROOT).as_posix()))
+  return sorted(found, reverse=True)
 
 
 # ── 판정 ─────────────────────────────────────────────────────────────
 # 흐름: 각 측정 -> 천장 대조 -> 초과는 차단 / 미달은 «내려라» 보고
 # 🔴 fail-closed: 측정 자체가 실패하면(None) «깨끗하다» 가 아니라 «못 쟀다» 이므로 막는다.
 def main() -> int:
-    """부채 측정값을 천장과 대조하고 결과를 인쇄한다.
+  """부채 측정값을 천장과 대조하고 결과를 인쇄한다.
 
-    Returns:
-        종료코드 — 천장을 넘거나 측정에 실패하면 1.
-    """
-    problems: list[str] = []
-    lowered: list[str] = []
-    measured: list[str] = []
+  Returns:
+      종료코드 — 천장을 넘거나 측정에 실패하면 1.
+  """
+  problems: list[str] = []
+  lowered: list[str] = []
+  measured: list[str] = []
 
-    for rule, ceiling in RUFF_CEILINGS.items():
-        count = ruff_count(rule, no_cache=False)
-        if count is None:
-            problems.append(f"{rule}: 측정 실패 — 「깨끗하다」가 아니라 「못 쟀다」이다(fail-closed)")
-            continue
-        measured.append(f"{rule} {count}/{ceiling}")
-        if count > ceiling:
-            problems.append(f"{rule}: {count}건 > 천장 {ceiling} — 새 위반이 들어왔다")
-        elif count < ceiling:
-            lowered.append(f"{rule}: {count} < {ceiling} — 갚았으면 천장을 {count} 로 내려라")
+  for rule, ceiling in RUFF_CEILINGS.items():
+    count = ruff_count(rule, no_cache=False)
+    if count is None:
+      problems.append(f"{rule}: 측정 실패 — 「깨끗하다」가 아니라 「못 쟀다」이다(fail-closed)")
+      continue
+    measured.append(f"{rule} {count}/{ceiling}")
+    if count > ceiling:
+      problems.append(f"{rule}: {count}건 > 천장 {ceiling} — 새 위반이 들어왔다")
+    elif count < ceiling:
+      lowered.append(f"{rule}: {count} < {ceiling} — 갚았으면 천장을 {count} 로 내려라")
 
-    oversized = oversized_files()
-    measured.append(f"300줄초과 {len(oversized)}/{FILE_CEILING}")
-    if len(oversized) > FILE_CEILING:
-        newest = ", ".join(f"{p}({n}줄)" for n, p in oversized[:3])
-        problems.append(f"300줄 초과 생산 파일 {len(oversized)}개 > 천장 {FILE_CEILING} — 예: {newest}")
-    elif len(oversized) < FILE_CEILING:
-        lowered.append(f"300줄초과: {len(oversized)} < {FILE_CEILING} — 천장을 내려라")
+  oversized = oversized_files()
+  measured.append(f"300줄초과 {len(oversized)}/{FILE_CEILING}")
+  if len(oversized) > FILE_CEILING:
+    newest = ", ".join(f"{p}({n}줄)" for n, p in oversized[:3])
+    problems.append(f"300줄 초과 생산 파일 {len(oversized)}개 > 천장 {FILE_CEILING} — 예: {newest}")
+  elif len(oversized) < FILE_CEILING:
+    lowered.append(f"300줄초과: {len(oversized)} < {FILE_CEILING} — 천장을 내려라")
 
-    if problems:
-        print("[거부] 코드 부채가 천장을 넘었다.")
-        for item in problems:
-            print(f"  - {item}")
-        print("\n  천장은 「허용치」가 아니라 「지금 값」이다. 늘리려면 근거가 필요하다.")
-        return 1
+  if problems:
+    print("[거부] 코드 부채가 천장을 넘었다.")
+    for item in problems:
+      print(f"  - {item}")
+    print("\n  천장은 「허용치」가 아니라 「지금 값」이다. 늘리려면 근거가 필요하다.")
+    return 1
 
-    print(f"✅ 코드 부채 천장 — {' · '.join(measured)}.")
-    for item in lowered:
-        print(f"   🟢 {item}")
-    return 0
+  print(f"✅ 코드 부채 천장 — {' · '.join(measured)}.")
+  for item in lowered:
+    print(f"   🟢 {item}")
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

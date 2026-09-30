@@ -60,9 +60,9 @@ from scripts.gates.doc.mistake_ledger import DEFAULT_LEDGER, Entry, MarkerError,
 
 # 한글·이모지를 인쇄하므로 Windows cp949 콘솔에서 죽지 않게 먼저 방어한다(대장 D36).
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 #: 닫힌 값 집합. 넓히려면 **의식적으로** 넓힌다 — 어휘가 조용히 자라면 열이 뜻을 잃는다.
 VALUES = frozenset({"기계", "절차", "없음"})
@@ -91,280 +91,280 @@ _ARCHIVE_ITEM_RE = re.compile(r"(?m)^### [A-Z]+\d+\.")
 
 @dataclass(frozen=True)
 class Known:
-    """참조를 대조할 근거들.
+  """참조를 대조할 근거들.
 
-    Attributes:
-        hooks: `.pre-commit-config.yaml` 이 실제로 배선한 훅 id.
-        ruff: `pyproject.toml` 의 `select` 값(규칙군 접두사).
-        ignored: `ignore` 로 **꺼 둔** 규칙 코드. 🔴 켜진 군에 속해도 **꺼져 있으면 아무것도 안 막는다.**
-        root: `스크립트:`·`CI:`·`문서:` 경로의 기준 디렉터리.
-    """
+  Attributes:
+      hooks: `.pre-commit-config.yaml` 이 실제로 배선한 훅 id.
+      ruff: `pyproject.toml` 의 `select` 값(규칙군 접두사).
+      ignored: `ignore` 로 **꺼 둔** 규칙 코드. 🔴 켜진 군에 속해도 **꺼져 있으면 아무것도 안 막는다.**
+      root: `스크립트:`·`CI:`·`문서:` 경로의 기준 디렉터리.
+  """
 
-    hooks: frozenset[str]
-    ruff: frozenset[str]
-    ignored: frozenset[str]
-    root: Path
+  hooks: frozenset[str]
+  ruff: frozenset[str]
+  ignored: frozenset[str]
+  root: Path
 
 
 # ── 훅 id 수집 ────────────────────────────────────────────────────────
 # 흐름: 줄머리 `- id:` 만 -> 주석 속 은퇴 이름은 자연히 빠진다
 def parse_hook_ids(text: str) -> set[str]:
-    """`.pre-commit-config.yaml` 에서 실제 배선된 훅 id 를 모은다.
+  """`.pre-commit-config.yaml` 에서 실제 배선된 훅 id 를 모은다.
 
-    Args:
-        text: 설정 파일 전문.
+  Args:
+      text: 설정 파일 전문.
 
-    Returns:
-        훅 id 집합.
-    """
-    return set(_HOOK_ID_RE.findall(text))
+  Returns:
+      훅 id 집합.
+  """
+  return set(_HOOK_ID_RE.findall(text))
 
 
 # ── Ruff select ───────────────────────────────────────────────────────
 def parse_ruff_lint(path: Path) -> tuple[set[str], set[str]]:
-    """`pyproject.toml` 의 `[tool.ruff.lint]` 에서 `select` 와 `ignore` 를 읽는다.
+  """`pyproject.toml` 의 `[tool.ruff.lint]` 에서 `select` 와 `ignore` 를 읽는다.
 
-    Args:
-        path: `pyproject.toml` 경로.
+  Args:
+      path: `pyproject.toml` 경로.
 
-    Returns:
-        (켜진 규칙군, 꺼 둔 규칙 코드).
-    """
-    with path.open("rb") as handle:
-        data = tomllib.load(handle)
-    lint = data.get("tool", {}).get("ruff", {}).get("lint", {})
-    return set(lint.get("select", [])), set(lint.get("ignore", []))
+  Returns:
+      (켜진 규칙군, 꺼 둔 규칙 코드).
+  """
+  with path.open("rb") as handle:
+    data = tomllib.load(handle)
+  lint = data.get("tool", {}).get("ruff", {}).get("lint", {})
+  return set(lint.get("select", [])), set(lint.get("ignore", []))
 
 
 # ── 참조 디스패치 ─────────────────────────────────────────────────────
 # 흐름: 종류 접두사 분리 -> 종류마다 다른 검증기 -> 문제 문장 또는 None
 # 🔑 if 사슬이 아니라 **표**로 둔다 — 종류는 늘어난다(`CI:` 가 S2 에서 늘었다).
 def _verify_hook(value: str, known: Known) -> str | None:
-    """훅 id 가 실제로 배선됐나.
+  """훅 id 가 실제로 배선됐나.
 
-    Args:
-        value: 훅 id.
-        known: 대조 근거.
+  Args:
+      value: 훅 id.
+      known: 대조 근거.
 
-    Returns:
-        문제 설명 또는 `None`.
-    """
-    if value in known.hooks:
-        return None
-    return f"`.pre-commit-config.yaml` 에 그 훅 id 가 없다: `{value}` (은퇴했거나 오타)"
+  Returns:
+      문제 설명 또는 `None`.
+  """
+  if value in known.hooks:
+    return None
+  return f"`.pre-commit-config.yaml` 에 그 훅 id 가 없다: `{value}` (은퇴했거나 오타)"
 
 
 def _verify_rule(value: str, known: Known) -> str | None:
-    """Ruff 규칙이 `select` 로 켜져 있나.
+  """Ruff 규칙이 `select` 로 켜져 있나.
 
-    Args:
-        value: 규칙 코드.
-        known: 대조 근거.
+  Args:
+      value: 규칙 코드.
+      known: 대조 근거.
 
-    Returns:
-        문제 설명 또는 `None`.
-    """
-    # 🔴 `ignore` 를 먼저 본다 — `D203` 은 `D` 군(켜짐)에 속하지만 **꺼져 있다.**
-    #    군 접두사만 보면 «켜진 군의 꺼진 규칙» 이 통과한다(결핍 주입이 이걸 잡았다).
-    if value in known.ignored:
-        return f"ruff `ignore` 로 꺼 둔 규칙이다: `{value}` — 꺼진 규칙은 아무것도 안 막는다"
-    if any(value.startswith(group) for group in known.ruff):
-        return None
-    return f"ruff `select` 가 켜지 않은 규칙이다: `{value}` — 안 켠 규칙은 아무것도 안 막는다"
+  Returns:
+      문제 설명 또는 `None`.
+  """
+  # 🔴 `ignore` 를 먼저 본다 — `D203` 은 `D` 군(켜짐)에 속하지만 **꺼져 있다.**
+  #    군 접두사만 보면 «켜진 군의 꺼진 규칙» 이 통과한다(결핍 주입이 이걸 잡았다).
+  if value in known.ignored:
+    return f"ruff `ignore` 로 꺼 둔 규칙이다: `{value}` — 꺼진 규칙은 아무것도 안 막는다"
+  if any(value.startswith(group) for group in known.ruff):
+    return None
+  return f"ruff `select` 가 켜지 않은 규칙이다: `{value}` — 안 켠 규칙은 아무것도 안 막는다"
 
 
 def _verify_path(value: str, known: Known) -> str | None:
-    """파일이 실재하나 (`스크립트:`·`CI:`).
+  """파일이 실재하나 (`스크립트:`·`CI:`).
 
-    Args:
-        value: 저장소 기준 상대 경로.
-        known: 대조 근거.
+  Args:
+      value: 저장소 기준 상대 경로.
+      known: 대조 근거.
 
-    Returns:
-        문제 설명 또는 `None`.
-    """
-    if (known.root / value).is_file():
-        return None
-    return f"파일이 없다: `{value}`"
+  Returns:
+      문제 설명 또는 `None`.
+  """
+  if (known.root / value).is_file():
+    return None
+  return f"파일이 없다: `{value}`"
 
 
 def _verify_doc(value: str, known: Known) -> str | None:
-    """**앵커 주석**이 그 문서에 실재하나.
+  """**앵커 주석**이 그 문서에 실재하나.
 
-    Args:
-        value: `파일#앵커`.
-        known: 대조 근거.
+  Args:
+      value: `파일#앵커`.
+      known: 대조 근거.
 
-    Returns:
-        문제 설명 또는 `None`.
-    """
-    document, _, anchor = value.partition("#")
-    target = known.root / document
-    if not target.is_file():
-        return f"파일이 없다: `{document}`"
-    if not anchor:
-        return f"앵커가 비었다: `{value}` — 절 전체를 가리키면 열어도 그 규칙이 안 보인다"
-    # 🔴 **완전 일치가 아니라 접두 + 경계**다 (2026-09-27, B-13 2구간).
-    #    앵커에 페이로드가 붙는다 — `<!-- rule:2패스 강제:훅:doc-meta -->`.
-    #    완전 일치(`"<!-- rule:{anchor} -->"`)로 두면 페이로드를 다는 순간
-    #    대장의 `문서:` 참조 **24건이 한꺼번에** 「읽어도 아무것도 안 나오는 주소」가 된다.
-    # 🔑 뒤 공백이 **경계**다 — `-->` 앞에도, 페이로드 앞에도 공백이 있어 둘 다 걸리고,
-    #    `rule:2패스` 가 `rule:2패스점검` 을 **잘못 먹지 않는다**(D47: 앵커 없는 접두는 넓다).
-    if f"<!-- rule:{anchor} " in target.read_text(encoding="utf-8", errors="replace"):
-        return None
-    return f"앵커 주석이 없다: `{value}` — *읽어도 아무것도 안 나오는 주소*다"
+  Returns:
+      문제 설명 또는 `None`.
+  """
+  document, _, anchor = value.partition("#")
+  target = known.root / document
+  if not target.is_file():
+    return f"파일이 없다: `{document}`"
+  if not anchor:
+    return f"앵커가 비었다: `{value}` — 절 전체를 가리키면 열어도 그 규칙이 안 보인다"
+  # 🔴 **완전 일치가 아니라 접두 + 경계**다 (2026-09-27, B-13 2구간).
+  #    앵커에 페이로드가 붙는다 — `<!-- rule:2패스 강제:훅:doc-meta -->`.
+  #    완전 일치(`"<!-- rule:{anchor} -->"`)로 두면 페이로드를 다는 순간
+  #    대장의 `문서:` 참조 **24건이 한꺼번에** 「읽어도 아무것도 안 나오는 주소」가 된다.
+  # 🔑 뒤 공백이 **경계**다 — `-->` 앞에도, 페이로드 앞에도 공백이 있어 둘 다 걸리고,
+  #    `rule:2패스` 가 `rule:2패스점검` 을 **잘못 먹지 않는다**(D47: 앵커 없는 접두는 넓다).
+  if f"<!-- rule:{anchor} " in target.read_text(encoding="utf-8", errors="replace"):
+    return None
+  return f"앵커 주석이 없다: `{value}` — *읽어도 아무것도 안 나오는 주소*다"
 
 
 #: 종류 → 검증기. 어휘를 넓힐 땐 **여기에 한 줄**을 더한다.
 _VERIFIERS = {
-    "훅": _verify_hook,
-    "규칙": _verify_rule,
-    "스크립트": _verify_path,
-    "CI": _verify_path,
-    "문서": _verify_doc,
+  "훅": _verify_hook,
+  "규칙": _verify_rule,
+  "스크립트": _verify_path,
+  "CI": _verify_path,
+  "문서": _verify_doc,
 }
 
 
 def verify_reference(reference: str, known: Known) -> str | None:
-    """동반값이 **실재하는 것**을 가리키는지 확인한다.
+  """동반값이 **실재하는 것**을 가리키는지 확인한다.
 
-    Args:
-        reference: `훅:…`·`규칙:…`·`스크립트:…`·`CI:…`·`문서:파일#앵커`.
-        known: 대조 근거.
+  Args:
+      reference: `훅:…`·`규칙:…`·`스크립트:…`·`CI:…`·`문서:파일#앵커`.
+      known: 대조 근거.
 
-    Returns:
-        문제 설명, 문제가 없으면 `None`.
-    """
-    kind, separator, value = reference.partition(":")
-    if not separator or not value:
-        return f"종류 태그가 없다: `{reference}` — `훅:`·`규칙:`·`스크립트:`·`CI:`·`문서:` 중 하나"
-    verifier = _VERIFIERS.get(kind)
-    if verifier is None:
-        return f"모르는 종류 태그다: `{kind}` — 어휘를 조용히 넓히지 않는다"
-    return verifier(value, known)
+  Returns:
+      문제 설명, 문제가 없으면 `None`.
+  """
+  kind, separator, value = reference.partition(":")
+  if not separator or not value:
+    return f"종류 태그가 없다: `{reference}` — `훅:`·`규칙:`·`스크립트:`·`CI:`·`문서:` 중 하나"
+  verifier = _VERIFIERS.get(kind)
+  if verifier is None:
+    return f"모르는 종류 태그다: `{kind}` — 어휘를 조용히 넓히지 않는다"
+  return verifier(value, known)
 
 
 # ── 배출분 세기 ───────────────────────────────────────────────────────
 def count_archived(directory: Path) -> int:
-    """축 폴더로 배출된 항목 수를 센다.
+  """축 폴더로 배출된 항목 수를 센다.
 
-    Args:
-        directory: `docs-private/mistake/`.
+  Args:
+      directory: `docs-private/mistake/`.
 
-    Returns:
-        배출된 항목 수. 폴더가 없으면 0.
-    """
-    if not directory.is_dir():
-        return 0
-    return sum(
-        len(_ARCHIVE_ITEM_RE.findall(f.read_text(encoding="utf-8", errors="replace"))) for f in directory.glob("*.md")
-    )
+  Returns:
+      배출된 항목 수. 폴더가 없으면 0.
+  """
+  if not directory.is_dir():
+    return 0
+  return sum(
+    len(_ARCHIVE_ITEM_RE.findall(f.read_text(encoding="utf-8", errors="replace"))) for f in directory.glob("*.md")
+  )
 
 
 # ── 항목 하나 ─────────────────────────────────────────────────────────
 # 흐름: 줄 존재 -> 형식 -> 값 어휘 -> 동반값 유무 -> 참조 실재
 def check_entry(entry: Entry, known: Known) -> tuple[str | None, str | None]:
-    """항목 하나의 예방 값을 검사한다.
+  """항목 하나의 예방 값을 검사한다.
 
-    Args:
-        entry: 대장 항목.
-        known: 대조 근거.
+  Args:
+      entry: 대장 항목.
+      known: 대조 근거.
 
-    Returns:
-        (센 값 또는 `None`, 문제 문장 또는 `None`).
-    """
-    where = f"{entry.id}(L{entry.line})"
-    prevention = entry.prevention
-    if prevention is None:
-        return None, f"{where} — `**예방**:` 줄이 없다"
-    if prevention.malformed:
-        return None, f"{where} — 형식 위반: 백틱 밖에 글자가 있다(괄호·산문 꼬리)"
-    if prevention.value not in VALUES:
-        return None, f"{where} — 모르는 값 `{prevention.value}` (허용: {' · '.join(sorted(VALUES))})"
-    if prevention.value == "없음":
-        if prevention.reference is not None:
-            return prevention.value, f"{where} — `없음` 은 동반값을 갖지 않는다: `{prevention.reference}`"
-        return prevention.value, None
-    if prevention.reference is None:
-        return prevention.value, f"{where} — `{prevention.value}` 는 **종류 태그를 반드시 동반**한다"
-    return prevention.value, (f"{where} — {why}" if (why := verify_reference(prevention.reference, known)) else None)
+  Returns:
+      (센 값 또는 `None`, 문제 문장 또는 `None`).
+  """
+  where = f"{entry.id}(L{entry.line})"
+  prevention = entry.prevention
+  if prevention is None:
+    return None, f"{where} — `**예방**:` 줄이 없다"
+  if prevention.malformed:
+    return None, f"{where} — 형식 위반: 백틱 밖에 글자가 있다(괄호·산문 꼬리)"
+  if prevention.value not in VALUES:
+    return None, f"{where} — 모르는 값 `{prevention.value}` (허용: {' · '.join(sorted(VALUES))})"
+  if prevention.value == "없음":
+    if prevention.reference is not None:
+      return prevention.value, f"{where} — `없음` 은 동반값을 갖지 않는다: `{prevention.reference}`"
+    return prevention.value, None
+  if prevention.reference is None:
+    return prevention.value, f"{where} — `{prevention.value}` 는 **종류 태그를 반드시 동반**한다"
+  return prevention.value, (f"{where} — {why}" if (why := verify_reference(prevention.reference, known)) else None)
 
 
 def main(argv: list[str] | None = None) -> int:
-    """대장 전 항목의 예방 값과 그 참조를 검사한다.
+  """대장 전 항목의 예방 값과 그 참조를 검사한다.
 
-    Args:
-        argv: 대장 경로를 1개 받는다. 생략하면 정본.
+  Args:
+      argv: 대장 경로를 1개 받는다. 생략하면 정본.
 
-    Returns:
-        종료코드 — 0 이면 통과.
-    """
-    target = Path(argv[0]) if argv else DEFAULT_LEDGER
-    if not target.exists():
-        print(f"❌ 대장이 없다: {target}")
-        return 1
+  Returns:
+      종료코드 — 0 이면 통과.
+  """
+  target = Path(argv[0]) if argv else DEFAULT_LEDGER
+  if not target.exists():
+    print(f"❌ 대장이 없다: {target}")
+    return 1
 
-    try:
-        ledger = parse_ledger(target)
-    except MarkerError as exc:
-        print(f"❌ {exc}")
-        return 1
+  try:
+    ledger = parse_ledger(target)
+  except MarkerError as exc:
+    print(f"❌ {exc}")
+    return 1
 
-    selected, ignored = parse_ruff_lint(REPO_ROOT / "pyproject.toml")
-    known = Known(
-        hooks=frozenset(parse_hook_ids((REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))),
-        ruff=frozenset(selected),
-        ignored=frozenset(ignored),
-        root=REPO_ROOT,
+  selected, ignored = parse_ruff_lint(REPO_ROOT / "pyproject.toml")
+  known = Known(
+    hooks=frozenset(parse_hook_ids((REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))),
+    ruff=frozenset(selected),
+    ignored=frozenset(ignored),
+    root=REPO_ROOT,
+  )
+
+  problems: list[str] = []
+  counts = dict.fromkeys(VALUES, 0)
+
+  for entry in ledger.population:
+    value, problem = check_entry(entry, known)
+    if value is not None:
+      counts[value] += 1
+    if problem is not None:
+      problems.append(problem)
+
+  # 🔴 모집단 대조 — 갈리면 **ID 형식을 벗어난 항목**이 축·예방 두 게이트를 동시에 빠져나갔다.
+  if ledger.headings_in_population != len(ledger.population):
+    problems.append(
+      f"마커 안 `### ` 총수 **{ledger.headings_in_population}** ≠ ID 매치 **{len(ledger.population)}** — "
+      "ID 형식을 벗어난 항목이 있다(두 게이트를 동시에 조용히 빠져나간다)"
     )
 
-    problems: list[str] = []
-    counts = dict.fromkeys(VALUES, 0)
-
-    for entry in ledger.population:
-        value, problem = check_entry(entry, known)
-        if value is not None:
-            counts[value] += 1
-        if problem is not None:
-            problems.append(problem)
-
-    # 🔴 모집단 대조 — 갈리면 **ID 형식을 벗어난 항목**이 축·예방 두 게이트를 동시에 빠져나갔다.
-    if ledger.headings_in_population != len(ledger.population):
-        problems.append(
-            f"마커 안 `### ` 총수 **{ledger.headings_in_population}** ≠ ID 매치 **{len(ledger.population)}** — "
-            "ID 형식을 벗어난 항목이 있다(두 게이트를 동시에 조용히 빠져나간다)"
-        )
-
-    # 📉 천장 — 새 실수는 대개 `없음` 으로 태어난다. 올릴 땐 **왜 못 막는지**를 같이 적는다.
-    if counts["없음"] > NONE_CEILING:
-        problems.append(
-            f"`없음` 이 **{counts['없음']}건**으로 천장 {NONE_CEILING} 을 넘었다 — "
-            "막을 수단을 만들거나, 천장을 **의식적으로** 올리고 사유를 적는다"
-        )
-
-    # 🔴 배출을 막지 않는 바닥값 — 모집단 + 배출분.
-    archived = count_archived(ARCHIVE_DIR)
-    total = len(ledger.population) + archived
-    if total < MIN_TOTAL:
-        problems.append(
-            f"모집단 {len(ledger.population)} + 배출 {archived} = **{total}** 로 바닥값 {MIN_TOTAL} 아래다 — "
-            "파서나 경로가 어긋났다(실제로 줄었다면 바닥값을 **의식적으로** 내린다)"
-        )
-
-    if problems:
-        print("❌ 예방 열 검사 실패")
-        for line in problems[:20]:
-            print(f"   - {line}")
-        if len(problems) > 20:
-            print(f"   … 외 {len(problems) - 20}건")
-        return 1
-
-    print(
-        f"✅ 예방 열 — 기계 {counts['기계']} · 절차 {counts['절차']} · 없음 {counts['없음']}"
-        f"(천장 {NONE_CEILING}) · 모집단 {len(ledger.population)} + 배출 {archived} (바닥값 {MIN_TOTAL})."
+  # 📉 천장 — 새 실수는 대개 `없음` 으로 태어난다. 올릴 땐 **왜 못 막는지**를 같이 적는다.
+  if counts["없음"] > NONE_CEILING:
+    problems.append(
+      f"`없음` 이 **{counts['없음']}건**으로 천장 {NONE_CEILING} 을 넘었다 — "
+      "막을 수단을 만들거나, 천장을 **의식적으로** 올리고 사유를 적는다"
     )
-    return 0
+
+  # 🔴 배출을 막지 않는 바닥값 — 모집단 + 배출분.
+  archived = count_archived(ARCHIVE_DIR)
+  total = len(ledger.population) + archived
+  if total < MIN_TOTAL:
+    problems.append(
+      f"모집단 {len(ledger.population)} + 배출 {archived} = **{total}** 로 바닥값 {MIN_TOTAL} 아래다 — "
+      "파서나 경로가 어긋났다(실제로 줄었다면 바닥값을 **의식적으로** 내린다)"
+    )
+
+  if problems:
+    print("❌ 예방 열 검사 실패")
+    for line in problems[:20]:
+      print(f"   - {line}")
+    if len(problems) > 20:
+      print(f"   … 외 {len(problems) - 20}건")
+    return 1
+
+  print(
+    f"✅ 예방 열 — 기계 {counts['기계']} · 절차 {counts['절차']} · 없음 {counts['없음']}"
+    f"(천장 {NONE_CEILING}) · 모집단 {len(ledger.population)} + 배출 {archived} (바닥값 {MIN_TOTAL})."
+  )
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+  sys.exit(main(sys.argv[1:]))

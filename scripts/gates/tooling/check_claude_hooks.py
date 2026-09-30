@@ -34,9 +34,9 @@ from pathlib import Path
 import sys
 
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SETTINGS = REPO_ROOT / ".claude" / "settings.json"
@@ -47,8 +47,8 @@ HOOK_SCRIPT = REPO_ROOT / "scripts" / "hooks" / "read_precondition.py"
 #    🔴 **이벤트마다 요구 조각이 다르다** — `PostCompact` 는 `--after-compact` 서브커맨드가
 #    빠지면 **호출은 되는데 아무 일도 안 한다**(조용한 무효화).
 REQUIRED: dict[str, str] = {
-    "PreToolUse": "read_precondition",
-    "PostCompact": "--after-compact",
+  "PreToolUse": "read_precondition",
+  "PostCompact": "--after-compact",
 }
 MIN_HOOK_ENTRIES = 1
 
@@ -58,57 +58,55 @@ MIN_HOOK_ENTRIES = 1
 #       -> 그 스크립트가 실재하나
 # 🔴 «설정에 적혀 있다» 와 «가리키는 것이 있다» 는 다른 사실이다. 둘 다 본다.
 def main() -> int:
-    """훅 설정과 스크립트가 짝을 이루는지 검사한다.
+  """훅 설정과 스크립트가 짝을 이루는지 검사한다.
 
-    Returns:
-        종료코드 — 0 이면 통과.
-    """
-    problems: list[str] = []
+  Returns:
+      종료코드 — 0 이면 통과.
+  """
+  problems: list[str] = []
 
-    if not SETTINGS.exists():
-        print(f"❌ Claude 훅 설정이 없다: {SETTINGS.relative_to(REPO_ROOT).as_posix()}")
-        print("   `.claude/` 는 gitignore 라 **사라져도 diff 에 안 뜬다**(LOCAL_RESIDUE L-9).")
-        print("   복원법은 `docs-private/LOCAL_RESIDUE.md` 의 L-9 항목에 있다.")
-        return 1
+  if not SETTINGS.exists():
+    print(f"❌ Claude 훅 설정이 없다: {SETTINGS.relative_to(REPO_ROOT).as_posix()}")
+    print("   `.claude/` 는 gitignore 라 **사라져도 diff 에 안 뜬다**(LOCAL_RESIDUE L-9).")
+    print("   복원법은 `docs-private/LOCAL_RESIDUE.md` 의 L-9 항목에 있다.")
+    return 1
 
-    try:
-        data = json.loads(SETTINGS.read_text(encoding="utf-8", errors="replace"))
-    except json.JSONDecodeError as exc:
-        print(f"❌ `.claude/settings.json` 이 깨졌다 — **그 파일의 설정이 통째로 죽는다**: {exc}")
-        return 1
+  try:
+    data = json.loads(SETTINGS.read_text(encoding="utf-8", errors="replace"))
+  except json.JSONDecodeError as exc:
+    print(f"❌ `.claude/settings.json` 이 깨졌다 — **그 파일의 설정이 통째로 죽는다**: {exc}")
+    return 1
 
-    for event, fragment in REQUIRED.items():
-        entries = data.get("hooks", {}).get(event, [])
-        if len(entries) < MIN_HOOK_ENTRIES:
-            problems.append(f"`{event}` 훅이 **{len(entries)}개**로 바닥값 {MIN_HOOK_ENTRIES} 아래다")
-            continue
-        commands = [
-            str(h.get("command", "")) for entry in entries for h in entry.get("hooks", []) if isinstance(h, dict)
-        ]
-        if not any(fragment in c for c in commands):
-            problems.append(
-                f"`{event}` 훅이 **`{fragment}` 를 부르지 않는다** — "
-                f"{'읽기 전제조건' if event == 'PreToolUse' else '압축 후 주입 초기화'}가 돌지 않는다. "
-                f"실제 명령: {commands or '없음'}"
-            )
-    if not HOOK_SCRIPT.exists():
-        problems.append(
-            f"설정은 있는데 **스크립트가 없다**: {HOOK_SCRIPT.relative_to(REPO_ROOT).as_posix()} — "
-            "설정이 옛 경로를 가리킨 채 **조용히 실패**한다"
-        )
-
-    if problems:
-        print("❌ Claude 훅 배선 검사 실패")
-        for line in problems:
-            print(f"   - {line}")
-        return 1
-
-    print(
-        f"✅ Claude 훅 배선 — 이벤트 {len(REQUIRED)}종({' · '.join(REQUIRED)}) · "
-        "각 요구 조각 확인 · 스크립트 실재. ⚠️ **발동 여부는 여기서 못 본다**(한계 선언)."
+  for event, fragment in REQUIRED.items():
+    entries = data.get("hooks", {}).get(event, [])
+    if len(entries) < MIN_HOOK_ENTRIES:
+      problems.append(f"`{event}` 훅이 **{len(entries)}개**로 바닥값 {MIN_HOOK_ENTRIES} 아래다")
+      continue
+    commands = [str(h.get("command", "")) for entry in entries for h in entry.get("hooks", []) if isinstance(h, dict)]
+    if not any(fragment in c for c in commands):
+      problems.append(
+        f"`{event}` 훅이 **`{fragment}` 를 부르지 않는다** — "
+        f"{'읽기 전제조건' if event == 'PreToolUse' else '압축 후 주입 초기화'}가 돌지 않는다. "
+        f"실제 명령: {commands or '없음'}"
+      )
+  if not HOOK_SCRIPT.exists():
+    problems.append(
+      f"설정은 있는데 **스크립트가 없다**: {HOOK_SCRIPT.relative_to(REPO_ROOT).as_posix()} — "
+      "설정이 옛 경로를 가리킨 채 **조용히 실패**한다"
     )
-    return 0
+
+  if problems:
+    print("❌ Claude 훅 배선 검사 실패")
+    for line in problems:
+      print(f"   - {line}")
+    return 1
+
+  print(
+    f"✅ Claude 훅 배선 — 이벤트 {len(REQUIRED)}종({' · '.join(REQUIRED)}) · "
+    "각 요구 조각 확인 · 스크립트 실재. ⚠️ **발동 여부는 여기서 못 본다**(한계 선언)."
+  )
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

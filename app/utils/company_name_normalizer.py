@@ -33,42 +33,42 @@ _MULTI_SPACE_RE = re.compile(r"\s+")
 
 
 def normalize_company_name(name: str | None) -> str:
-    """Strip 株式会社 decorations and normalize whitespace.
+  """Strip 株式会社 decorations and normalize whitespace.
 
-    Args:
-        name: Raw manufacturer name from the public API. May be None
-            or empty (treated as the empty string for NULL safety).
+  Args:
+      name: Raw manufacturer name from the public API. May be None
+          or empty (treated as the empty string for NULL safety).
 
-    Returns:
-        Canonical manufacturer name. Idempotent — feeding the result
-        back in produces the same value. Always a `str`; never `None`.
+  Returns:
+      Canonical manufacturer name. Idempotent — feeding the result
+      back in produces the same value. Always a `str`; never `None`.
 
-    Examples:
-        >>> normalize_company_name("동국제약(주)")
-        '동국제약'
-        >>> normalize_company_name("(주)한독")
-        '한독'
-        >>> normalize_company_name("주식회사 동국제약")
-        '동국제약'
-        >>> normalize_company_name(None)
-        ''
-    """
-    if not name:
-        return ""
+  Examples:
+      >>> normalize_company_name("동국제약(주)")
+      '동국제약'
+      >>> normalize_company_name("(주)한독")
+      '한독'
+      >>> normalize_company_name("주식회사 동국제약")
+      '동국제약'
+      >>> normalize_company_name(None)
+      ''
+  """
+  if not name:
+    return ""
 
-    # NFKC 정규화: 전각 → 반각, NBSP → 일반 공백 등 폭 변형 통일
-    normalized = unicodedata.normalize("NFKC", name)
+  # NFKC 정규화: 전각 → 반각, NBSP → 일반 공백 등 폭 변형 통일
+  normalized = unicodedata.normalize("NFKC", name)
 
-    # `(주)` / `(株)` 제거
-    normalized = _PAREN_JUSIK_RE.sub("", normalized)
+  # `(주)` / `(株)` 제거
+  normalized = _PAREN_JUSIK_RE.sub("", normalized)
 
-    # `주식회사` 단어 제거
-    normalized = _JUSIK_WORD_RE.sub("", normalized)
+  # `주식회사` 단어 제거
+  normalized = _JUSIK_WORD_RE.sub("", normalized)
 
-    # 다중 공백 → 단일 공백 → strip
-    normalized = _MULTI_SPACE_RE.sub(" ", normalized).strip()
+  # 다중 공백 → 단일 공백 → strip
+  normalized = _MULTI_SPACE_RE.sub(" ", normalized).strip()
 
-    # 정규화 후 내부에 공백이 남아도 `동국 제약` 같은 실제 회사명일
-    # 수 있으므로 공백을 제거하지 않는다. 단 `주식회사` 잔재로 생긴
-    # 단일 공백만 양쪽 끝에서 제거되도록 한 번 더 strip.
-    return normalized.strip()
+  # 정규화 후 내부에 공백이 남아도 `동국 제약` 같은 실제 회사명일
+  # 수 있으므로 공백을 제거하지 않는다. 단 `주식회사` 잔재로 생긴
+  # 단일 공백만 양쪽 끝에서 제거되도록 한 번 더 strip.
+  return normalized.strip()

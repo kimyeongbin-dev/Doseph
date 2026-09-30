@@ -33,38 +33,38 @@ logger = logging.getLogger(__name__)
 
 
 async def sync_drug_recalls() -> dict[str, int]:
-    """Run the daily MFDS-recall sync + dispatch alerts for new rows.
+  """Run the daily MFDS-recall sync + dispatch alerts for new rows.
 
-    Returns:
-        ``{"fetched": int, "inserted": int, "updated": int,
-            "alerts": int}`` for cron audit.
-    """
-    sync_start = datetime.now(tz=UTC)
-    logger.info("[RecallCron] start at %s", sync_start.isoformat())
+  Returns:
+      ``{"fetched": int, "inserted": int, "updated": int,
+          "alerts": int}`` for cron audit.
+  """
+  sync_start = datetime.now(tz=UTC)
+  logger.info("[RecallCron] start at %s", sync_start.isoformat())
 
-    service = DrugRecallService()
-    stats = await service.sync()
+  service = DrugRecallService()
+  stats = await service.sync()
 
-    # diff: 본 run 이 INSERT 한 row 만 알림 대상
-    repo = DrugRecallRepository()
-    new_rows = await repo.diff_new_recalls(since=sync_start)
+  # diff: 본 run 이 INSERT 한 row 만 알림 대상
+  repo = DrugRecallRepository()
+  new_rows = await repo.diff_new_recalls(since=sync_start)
 
-    alerts = 0
-    for row in new_rows:
-        try:
-            alerts += await dispatch_for_recall(row)
-        except Exception:
-            logger.exception(
-                "[RecallCron] dispatch failed for item_seq=%s reason=%s",
-                row.item_seq,
-                row.recall_reason,
-            )
+  alerts = 0
+  for row in new_rows:
+    try:
+      alerts += await dispatch_for_recall(row)
+    except Exception:
+      logger.exception(
+        "[RecallCron] dispatch failed for item_seq=%s reason=%s",
+        row.item_seq,
+        row.recall_reason,
+      )
 
-    logger.info(
-        "[RecallCron] done fetched=%d inserted=%d updated=%d alerts=%d",
-        stats["fetched"],
-        stats["inserted"],
-        stats["updated"],
-        alerts,
-    )
-    return {**stats, "alerts": alerts}
+  logger.info(
+    "[RecallCron] done fetched=%d inserted=%d updated=%d alerts=%d",
+    stats["fetched"],
+    stats["inserted"],
+    stats["updated"],
+    alerts,
+  )
+  return {**stats, "alerts": alerts}

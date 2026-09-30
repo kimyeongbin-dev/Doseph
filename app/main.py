@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 # 흐름: docs_urls(ENV) 로 문서 URL 결정 -> prod 는 None(스키마 비노출)
 #       -> 미들웨어/라우터/예외핸들러 등록
 app = FastAPI(
-    **docs_urls(config.ENV),
-    debug=False,  # 하드닝: 디버그 모드 명시적 비활성(예외 스택트레이스/내부정보 노출 차단, 실수로도 안 켜지게)
-    redirect_slashes=False,  # 트레일링 슬래시 정규화는 엣지(Cloudflare)에서 처리
-    lifespan=scheduler_lifespan,
+  **docs_urls(config.ENV),
+  debug=False,  # 하드닝: 디버그 모드 명시적 비활성(예외 스택트레이스/내부정보 노출 차단, 실수로도 안 켜지게)
+  redirect_slashes=False,  # 트레일링 슬래시 정규화는 엣지(Cloudflare)에서 처리
+  lifespan=scheduler_lifespan,
 )
 
 
@@ -39,89 +39,89 @@ app = FastAPI(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
-    """Handle Pydantic validation errors.
+  """Handle Pydantic validation errors.
 
-    Converts 422 validation errors to 400 bad request with detailed error info.
+  Converts 422 validation errors to 400 bad request with detailed error info.
 
-    Args:
-        request: The incoming request.
-        exc: The validation exception.
+  Args:
+      request: The incoming request.
+      exc: The validation exception.
 
-    Returns:
-        JSONResponse: Error response with validation details.
-    """
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content={
-            "error": "validation_error",
-            "error_description": "입력값 유효성 검사에 실패했습니다.",
-            "details": exc.errors(),
-        },
-    )
+  Returns:
+      JSONResponse: Error response with validation details.
+  """
+  return JSONResponse(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    content={
+      "error": "validation_error",
+      "error_description": "입력값 유효성 검사에 실패했습니다.",
+      "details": exc.errors(),
+    },
+  )
 
 
 @app.exception_handler(DBConnectionError)
 async def db_connection_exception_handler(request: Request, exc: DBConnectionError) -> JSONResponse:
-    """Handle database connection errors.
+  """Handle database connection errors.
 
-    Args:
-        request: The incoming request.
-        exc: The database connection exception.
+  Args:
+      request: The incoming request.
+      exc: The database connection exception.
 
-    Returns:
-        JSONResponse: 503 Service Unavailable response.
-    """
-    log_handled_exception(logger, exc, method=request.method, path=request.url.path, kind="db_connection")
-    return JSONResponse(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        content={
-            "error": "db_connection_failed",
-            "error_description": "데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.",
-        },
-    )
+  Returns:
+      JSONResponse: 503 Service Unavailable response.
+  """
+  log_handled_exception(logger, exc, method=request.method, path=request.url.path, kind="db_connection")
+  return JSONResponse(
+    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+    content={
+      "error": "db_connection_failed",
+      "error_description": "데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.",
+    },
+  )
 
 
 @app.exception_handler(BaseORMException)
 async def orm_exception_handler(request: Request, exc: BaseORMException) -> JSONResponse:
-    """Handle other Tortoise ORM errors.
+  """Handle other Tortoise ORM errors.
 
-    Args:
-        request: The incoming request.
-        exc: The ORM exception.
+  Args:
+      request: The incoming request.
+      exc: The ORM exception.
 
-    Returns:
-        JSONResponse: 500 Internal Server Error response.
-    """
-    log_handled_exception(logger, exc, method=request.method, path=request.url.path, kind="orm")
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "error": "database_error",
-            "error_description": "데이터베이스 작업 중 오류가 발생했습니다.",
-            "details": str(exc) if app.debug else None,
-        },
-    )
+  Returns:
+      JSONResponse: 500 Internal Server Error response.
+  """
+  log_handled_exception(logger, exc, method=request.method, path=request.url.path, kind="orm")
+  return JSONResponse(
+    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    content={
+      "error": "database_error",
+      "error_description": "데이터베이스 작업 중 오류가 발생했습니다.",
+      "details": str(exc) if app.debug else None,
+    },
+  )
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Handle all unexpected errors.
+  """Handle all unexpected errors.
 
-    Args:
-        request: The incoming request.
-        exc: The general exception.
+  Args:
+      request: The incoming request.
+      exc: The general exception.
 
-    Returns:
-        JSONResponse: 500 Internal Server Error response.
-    """
-    log_handled_exception(logger, exc, method=request.method, path=request.url.path, kind="unhandled")
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "error": "internal_server_error",
-            "error_description": "서버 내부에서 예상치 못한 오류가 발생했습니다.",
-        },
-    )
+  Returns:
+      JSONResponse: 500 Internal Server Error response.
+  """
+  log_handled_exception(logger, exc, method=request.method, path=request.url.path, kind="unhandled")
+  return JSONResponse(
+    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    content={
+      "error": "internal_server_error",
+      "error_description": "서버 내부에서 예상치 못한 오류가 발생했습니다.",
+    },
+  )
 
 
 # Middleware configuration
@@ -132,27 +132,27 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 _LOCALHOST_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 if config.ENV == Env.PROD:
-    # Production: FRONTEND_URL (env-injected, e.g. https://doseph.com) + localhost for local prod testing
-    cors_origins = [config.FRONTEND_URL, *_LOCALHOST_ORIGINS]
-    cors_methods = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
-    cors_headers = ["Content-Type", "Authorization"]
+  # Production: FRONTEND_URL (env-injected, e.g. https://doseph.com) + localhost for local prod testing
+  cors_origins = [config.FRONTEND_URL, *_LOCALHOST_ORIGINS]
+  cors_methods = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+  cors_headers = ["Content-Type", "Authorization"]
 elif config.ENV == Env.DEV:
-    # Development/test: FRONTEND_URL + localhost allowed
-    cors_origins = [config.FRONTEND_URL, *_LOCALHOST_ORIGINS]
-    cors_methods = ["*"]
-    cors_headers = ["*"]
+  # Development/test: FRONTEND_URL + localhost allowed
+  cors_origins = [config.FRONTEND_URL, *_LOCALHOST_ORIGINS]
+  cors_methods = ["*"]
+  cors_headers = ["*"]
 else:
-    # Local environment: localhost only
-    cors_origins = _LOCALHOST_ORIGINS
-    cors_methods = ["*"]
-    cors_headers = ["*"]
+  # Local environment: localhost only
+  cors_origins = _LOCALHOST_ORIGINS
+  cors_methods = ["*"]
+  cors_headers = ["*"]
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,  # Allow cookies (refresh_token) transmission
-    allow_methods=cors_methods,
-    allow_headers=cors_headers,
+  CORSMiddleware,
+  allow_origins=cors_origins,
+  allow_credentials=True,  # Allow cookies (refresh_token) transmission
+  allow_methods=cors_methods,
+  allow_headers=cors_headers,
 )
 
 # Security middleware (input validation + security headers)

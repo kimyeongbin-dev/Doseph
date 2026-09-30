@@ -60,10 +60,10 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import PRIVATE, REPO_ROOT  # noqa: E402
 from scripts.gates.doc.check_mistake_prevention import (  # noqa: E402
-    Known,
-    parse_hook_ids,
-    parse_ruff_lint,
-    verify_reference,
+  Known,
+  parse_hook_ids,
+  parse_ruff_lint,
+  verify_reference,
 )
 
 TARGET = REPO_ROOT / "CLAUDE.md"
@@ -172,226 +172,224 @@ REFERS = re.compile(r"`문서:CLAUDE\.md#([^`]+)`")
 
 @dataclass(frozen=True)
 class Rule:
-    """앵커 하나가 나르는 값."""
+  """앵커 하나가 나르는 값."""
 
-    name: str
-    force: str
-    stay: str
+  name: str
+  force: str
+  stay: str
 
-    @property
-    def enforced(self) -> bool:
-        """기계가 이 규칙을 잡는가."""
-        return self.force != "없음"
+  @property
+  def enforced(self) -> bool:
+    """기계가 이 규칙을 잡는가."""
+    return self.force != "없음"
 
-    @property
-    def candidate(self) -> bool:
-        """**삭제 후보** — 기계가 잡는데 남을 이유가 없다."""
-        return self.enforced and not self.stay.strip()
+  @property
+  def candidate(self) -> bool:
+    """**삭제 후보** — 기계가 잡는데 남을 이유가 없다."""
+    return self.enforced and not self.stay.strip()
 
 
 def collect(text: str) -> list[Rule]:
-    """앵커를 전부 읽는다.
+  """앵커를 전부 읽는다.
 
-    Args:
-        text: `CLAUDE.md` 본문.
+  Args:
+      text: `CLAUDE.md` 본문.
 
-    Returns:
-        앵커 목록.
-    """
-    return [Rule(m["name"], m["force"], m["stay"] or "") for m in ANCHOR.finditer(text)]
+  Returns:
+      앵커 목록.
+  """
+  return [Rule(m["name"], m["force"], m["stay"] or "") for m in ANCHOR.finditer(text)]
 
 
 def audit(text: str, ledger: str, known: Known) -> tuple[list[str], list[Rule]]:
-    """여덟 검사를 돌린다.
+  """여덟 검사를 돌린다.
 
-    Args:
-        text: `CLAUDE.md` 본문.
-        ledger: 실수 대장 본문.
-        known: 참조 대조 근거.
+  Args:
+      text: `CLAUDE.md` 본문.
+      ledger: 실수 대장 본문.
+      known: 참조 대조 근거.
 
-    Returns:
-        `(문제 목록, 앵커 목록)`.
-    """
-    problems: list[str] = []
-    rules = collect(text)
-    seen = {r.name for r in rules}
+  Returns:
+      `(문제 목록, 앵커 목록)`.
+  """
+  problems: list[str] = []
+  rules = collect(text)
+  seen = {r.name for r in rules}
 
-    # ① 페이로드 없는 앵커 — `강제:` 가 빠졌다
-    problems.extend(
-        f"앵커 `{name}` 에 `강제:` 가 없다 — «무엇이 이것을 강제하나» 가 빈칸이면 셀 수 없다"
-        for name in BARE.findall(text)
-        if name not in seen
+  # ① 페이로드 없는 앵커 — `강제:` 가 빠졌다
+  problems.extend(
+    f"앵커 `{name}` 에 `강제:` 가 없다 — «무엇이 이것을 강제하나» 가 빈칸이면 셀 수 없다"
+    for name in BARE.findall(text)
+    if name not in seen
+  )
+
+  # ② · ③ 어휘와 참조 — 🔴 1구간 검증기를 그대로 쓴다
+  problems.extend(
+    f"앵커 `{rule.name}` 의 `강제:{reference.strip()}` — {why}"
+    for rule in rules
+    if rule.enforced
+    for reference in rule.force.split(",")
+    if (why := verify_reference(reference.strip(), known)) is not None
+  )
+
+  # ④ 바닥값
+  if len(rules) < MIN_ANCHORS:
+    problems.append(
+      f"앵커가 **{len(rules)}개**로 바닥값 {MIN_ANCHORS} 아래다 — "
+      "절이 사라졌거나 형식이 바뀌어 파서가 못 읽었다(0은 «깨끗함» 이 아니다)"
     )
 
-    # ② · ③ 어휘와 참조 — 🔴 1구간 검증기를 그대로 쓴다
-    problems.extend(
-        f"앵커 `{rule.name}` 의 `강제:{reference.strip()}` — {why}"
-        for rule in rules
-        if rule.enforced
-        for reference in rule.force.split(",")
-        if (why := verify_reference(reference.strip(), known)) is not None
+  # ⑤ 삭제 후보 천장
+  candidates = [r.name for r in rules if r.candidate]
+  if len(candidates) > MAX_CANDIDATES:
+    head = " · ".join(candidates[:5])
+    problems.append(
+      f"«강제 있고 잔류 없음» 이 **{len(candidates)}건**으로 천장 {MAX_CANDIDATES} 을 넘었다: {head} — "
+      "기계가 잡는 것을 본문이 다시 서술했거나, 남을 이유를 안 적었다"
     )
 
-    # ④ 바닥값
-    if len(rules) < MIN_ANCHORS:
-        problems.append(
-            f"앵커가 **{len(rules)}개**로 바닥값 {MIN_ANCHORS} 아래다 — "
-            "절이 사라졌거나 형식이 바뀌어 파서가 못 읽었다(0은 «깨끗함» 이 아니다)"
-        )
+  # ⑦ 양방향 — 대장이 부르는 앵커가 실재하는가
+  problems.extend(
+    f"대장이 `문서:CLAUDE.md#{name}` 를 부르는데 그 앵커가 없다 — 읽어도 아무것도 안 나온다"
+    for name in sorted(set(REFERS.findall(ledger)))
+    if name not in seen
+  )
 
-    # ⑤ 삭제 후보 천장
-    candidates = [r.name for r in rules if r.candidate]
-    if len(candidates) > MAX_CANDIDATES:
-        head = " · ".join(candidates[:5])
-        problems.append(
-            f"«강제 있고 잔류 없음» 이 **{len(candidates)}건**으로 천장 {MAX_CANDIDATES} 을 넘었다: {head} — "
-            "기계가 잡는 것을 본문이 다시 서술했거나, 남을 이유를 안 적었다"
-        )
-
-    # ⑦ 양방향 — 대장이 부르는 앵커가 실재하는가
-    problems.extend(
-        f"대장이 `문서:CLAUDE.md#{name}` 를 부르는데 그 앵커가 없다 — 읽어도 아무것도 안 나온다"
-        for name in sorted(set(REFERS.findall(ledger)))
-        if name not in seen
+  # ⑧ 줄 수 천장
+  count = len(text.splitlines())
+  if count > MAX_LINES:
+    problems.append(
+      f"`CLAUDE.md` 가 **{count}줄**로 천장 {MAX_LINES} 을 넘었다 — "
+      "늘리려면 **같은 만큼 줄인다**(옳은 추가에도 상한이 있다)"
     )
 
-    # ⑧ 줄 수 천장
-    count = len(text.splitlines())
-    if count > MAX_LINES:
-        problems.append(
-            f"`CLAUDE.md` 가 **{count}줄**로 천장 {MAX_LINES} 을 넘었다 — "
-            "늘리려면 **같은 만큼 줄인다**(옳은 추가에도 상한이 있다)"
-        )
+  # ⑨ 주입 문자열에 건수가 박혔나 (대장 D67 이 B-13 에 넘긴 판단)
+  problems.extend(check_injectors())
 
-    # ⑨ 주입 문자열에 건수가 박혔나 (대장 D67 이 B-13 에 넘긴 판단)
-    problems.extend(check_injectors())
+  # ⑩ · ⑪ 강조 인플레이션 (B-11 2구간)
+  problems.extend(check_emphasis(text))
 
-    # ⑩ · ⑪ 강조 인플레이션 (B-11 2구간)
-    problems.extend(check_emphasis(text))
+  # ⑫ 경위의 수 바닥값 (B-11 3구간 S1)
+  evidence = len(EVIDENCE.findall(text))
+  if evidence < MIN_EVIDENCE:
+    problems.append(
+      f"**경위의 수가 {evidence}개**로 바닥값 {MIN_EVIDENCE} 아래다 — "
+      "문장을 다시 쓰면서 «실측 72건»·«12건을 날렸다» 같은 수를 지웠다. "
+      "🔑 경위가 없으면 규칙은 취향이 되고, 취향은 다음 사람이 뒤집는다"
+    )
 
-    # ⑫ 경위의 수 바닥값 (B-11 3구간 S1)
-    evidence = len(EVIDENCE.findall(text))
-    if evidence < MIN_EVIDENCE:
-        problems.append(
-            f"**경위의 수가 {evidence}개**로 바닥값 {MIN_EVIDENCE} 아래다 — "
-            "문장을 다시 쓰면서 «실측 72건»·«12건을 날렸다» 같은 수를 지웠다. "
-            "🔑 경위가 없으면 규칙은 취향이 되고, 취향은 다음 사람이 뒤집는다"
-        )
-
-    return problems, rules
+  return problems, rules
 
 
 def emphases(line: str) -> list[str]:
-    """그 줄의 **순수 강조** 조각 — 이름표와 ID 인용은 빼고 센다.
+  """그 줄의 **순수 강조** 조각 — 이름표와 ID 인용은 빼고 센다.
 
-    🔴 세는 대상을 안 가르면 숫자가 뜻을 잃는다(대장 **D43**). 강조가 아닌 볼드가 둘 있다 —
-    표 **첫 칸**의 이름표와 목록 항목 머리의 라벨, 그리고 ``**D62**`` 같은 **ID 인용**.
+  🔴 세는 대상을 안 가르면 숫자가 뜻을 잃는다(대장 **D43**). 강조가 아닌 볼드가 둘 있다 —
+  표 **첫 칸**의 이름표와 목록 항목 머리의 라벨, 그리고 ``**D62**`` 같은 **ID 인용**.
 
-    Args:
-        line: 한 줄.
+  Args:
+      line: 한 줄.
 
-    Returns:
-        순수 강조 조각들.
-    """
-    stripped = line.strip()
-    scope = line
-    if stripped.startswith("|"):
-        cells = stripped.split("|")
-        scope = "|".join(cells[2:]) if len(cells) > 2 else line
-    label = LABEL_HEAD.match(line)
-    return [
-        frag
-        for frag in BOLD.findall(scope)
-        if not ID_CITE.match(frag.strip()) and not (label and frag == label.group(1))
-    ]
+  Returns:
+      순수 강조 조각들.
+  """
+  stripped = line.strip()
+  scope = line
+  if stripped.startswith("|"):
+    cells = stripped.split("|")
+    scope = "|".join(cells[2:]) if len(cells) > 2 else line
+  label = LABEL_HEAD.match(line)
+  return [
+    frag for frag in BOLD.findall(scope) if not ID_CITE.match(frag.strip()) and not (label and frag == label.group(1))
+  ]
 
 
 def check_emphasis(text: str) -> list[str]:
-    """강조가 희소한가 — 규약 정본 = ``FILING.md`` §3-2.
+  """강조가 희소한가 — 규약 정본 = ``FILING.md`` §3-2.
 
-    Args:
-        text: `CLAUDE.md` 본문.
+  Args:
+      text: `CLAUDE.md` 본문.
 
-    Returns:
-        문제 목록.
-    """
-    problems: list[str] = []
-    multi = [(no, line) for no, line in enumerate(text.splitlines(), 1) if len(emphases(line)) >= 2]
-    if len(multi) > MAX_MULTI_EMPHASIS:
-        head = " · ".join(str(no) for no, _ in multi[:8])
-        problems.append(
-            f"**한 줄에 강조가 둘 이상**인 줄이 {len(multi)}건이다(천장 {MAX_MULTI_EMPHASIS}) — {head}행. "
-            "둘이면 어느 쪽이 요점인지 독자가 고를 수 없다(`FILING` §3-2)"
-        )
-    red = text.count("🔴")
-    if red > MAX_RED:
-        problems.append(
-            f"🔴 가 **{red}건**으로 천장 {MAX_RED} 을 넘었다 — "
-            "🔴 는 «어기면 되돌릴 수 없는 피해» 에만 쓴다(표제에는 쓰지 않는다)"
-        )
-    return problems
+  Returns:
+      문제 목록.
+  """
+  problems: list[str] = []
+  multi = [(no, line) for no, line in enumerate(text.splitlines(), 1) if len(emphases(line)) >= 2]
+  if len(multi) > MAX_MULTI_EMPHASIS:
+    head = " · ".join(str(no) for no, _ in multi[:8])
+    problems.append(
+      f"**한 줄에 강조가 둘 이상**인 줄이 {len(multi)}건이다(천장 {MAX_MULTI_EMPHASIS}) — {head}행. "
+      "둘이면 어느 쪽이 요점인지 독자가 고를 수 없다(`FILING` §3-2)"
+    )
+  red = text.count("🔴")
+  if red > MAX_RED:
+    problems.append(
+      f"🔴 가 **{red}건**으로 천장 {MAX_RED} 을 넘었다 — "
+      "🔴 는 «어기면 되돌릴 수 없는 피해» 에만 쓴다(표제에는 쓰지 않는다)"
+    )
+  return problems
 
 
 def check_injectors() -> list[str]:
-    """**매 턴 주입되는 문구**에 숫자가 박혔는지 본다 (대장 **D67**).
+  """**매 턴 주입되는 문구**에 숫자가 박혔는지 본다 (대장 **D67**).
 
-    🔴 **fail-closed** — 파일이 없으면 «깨끗하다» 가 아니라 **대상이 사라진 것**이다.
+  🔴 **fail-closed** — 파일이 없으면 «깨끗하다» 가 아니라 **대상이 사라진 것**이다.
 
-    Returns:
-        문제 목록.
-    """
-    problems: list[str] = []
-    for path in INJECTORS:
-        if not path.is_file():
-            problems.append(f"주입 파일이 없다: `{path.name}` — 대상이 사라진 것을 «깨끗함» 으로 읽지 않는다")
-            continue
-        for no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if line.lstrip().startswith("#"):
-                continue  # 주석은 주입되지 않는다
-            if COUNT_IN_PROSE.search(line):
-                problems.append(
-                    f"`{path.name}:{no}` 가 주입 문구에 **건수**를 박았다 — "
-                    "매 턴 읽히는 자리의 숫자는 반드시 낡는다(`D67`). 세는 명령을 대신 적는다"
-                )
-    return problems
+  Returns:
+      문제 목록.
+  """
+  problems: list[str] = []
+  for path in INJECTORS:
+    if not path.is_file():
+      problems.append(f"주입 파일이 없다: `{path.name}` — 대상이 사라진 것을 «깨끗함» 으로 읽지 않는다")
+      continue
+    for no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+      if line.lstrip().startswith("#"):
+        continue  # 주석은 주입되지 않는다
+      if COUNT_IN_PROSE.search(line):
+        problems.append(
+          f"`{path.name}:{no}` 가 주입 문구에 **건수**를 박았다 — "
+          "매 턴 읽히는 자리의 숫자는 반드시 낡는다(`D67`). 세는 명령을 대신 적는다"
+        )
+  return problems
 
 
 def main() -> int:
-    """규칙 앵커를 대조한다.
+  """규칙 앵커를 대조한다.
 
-    Returns:
-        종료코드 — 0 이면 통과.
-    """
-    if not TARGET.is_file():
-        print(f"❌ `{TARGET.name}` 가 없다 — 층② 정본은 없으면 결함이다")
-        return 1
+  Returns:
+      종료코드 — 0 이면 통과.
+  """
+  if not TARGET.is_file():
+    print(f"❌ `{TARGET.name}` 가 없다 — 층② 정본은 없으면 결함이다")
+    return 1
 
-    text = TARGET.read_text(encoding="utf-8")
-    known = Known(
-        hooks=frozenset(parse_hook_ids((REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))),
-        **dict(zip(("ruff", "ignored"), map(frozenset, parse_ruff_lint(REPO_ROOT / "pyproject.toml")), strict=True)),
-        root=REPO_ROOT,
-    )
-    problems, rules = audit(text, LEDGER.read_text(encoding="utf-8"), known)
+  text = TARGET.read_text(encoding="utf-8")
+  known = Known(
+    hooks=frozenset(parse_hook_ids((REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))),
+    **dict(zip(("ruff", "ignored"), map(frozenset, parse_ruff_lint(REPO_ROOT / "pyproject.toml")), strict=True)),
+    root=REPO_ROOT,
+  )
+  problems, rules = audit(text, LEDGER.read_text(encoding="utf-8"), known)
 
-    if problems:
-        print("❌ 규칙 강제 열 검사 실패")
-        for line in problems:
-            print(f"   - {line}")
-        print("   🔑 규칙은 **실패하는 명령**이어야 한다 — 산문으로 적은 결론은 조치가 아니다(대장 D71).")
-        return 1
+  if problems:
+    print("❌ 규칙 강제 열 검사 실패")
+    for line in problems:
+      print(f"   - {line}")
+    print("   🔑 규칙은 **실패하는 명령**이어야 한다 — 산문으로 적은 결론은 조치가 아니다(대장 D71).")
+    return 1
 
-    enforced = sum(1 for r in rules if r.enforced)
-    print(
-        f"✅ 규칙 강제 열 — 앵커 {len(rules)}개(바닥값 {MIN_ANCHORS}) · "
-        f"강제 {enforced} · 없음 {len(rules) - enforced} · 삭제후보 {sum(1 for r in rules if r.candidate)} · "
-        f"강조2+ {sum(1 for ln in text.splitlines() if len(emphases(ln)) >= 2)}(천장 {MAX_MULTI_EMPHASIS}) · "
-        f"🔴 {text.count(chr(0x1F534))}(천장 {MAX_RED}) · "
-        f"{len(text.splitlines())}줄(천장 {MAX_LINES}) · "
-        f"경위의 수 {len(EVIDENCE.findall(text))}(바닥값 {MIN_EVIDENCE})."
-    )
-    return 0
+  enforced = sum(1 for r in rules if r.enforced)
+  print(
+    f"✅ 규칙 강제 열 — 앵커 {len(rules)}개(바닥값 {MIN_ANCHORS}) · "
+    f"강제 {enforced} · 없음 {len(rules) - enforced} · 삭제후보 {sum(1 for r in rules if r.candidate)} · "
+    f"강조2+ {sum(1 for ln in text.splitlines() if len(emphases(ln)) >= 2)}(천장 {MAX_MULTI_EMPHASIS}) · "
+    f"🔴 {text.count(chr(0x1F534))}(천장 {MAX_RED}) · "
+    f"{len(text.splitlines())}줄(천장 {MAX_LINES}) · "
+    f"경위의 수 {len(EVIDENCE.findall(text))}(바닥값 {MIN_EVIDENCE})."
+  )
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

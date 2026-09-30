@@ -79,157 +79,157 @@ _SYSTEM_TEMPLATE = """\
 
 
 def _format_medication_line(med: dict) -> str:
-    """Format a single medication dict into a human-readable line.
+  """Format a single medication dict into a human-readable line.
 
-    Args:
-        med: Medication dict with keys medicine_name, category,
-             intake_instruction, dose_per_intake (all optional except name).
+  Args:
+      med: Medication dict with keys medicine_name, category,
+           intake_instruction, dose_per_intake (all optional except name).
 
-    Returns:
-        Formatted string describing the medication.
-    """
-    name = med.get("medicine_name", "")
-    parts = [f"- {name}"]
+  Returns:
+      Formatted string describing the medication.
+  """
+  name = med.get("medicine_name", "")
+  parts = [f"- {name}"]
 
-    category = med.get("category")
-    if category:
-        parts.append(f"[{category}]")
+  category = med.get("category")
+  if category:
+    parts.append(f"[{category}]")
 
-    instruction = med.get("intake_instruction")
-    if instruction:
-        parts.append(f"복용법: {instruction}")
+  instruction = med.get("intake_instruction")
+  if instruction:
+    parts.append(f"복용법: {instruction}")
 
-    dose = med.get("dose_per_intake")
-    if dose:
-        parts.append(f"용량: {dose}")
+  dose = med.get("dose_per_intake")
+  if dose:
+    parts.append(f"용량: {dose}")
 
-    return " / ".join(parts) if len(parts) > 1 else parts[0]
+  return " / ".join(parts) if len(parts) > 1 else parts[0]
 
 
 def _calc_age_from_birth(birth: object) -> int | None:
-    """birth_date (date / ISO 문자열) 에서 만 나이 추출. 실패 시 None.
+  """birth_date (date / ISO 문자열) 에서 만 나이 추출. 실패 시 None.
 
-    health_survey JSONField 가 ISO 문자열로 들어오는 케이스 + Profile 에서
-    직접 date 로 들어오는 케이스 둘 다 수용.
-    """
-    if not birth:
-        return None
-    if isinstance(birth, str):
-        try:
-            birth = date.fromisoformat(birth[:10])
-        except ValueError:
-            return None
-    if not isinstance(birth, date):
-        return None
-    today = datetime.now(tz=config.TIMEZONE).date()
-    age = today.year - birth.year
-    if (today.month, today.day) < (birth.month, birth.day):
-        age -= 1
-    return max(age, 0)
+  health_survey JSONField 가 ISO 문자열로 들어오는 케이스 + Profile 에서
+  직접 date 로 들어오는 케이스 둘 다 수용.
+  """
+  if not birth:
+    return None
+  if isinstance(birth, str):
+    try:
+      birth = date.fromisoformat(birth[:10])
+    except ValueError:
+      return None
+  if not isinstance(birth, date):
+    return None
+  today = datetime.now(tz=config.TIMEZONE).date()
+  age = today.year - birth.year
+  if (today.month, today.day) < (birth.month, birth.day):
+    age -= 1
+  return max(age, 0)
 
 
 def _format_list_field(value: object) -> str:
-    """List / 문자열 / None 을 사람이 읽기 쉬운 한 줄로 정규화."""
-    if not value:
-        return "없음"
-    if isinstance(value, list):
-        items = [str(v).strip() for v in value if str(v).strip()]
-        return ", ".join(items) if items else "없음"
-    return str(value).strip() or "없음"
+  """List / 문자열 / None 을 사람이 읽기 쉬운 한 줄로 정규화."""
+  if not value:
+    return "없음"
+  if isinstance(value, list):
+    items = [str(v).strip() for v in value if str(v).strip()]
+    return ", ".join(items) if items else "없음"
+  return str(value).strip() or "없음"
 
 
 def _format_bool_field(value: object) -> str:
-    """Boolean / 'yes'·'no' 류를 한국어 라벨로."""
-    if value is None:
-        return "미입력"
-    if isinstance(value, bool):
-        return "예" if value else "아니오"
-    text = str(value).strip().lower()
-    if text in {"true", "yes", "y", "1", "예", "있음"}:
-        return "예"
-    if text in {"false", "no", "n", "0", "아니오", "없음"}:
-        return "아니오"
-    return text
+  """Boolean / 'yes'·'no' 류를 한국어 라벨로."""
+  if value is None:
+    return "미입력"
+  if isinstance(value, bool):
+    return "예" if value else "아니오"
+  text = str(value).strip().lower()
+  if text in {"true", "yes", "y", "1", "예", "있음"}:
+    return "예"
+  if text in {"false", "no", "n", "0", "아니오", "없음"}:
+    return "아니오"
+  return text
 
 
 def _format_health_lines(health: dict | None) -> str:
-    """``Profile.health_survey`` dict → prompt 의 건강정보 섹션 라인.
+  """``Profile.health_survey`` dict → prompt 의 건강정보 섹션 라인.
 
-    누락 필드는 "미입력" 으로 표기 — fingerprint 가 같은 입력엔 같은 텍스트가
-    렌더되도록 결정성 보장.
+  누락 필드는 "미입력" 으로 표기 — fingerprint 가 같은 입력엔 같은 텍스트가
+  렌더되도록 결정성 보장.
 
-    FE ↔ BE 키 이름 호환:
-    - 성별: 'MALE'/'FEMALE' (FE 저장) + 'M'/'F' (legacy) 모두 매핑.
-    - 흡연: 'is_smoking' (FE) + 'smoking' (legacy) 둘 다 읽음.
-    - 음주: 'is_drinking' (FE) — 신규 라인 추가.
-    - 기저질환: 'conditions' (FE) + 'chronic_conditions' (legacy) 둘 다 읽음.
-    """
-    if not health:
-        return "- 건강 설문이 등록되어 있지 않습니다."
+  FE ↔ BE 키 이름 호환:
+  - 성별: 'MALE'/'FEMALE' (FE 저장) + 'M'/'F' (legacy) 모두 매핑.
+  - 흡연: 'is_smoking' (FE) + 'smoking' (legacy) 둘 다 읽음.
+  - 음주: 'is_drinking' (FE) — 신규 라인 추가.
+  - 기저질환: 'conditions' (FE) + 'chronic_conditions' (legacy) 둘 다 읽음.
+  """
+  if not health:
+    return "- 건강 설문이 등록되어 있지 않습니다."
 
-    age = health.get("age")
-    if age is None:
-        age = _calc_age_from_birth(health.get("birth_date"))
-    age_text = f"{age}세" if age is not None else "미입력"
+  age = health.get("age")
+  if age is None:
+    age = _calc_age_from_birth(health.get("birth_date"))
+  age_text = f"{age}세" if age is not None else "미입력"
 
-    gender_raw = str(health.get("gender") or "").upper()
-    gender_label = {
-        "M": "남",
-        "MALE": "남",
-        "F": "여",
-        "FEMALE": "여",
-    }.get(gender_raw, gender_raw or "미입력")
+  gender_raw = str(health.get("gender") or "").upper()
+  gender_label = {
+    "M": "남",
+    "MALE": "남",
+    "F": "여",
+    "FEMALE": "여",
+  }.get(gender_raw, gender_raw or "미입력")
 
-    height = health.get("height_cm") or health.get("height")
-    weight = health.get("weight_kg") or health.get("weight")
-    height_text = f"{height}cm" if height else "미입력"
-    weight_text = f"{weight}kg" if weight else "미입력"
+  height = health.get("height_cm") or health.get("height")
+  weight = health.get("weight_kg") or health.get("weight")
+  height_text = f"{height}cm" if height else "미입력"
+  weight_text = f"{weight}kg" if weight else "미입력"
 
-    smoking = health.get("is_smoking")
-    if smoking is None:
-        smoking = health.get("smoking")
-    drinking = health.get("is_drinking")
-    if drinking is None:
-        drinking = health.get("drinking")
+  smoking = health.get("is_smoking")
+  if smoking is None:
+    smoking = health.get("smoking")
+  drinking = health.get("is_drinking")
+  if drinking is None:
+    drinking = health.get("drinking")
 
-    conditions = health.get("conditions") or health.get("chronic_conditions")
+  conditions = health.get("conditions") or health.get("chronic_conditions")
 
-    lines = [
-        f"- 나이: {age_text}",
-        f"- 성별: {gender_label}",
-        f"- 알레르기: {_format_list_field(health.get('allergies'))}",
-        f"- 운동 빈도: {health.get('exercise_frequency') or '미입력'}",
-        f"- 흡연: {_format_bool_field(smoking)}",
-        f"- 음주: {_format_bool_field(drinking)}",
-        f"- 키 / 몸무게: {height_text} / {weight_text}",
-        f"- 기저질환: {_format_list_field(conditions)}",
-    ]
-    return "\n".join(lines)
+  lines = [
+    f"- 나이: {age_text}",
+    f"- 성별: {gender_label}",
+    f"- 알레르기: {_format_list_field(health.get('allergies'))}",
+    f"- 운동 빈도: {health.get('exercise_frequency') or '미입력'}",
+    f"- 흡연: {_format_bool_field(smoking)}",
+    f"- 음주: {_format_bool_field(drinking)}",
+    f"- 키 / 몸무게: {height_text} / {weight_text}",
+    f"- 기저질환: {_format_list_field(conditions)}",
+  ]
+  return "\n".join(lines)
 
 
 def build_guide_prompt(meds: list[dict], health_profile: dict | None = None) -> str:
-    """Build a GPT prompt for generating a personalized lifestyle guide.
+  """Build a GPT prompt for generating a personalized lifestyle guide.
 
-    Args:
-        meds: List of active medication dicts. Each dict must contain
-              'medicine_name' and optionally 'category', 'intake_instruction',
-              'dose_per_intake'.
-        health_profile: ``Profile.health_survey`` JSONField 의 dict (또는 None).
-            나이/성별/알레르기/운동/흡연/키/몸무게/기저질환 키를 사용. 키가
-            없으면 "미입력" 으로 fallback — fingerprint 결정성과 동일.
+  Args:
+      meds: List of active medication dicts. Each dict must contain
+            'medicine_name' and optionally 'category', 'intake_instruction',
+            'dose_per_intake'.
+      health_profile: ``Profile.health_survey`` JSONField 의 dict (또는 None).
+          나이/성별/알레르기/운동/흡연/키/몸무게/기저질환 키를 사용. 키가
+          없으면 "미입력" 으로 fallback — fingerprint 결정성과 동일.
 
-    Returns:
-        A formatted prompt string requesting a JSON lifestyle guide.
+  Returns:
+      A formatted prompt string requesting a JSON lifestyle guide.
 
-    Raises:
-        ValueError: If meds is empty (활성 약물 없음).
-    """
-    if not meds:
-        raise ValueError("활성 약물 목록이 비어 있습니다. 가이드를 생성하려면 최소 1개의 활성 약물이 필요합니다.")
+  Raises:
+      ValueError: If meds is empty (활성 약물 없음).
+  """
+  if not meds:
+    raise ValueError("활성 약물 목록이 비어 있습니다. 가이드를 생성하려면 최소 1개의 활성 약물이 필요합니다.")
 
-    medication_lines = "\n".join(_format_medication_line(med) for med in meds)
-    health_lines = _format_health_lines(health_profile)
-    return _SYSTEM_TEMPLATE.format(
-        medication_lines=medication_lines,
-        health_lines=health_lines,
-    )
+  medication_lines = "\n".join(_format_medication_line(med) for med in meds)
+  health_lines = _format_health_lines(health_profile)
+  return _SYSTEM_TEMPLATE.format(
+    medication_lines=medication_lines,
+    health_lines=health_lines,
+  )

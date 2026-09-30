@@ -25,20 +25,20 @@ _client: httpx.AsyncClient | None = None
 # 흐름: 최초 호출 시 1회 생성 -> 이후 재사용(커넥션 풀 유지)
 #       lifespan 없는 컨텍스트(테스트/워커)에서도 안전하게 동작.
 def get_http_client() -> httpx.AsyncClient:
-    """공유 ``AsyncClient`` 를 반환(없으면 생성). 재사용으로 커넥션 풀 유지.
+  """공유 ``AsyncClient`` 를 반환(없으면 생성). 재사용으로 커넥션 풀 유지.
 
-    Returns:
-        httpx.AsyncClient: 프로세스 공유 인스턴스(verify=True, timeout·limits 설정).
-    """
-    global _client
-    if _client is None:
-        _client = httpx.AsyncClient(timeout=_TIMEOUT, limits=_LIMITS)
-    return _client
+  Returns:
+      httpx.AsyncClient: 프로세스 공유 인스턴스(verify=True, timeout·limits 설정).
+  """
+  global _client
+  if _client is None:
+    _client = httpx.AsyncClient(timeout=_TIMEOUT, limits=_LIMITS)
+  return _client
 
 
 async def close_http_client() -> None:
-    """공유 클라이언트를 닫고 초기화(라이프사이클 종료·누수 방지)."""
-    global _client
-    if _client is not None:
-        await _client.aclose()
-        _client = None
+  """공유 클라이언트를 닫고 초기화(라이프사이클 종료·누수 방지)."""
+  global _client
+  if _client is not None:
+    await _client.aclose()
+    _client = None

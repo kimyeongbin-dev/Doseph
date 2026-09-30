@@ -9,12 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class MedicineSuggestion(BaseModel):
-    """약품명 자동완성 항목 한 건."""
+  """약품명 자동완성 항목 한 건."""
 
-    model_config = ConfigDict(from_attributes=True)
+  model_config = ConfigDict(from_attributes=True)
 
-    id: int = Field(..., description="medicine_info.id")
-    medicine_name: str = Field(..., description="등록된 한국어 약품명 (DB 정규형)")
-    score: float = Field(
-        ..., ge=0.0, le=1.0, description="trigram similarity (0.0 ~ 1.0). prefix 일치는 보통 1.0 근접."
-    )
+  id: int = Field(..., description="medicine_info.id")
+  medicine_name: str = Field(..., description="등록된 한국어 약품명 (DB 정규형)")
+  score: float = Field(..., ge=0.0, le=1.0, description="trigram similarity (0.0 ~ 1.0). prefix 일치는 보통 1.0 근접.")

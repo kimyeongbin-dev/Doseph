@@ -12,15 +12,15 @@ from ai_worker.core.redis_retry import redis_retry
 
 @redis_retry()
 def publish_result(conn: redis.Redis, key: str, payload: str, ttl_sec: int) -> None:
-    """Redis 키에 payload 를 TTL 과 함께 저장한다.
+  """Redis 키에 payload 를 TTL 과 함께 저장한다.
 
-    Args:
-        conn: 호출자가 ``make_sync_redis()`` 로 만든 Redis 클라이언트.
-        key: Redis 키 (예: ``"ocr_draft:{draft_id}"``).
-        payload: 저장할 문자열 (Pydantic ``model_dump_json()`` 등).
-        ttl_sec: TTL (초).
+  Args:
+      conn: 호출자가 ``make_sync_redis()`` 로 만든 Redis 클라이언트.
+      key: Redis 키 (예: ``"ocr_draft:{draft_id}"``).
+      payload: 저장할 문자열 (Pydantic ``model_dump_json()`` 등).
+      ttl_sec: TTL (초).
 
-    Raises:
-        redis.ConnectionError, redis.TimeoutError: 3회 재시도 후 실패 시.
-    """
-    conn.setex(key, ttl_sec, payload)
+  Raises:
+      redis.ConnectionError, redis.TimeoutError: 3회 재시도 후 실패 시.
+  """
+  conn.setex(key, ttl_sec, payload)

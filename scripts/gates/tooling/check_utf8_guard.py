@@ -39,8 +39,8 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 # 기존 게이트 4종은 전부 `file=sys.stderr` 로 찍고 stderr 만 방어하고 있었는데,
 # 문자열 `reconfigure` 만 보는 즉석 검사는 그걸 "stdout 도 안전"으로 잘못 읽었다(D31).
 GUARD = {
-    "stdout": "sys.stdout.reconfigure",
-    "stderr": "sys.stderr.reconfigure",
+  "stdout": "sys.stdout.reconfigure",
+  "stderr": "sys.stderr.reconfigure",
 }
 
 # 이 게이트 자신과, 검사 대상이 아닌 것.
@@ -52,27 +52,27 @@ EXCLUDE = {"__init__.py"}
 #       -> `file=sys.stderr` 면 stderr, 아니면 stdout 으로 분류
 # 주석·docstring 은 세지 않는다 — 출력되지 않으므로 크래시와 무관하다.
 def non_ascii_targets(source: str) -> set[str]:
-    """소스에서 비-ASCII 를 인쇄하는 스트림 이름을 모은다."""
-    targets: set[str] = set()
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return targets
-    for node in ast.walk(tree):
-        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print"):
-            continue
-        has_non_ascii = any(
-            isinstance(chunk, ast.Constant) and isinstance(chunk.value, str) and not chunk.value.isascii()
-            for chunk in ast.walk(node)
-        )
-        if not has_non_ascii:
-            continue
-        target = "stdout"
-        for keyword in node.keywords:
-            if keyword.arg == "file" and ast.unparse(keyword.value).endswith("stderr"):
-                target = "stderr"
-        targets.add(target)
+  """소스에서 비-ASCII 를 인쇄하는 스트림 이름을 모은다."""
+  targets: set[str] = set()
+  try:
+    tree = ast.parse(source)
+  except SyntaxError:
     return targets
+  for node in ast.walk(tree):
+    if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print"):
+      continue
+    has_non_ascii = any(
+      isinstance(chunk, ast.Constant) and isinstance(chunk.value, str) and not chunk.value.isascii()
+      for chunk in ast.walk(node)
+    )
+    if not has_non_ascii:
+      continue
+    target = "stdout"
+    for keyword in node.keywords:
+      if keyword.arg == "file" and ast.unparse(keyword.value).endswith("stderr"):
+        target = "stderr"
+    targets.add(target)
+  return targets
 
 
 # ── 게이트 본문 ─────────────────────────────────────────────────────────
@@ -87,45 +87,45 @@ MIN_EXPECTED = 5
 
 
 def main() -> int:
-    """대상 스크립트가 UTF-8 출력 방어를 갖췄는지 세고 인쇄한다."""
-    offenders: list[str] = []
-    checked = 0
+  """대상 스크립트가 UTF-8 출력 방어를 갖췄는지 세고 인쇄한다."""
+  offenders: list[str] = []
+  checked = 0
 
-    for path in sorted(SCRIPTS_DIR.rglob("*.py")):
-        if path.name in EXCLUDE or "__pycache__" in path.parts:
-            continue
-        source = path.read_text(encoding="utf-8")
-        targets = non_ascii_targets(source)
-        if not targets:
-            continue
-        checked += 1
-        missing = sorted(t for t in targets if GUARD[t] not in source)
-        if missing:
-            name = path.relative_to(REPO_ROOT).as_posix()
-            offenders.append(f"{name}  (방어 없는 출력: {' · '.join(missing)})")
+  for path in sorted(SCRIPTS_DIR.rglob("*.py")):
+    if path.name in EXCLUDE or "__pycache__" in path.parts:
+      continue
+    source = path.read_text(encoding="utf-8")
+    targets = non_ascii_targets(source)
+    if not targets:
+      continue
+    checked += 1
+    missing = sorted(t for t in targets if GUARD[t] not in source)
+    if missing:
+      name = path.relative_to(REPO_ROOT).as_posix()
+      offenders.append(f"{name}  (방어 없는 출력: {' · '.join(missing)})")
 
-    if checked < MIN_EXPECTED:
-        # 0건만이 아니라 **줄어든 것**도 실패로 본다. 폴더를 재편하거나 glob 을 좁히면
-        # 검사 범위가 조용히 사라지는데, 그때 게이트는 "깨끗하다"고 초록을 낸다.
-        # 실제로 이 게이트가 그렇게 눈이 멀었다(2026-09-16, 11건 → 1건).
-        print(f"❌ 검사 대상이 {checked}건뿐이다 (기대 최소 {MIN_EXPECTED}건).")
-        print("   경로·glob 이 좁아져 검사 범위가 사라졌을 가능성이 높다 — 줄어든 것도 실패다(fail-closed).")
-        return 1
+  if checked < MIN_EXPECTED:
+    # 0건만이 아니라 **줄어든 것**도 실패로 본다. 폴더를 재편하거나 glob 을 좁히면
+    # 검사 범위가 조용히 사라지는데, 그때 게이트는 "깨끗하다"고 초록을 낸다.
+    # 실제로 이 게이트가 그렇게 눈이 멀었다(2026-09-16, 11건 → 1건).
+    print(f"❌ 검사 대상이 {checked}건뿐이다 (기대 최소 {MIN_EXPECTED}건).")
+    print("   경로·glob 이 좁아져 검사 범위가 사라졌을 가능성이 높다 — 줄어든 것도 실패다(fail-closed).")
+    return 1
 
-    if offenders:
-        print(f"❌ 한글·이모지를 출력하는데 UTF-8 방어가 없는 스크립트 {len(offenders)}건:")
-        for name in offenders:
-            print(f"   - {name}")
-        print()
-        print("   고치는 법 — 파일 첫머리(import 직후)에 두 줄을 넣는다:")
-        print('     sys.stdout.reconfigure(encoding="utf-8", errors="replace")')
-        print('     sys.stderr.reconfigure(encoding="utf-8", errors="replace")')
-        print("   자식 프로세스를 띄운다면 env 에 PYTHONIOENCODING=utf-8 도 함께 넘긴다.")
-        return 1
+  if offenders:
+    print(f"❌ 한글·이모지를 출력하는데 UTF-8 방어가 없는 스크립트 {len(offenders)}건:")
+    for name in offenders:
+      print(f"   - {name}")
+    print()
+    print("   고치는 법 — 파일 첫머리(import 직후)에 두 줄을 넣는다:")
+    print('     sys.stdout.reconfigure(encoding="utf-8", errors="replace")')
+    print('     sys.stderr.reconfigure(encoding="utf-8", errors="replace")')
+    print("   자식 프로세스를 띄운다면 env 에 PYTHONIOENCODING=utf-8 도 함께 넘긴다.")
+    return 1
 
-    print(f"✅ UTF-8 방어 검사 통과 — 비-ASCII 를 출력하는 스크립트 {checked}건 전부 방어됨.")
-    return 0
+  print(f"✅ UTF-8 방어 검사 통과 — 비-ASCII 를 출력하는 스크립트 {checked}건 전부 방어됨.")
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

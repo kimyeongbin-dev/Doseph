@@ -36,31 +36,31 @@ from app.services.lifestyle_guide_service import LifestyleGuideService
 
 
 def _make_medication(name: str = "타이레놀정500mg") -> MagicMock:
-    med = MagicMock()
-    med.medicine_name = name
-    med.dose_per_intake = "1정"
-    med.daily_intake_count = 3
-    med.intake_times = ["08:00", "13:00", "19:00"]
-    return med
+  med = MagicMock()
+  med.medicine_name = name
+  med.dose_per_intake = "1정"
+  med.daily_intake_count = 3
+  med.intake_times = ["08:00", "13:00", "19:00"]
+  return med
 
 
 def _make_group(profile_id) -> MagicMock:
-    group = MagicMock()
-    group.id = uuid4()
-    group.profile_id = profile_id
-    return group
+  group = MagicMock()
+  group.id = uuid4()
+  group.profile_id = profile_id
+  return group
 
 
 @pytest.fixture
 def service() -> LifestyleGuideService:
-    """협력자를 전부 대역으로 세운 서비스. 큐도 대역이라 실제 Redis 를 쓰지 않는다."""
-    svc = LifestyleGuideService()
-    svc.prescription_group_repo = MagicMock()
-    svc.medication_repo = MagicMock()
-    svc.profile_repo = MagicMock()
-    svc.guide_repo = MagicMock()
-    svc._queue = MagicMock()
-    return svc
+  """협력자를 전부 대역으로 세운 서비스. 큐도 대역이라 실제 Redis 를 쓰지 않는다."""
+  svc = LifestyleGuideService()
+  svc.prescription_group_repo = MagicMock()
+  svc.medication_repo = MagicMock()
+  svc.profile_repo = MagicMock()
+  svc.guide_repo = MagicMock()
+  svc._queue = MagicMock()
+  return svc
 
 
 # ── 진입 검증 — 404 / 403 / 409 ───────────────────────────────────────────────
@@ -68,37 +68,37 @@ def service() -> LifestyleGuideService:
 
 
 async def test_missing_prescription_group_raises_404(service: LifestyleGuideService) -> None:
-    service.prescription_group_repo.get_by_id = AsyncMock(return_value=None)
+  service.prescription_group_repo.get_by_id = AsyncMock(return_value=None)
 
-    with pytest.raises(HTTPException) as raised:
-        await service.enqueue_guide_generation(uuid4(), uuid4())
+  with pytest.raises(HTTPException) as raised:
+    await service.enqueue_guide_generation(uuid4(), uuid4())
 
-    assert raised.value.status_code == 404
+  assert raised.value.status_code == 404
 
 
 async def test_foreign_prescription_group_raises_403(service: LifestyleGuideService) -> None:
-    """남의 처방전 그룹으로 가이드를 만들 수 없다 — 보안 경계."""
-    group = _make_group(profile_id=uuid4())
-    service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
+  """남의 처방전 그룹으로 가이드를 만들 수 없다 — 보안 경계."""
+  group = _make_group(profile_id=uuid4())
+  service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
 
-    with pytest.raises(HTTPException) as raised:
-        await service.enqueue_guide_generation(uuid4(), group.id)
+  with pytest.raises(HTTPException) as raised:
+    await service.enqueue_guide_generation(uuid4(), group.id)
 
-    assert raised.value.status_code == 403
+  assert raised.value.status_code == 403
 
 
 async def test_no_active_medication_raises_409(service: LifestyleGuideService) -> None:
-    """약이 없으면 만들 가이드도 없다 — 409 로 명확히 거절한다."""
-    profile_id = uuid4()
-    group = _make_group(profile_id=profile_id)
-    service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
-    service.medication_repo.get_active_by_prescription_group = AsyncMock(return_value=[])
+  """약이 없으면 만들 가이드도 없다 — 409 로 명확히 거절한다."""
+  profile_id = uuid4()
+  group = _make_group(profile_id=profile_id)
+  service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
+  service.medication_repo.get_active_by_prescription_group = AsyncMock(return_value=[])
 
-    with pytest.raises(HTTPException) as raised:
-        await service.enqueue_guide_generation(profile_id, group.id)
+  with pytest.raises(HTTPException) as raised:
+    await service.enqueue_guide_generation(profile_id, group.id)
 
-    assert raised.value.status_code == 409
-    assert "NO_ACTIVE_MEDICATIONS" in str(raised.value.detail)
+  assert raised.value.status_code == 409
+  assert "NO_ACTIVE_MEDICATIONS" in str(raised.value.detail)
 
 
 # ── ⭐ fingerprint dedupe — 이 파일에서 가장 값진 계약 ────────────────────────
@@ -108,42 +108,42 @@ async def test_no_active_medication_raises_409(service: LifestyleGuideService) -
 
 
 async def test_dedupe_hit_returns_existing_without_enqueue(service: LifestyleGuideService) -> None:
-    profile_id = uuid4()
-    group = _make_group(profile_id=profile_id)
-    existing = MagicMock(id=uuid4())
+  profile_id = uuid4()
+  group = _make_group(profile_id=profile_id)
+  existing = MagicMock(id=uuid4())
 
-    service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
-    service.medication_repo.get_active_by_prescription_group = AsyncMock(return_value=[_make_medication()])
-    service.profile_repo.get_by_id = AsyncMock(return_value=MagicMock(health_survey=None))
-    service.guide_repo.get_ready_by_fingerprint = AsyncMock(return_value=existing)
-    service.guide_repo.create_pending = AsyncMock()
+  service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
+  service.medication_repo.get_active_by_prescription_group = AsyncMock(return_value=[_make_medication()])
+  service.profile_repo.get_by_id = AsyncMock(return_value=MagicMock(health_survey=None))
+  service.guide_repo.get_ready_by_fingerprint = AsyncMock(return_value=existing)
+  service.guide_repo.create_pending = AsyncMock()
 
-    result = await service.enqueue_guide_generation(profile_id, group.id)
+  result = await service.enqueue_guide_generation(profile_id, group.id)
 
-    assert result is existing, "같은 입력이면 기존 ready 가이드를 그대로 돌려줘야 한다"
-    service.guide_repo.create_pending.assert_not_awaited()
-    service._queue.enqueue.assert_not_called(), "dedupe hit 인데 큐에 넣으면 LLM 비용이 다시 든다"
+  assert result is existing, "같은 입력이면 기존 ready 가이드를 그대로 돌려줘야 한다"
+  service.guide_repo.create_pending.assert_not_awaited()
+  service._queue.enqueue.assert_not_called(), "dedupe hit 인데 큐에 넣으면 LLM 비용이 다시 든다"
 
 
 async def test_dedupe_miss_creates_pending_and_enqueues(service: LifestyleGuideService) -> None:
-    profile_id = uuid4()
-    group = _make_group(profile_id=profile_id)
-    pending = MagicMock(id=uuid4())
+  profile_id = uuid4()
+  group = _make_group(profile_id=profile_id)
+  pending = MagicMock(id=uuid4())
 
-    service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
-    service.medication_repo.get_active_by_prescription_group = AsyncMock(return_value=[_make_medication()])
-    service.profile_repo.get_by_id = AsyncMock(return_value=MagicMock(health_survey=None))
-    service.guide_repo.get_ready_by_fingerprint = AsyncMock(return_value=None)
-    service.guide_repo.create_pending = AsyncMock(return_value=pending)
+  service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
+  service.medication_repo.get_active_by_prescription_group = AsyncMock(return_value=[_make_medication()])
+  service.profile_repo.get_by_id = AsyncMock(return_value=MagicMock(health_survey=None))
+  service.guide_repo.get_ready_by_fingerprint = AsyncMock(return_value=None)
+  service.guide_repo.create_pending = AsyncMock(return_value=pending)
 
-    result = await service.enqueue_guide_generation(profile_id, group.id)
+  result = await service.enqueue_guide_generation(profile_id, group.id)
 
-    assert result is pending
-    service.guide_repo.create_pending.assert_awaited_once()
-    service._queue.enqueue.assert_called_once()
-    assert str(pending.id) in service._queue.enqueue.call_args.args, (
-        "큐 작업에 대상 guide_id 가 실려야 워커가 무엇을 만들지 안다"
-    )
+  assert result is pending
+  service.guide_repo.create_pending.assert_awaited_once()
+  service._queue.enqueue.assert_called_once()
+  assert str(pending.id) in service._queue.enqueue.call_args.args, (
+    "큐 작업에 대상 guide_id 가 실려야 워커가 무엇을 만들지 안다"
+  )
 
 
 # ── medication_snapshot — 약이 빠짐없이 담기는가 ─────────────────────────────
@@ -152,21 +152,21 @@ async def test_dedupe_miss_creates_pending_and_enqueues(service: LifestyleGuideS
 
 
 async def test_snapshot_contains_every_active_medication(service: LifestyleGuideService) -> None:
-    profile_id = uuid4()
-    group = _make_group(profile_id=profile_id)
-    meds = [_make_medication("타이레놀정500mg"), _make_medication("오메프라졸캡슐")]
+  profile_id = uuid4()
+  group = _make_group(profile_id=profile_id)
+  meds = [_make_medication("타이레놀정500mg"), _make_medication("오메프라졸캡슐")]
 
-    service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
-    service.medication_repo.get_active_by_prescription_group = AsyncMock(return_value=meds)
-    service.profile_repo.get_by_id = AsyncMock(return_value=MagicMock(health_survey=None))
-    service.guide_repo.get_ready_by_fingerprint = AsyncMock(return_value=None)
-    service.guide_repo.create_pending = AsyncMock(return_value=MagicMock(id=uuid4()))
+  service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
+  service.medication_repo.get_active_by_prescription_group = AsyncMock(return_value=meds)
+  service.profile_repo.get_by_id = AsyncMock(return_value=MagicMock(health_survey=None))
+  service.guide_repo.get_ready_by_fingerprint = AsyncMock(return_value=None)
+  service.guide_repo.create_pending = AsyncMock(return_value=MagicMock(id=uuid4()))
 
-    await service.enqueue_guide_generation(profile_id, group.id)
+  await service.enqueue_guide_generation(profile_id, group.id)
 
-    snapshot = service.guide_repo.create_pending.call_args.kwargs["medication_snapshot"]
-    names = [entry.get("medicine_name") for entry in snapshot]
-    assert names == ["타이레놀정500mg", "오메프라졸캡슐"], f"active 약이 snapshot 에 모두 담겨야 한다 — 실제: {names}"
+  snapshot = service.guide_repo.create_pending.call_args.kwargs["medication_snapshot"]
+  names = [entry.get("medicine_name") for entry in snapshot]
+  assert names == ["타이레놀정500mg", "오메프라졸캡슐"], f"active 약이 snapshot 에 모두 담겨야 한다 — 실제: {names}"
 
 
 # ── fingerprint 가 입력 변화를 실제로 반영하는가 ─────────────────────────────
@@ -175,21 +175,21 @@ async def test_snapshot_contains_every_active_medication(service: LifestyleGuide
 
 
 async def test_different_medications_produce_different_fingerprint(service: LifestyleGuideService) -> None:
-    profile_id = uuid4()
-    group = _make_group(profile_id=profile_id)
-    service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
-    service.profile_repo.get_by_id = AsyncMock(return_value=MagicMock(health_survey=None))
-    service.guide_repo.get_ready_by_fingerprint = AsyncMock(return_value=None)
-    service.guide_repo.create_pending = AsyncMock(return_value=MagicMock(id=uuid4()))
+  profile_id = uuid4()
+  group = _make_group(profile_id=profile_id)
+  service.prescription_group_repo.get_by_id = AsyncMock(return_value=group)
+  service.profile_repo.get_by_id = AsyncMock(return_value=MagicMock(health_survey=None))
+  service.guide_repo.get_ready_by_fingerprint = AsyncMock(return_value=None)
+  service.guide_repo.create_pending = AsyncMock(return_value=MagicMock(id=uuid4()))
 
-    fingerprints = []
-    for names in (["타이레놀정500mg"], ["오메프라졸캡슐"]):
-        service.medication_repo.get_active_by_prescription_group = AsyncMock(
-            return_value=[_make_medication(n) for n in names]
-        )
-        await service.enqueue_guide_generation(profile_id, group.id)
-        fingerprints.append(service.guide_repo.create_pending.call_args.kwargs["input_fingerprint"])
-
-    assert fingerprints[0] != fingerprints[1], (
-        "약 구성이 다른데 fingerprint 가 같으면 남의 가이드를 dedupe 로 돌려주게 된다"
+  fingerprints = []
+  for names in (["타이레놀정500mg"], ["오메프라졸캡슐"]):
+    service.medication_repo.get_active_by_prescription_group = AsyncMock(
+      return_value=[_make_medication(n) for n in names]
     )
+    await service.enqueue_guide_generation(profile_id, group.id)
+    fingerprints.append(service.guide_repo.create_pending.call_args.kwargs["input_fingerprint"])
+
+  assert fingerprints[0] != fingerprints[1], (
+    "약 구성이 다른데 fingerprint 가 같으면 남의 가이드를 dedupe 로 돌려주게 된다"
+  )

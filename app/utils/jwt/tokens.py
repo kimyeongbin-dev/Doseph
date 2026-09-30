@@ -16,137 +16,137 @@ from app.utils.jwt.state import token_backend
 
 
 class Token:
-    """Base JWT token class.
+  """Base JWT token class.
 
-    This class provides the foundation for JWT token handling including
-    encoding, decoding, expiration management, and payload manipulation.
+  This class provides the foundation for JWT token handling including
+  encoding, decoding, expiration management, and payload manipulation.
 
-    Attributes:
-        token_type: Type of token (must be set in subclasses).
-        lifetime: Token lifetime duration (must be set in subclasses).
+  Attributes:
+      token_type: Type of token (must be set in subclasses).
+      lifetime: Token lifetime duration (must be set in subclasses).
+  """
+
+  token_type: str | None = None
+  lifetime: timedelta | None = None
+  _token_backend: TokenBackend = token_backend
+
+  def __init__(self, token: str | None = None, verify: bool = True) -> None:
+    """Initialize token instance.
+
+    Args:
+        token: Existing token string to decode.
+        verify: Whether to verify token signature.
+
+    Raises:
+        TokenError: If token_type or lifetime not set, or token is invalid.
+        ExpiredTokenError: If token is expired.
     """
+    if not self.token_type:
+      raise TokenError("token_type must be set")
+    if not self.lifetime:
+      raise TokenError("lifetime must be set")
 
-    token_type: str | None = None
-    lifetime: timedelta | None = None
-    _token_backend: TokenBackend = token_backend
+    self.token = token
+    self.current_time = datetime.now(tz=config.TIMEZONE)
+    self.payload: dict[str, Any] = {}
 
-    def __init__(self, token: str | None = None, verify: bool = True) -> None:
-        """Initialize token instance.
+    if token is not None:
+      try:
+        self.payload = token_backend.decode(token, verify=verify)
+      except TokenBackendExpiredError as err:
+        raise ExpiredTokenError("Token is expired") from err
+      except TokenBackendError as err:
+        raise TokenError("Token is invalid") from err
+    else:
+      self.payload = {"type": self.token_type}
+      self.set_exp(from_time=self.current_time, lifetime=self.lifetime)
+      self.set_jti()
 
-        Args:
-            token: Existing token string to decode.
-            verify: Whether to verify token signature.
+  def __repr__(self) -> str:
+    """Return string representation of token payload."""
+    return repr(self.payload)
 
-        Raises:
-            TokenError: If token_type or lifetime not set, or token is invalid.
-            ExpiredTokenError: If token is expired.
-        """
-        if not self.token_type:
-            raise TokenError("token_type must be set")
-        if not self.lifetime:
-            raise TokenError("lifetime must be set")
+  def __getitem__(self, key: str) -> Any:
+    """Get payload item by key."""
+    return self.payload[key]
 
-        self.token = token
-        self.current_time = datetime.now(tz=config.TIMEZONE)
-        self.payload: dict[str, Any] = {}
+  def __setitem__(self, key: str, value: Any) -> None:
+    """Set payload item by key."""
+    self.payload[key] = value
 
-        if token is not None:
-            try:
-                self.payload = token_backend.decode(token, verify=verify)
-            except TokenBackendExpiredError as err:
-                raise ExpiredTokenError("Token is expired") from err
-            except TokenBackendError as err:
-                raise TokenError("Token is invalid") from err
-        else:
-            self.payload = {"type": self.token_type}
-            self.set_exp(from_time=self.current_time, lifetime=self.lifetime)
-            self.set_jti()
+  def __delitem__(self, key: str) -> None:
+    """Delete payload item by key."""
+    del self.payload[key]
 
-    def __repr__(self) -> str:
-        """Return string representation of token payload."""
-        return repr(self.payload)
+  def __contains__(self, key: str) -> bool:
+    """Check if key exists in payload."""
+    return key in self.payload
 
-    def __getitem__(self, key: str) -> Any:
-        """Get payload item by key."""
-        return self.payload[key]
+  def __str__(self) -> str:
+    """Sign and return token as base64 encoded string.
 
-    def __setitem__(self, key: str, value: Any) -> None:
-        """Set payload item by key."""
-        self.payload[key] = value
+    Returns:
+        str: Encoded JWT token string.
+    """
+    return self._token_backend.encode(self.payload)
 
-    def __delitem__(self, key: str) -> None:
-        """Delete payload item by key."""
-        del self.payload[key]
+  def set_exp(self, from_time: datetime | None = None, lifetime: timedelta | None = None) -> None:
+    """Set token expiration time.
 
-    def __contains__(self, key: str) -> bool:
-        """Check if key exists in payload."""
-        return key in self.payload
+    Args:
+        from_time: Base time for expiration calculation.
+        lifetime: Token lifetime duration.
+    """
+    if from_time is None:
+      from_time = self.current_time
 
-    def __str__(self) -> str:
-        """Sign and return token as base64 encoded string.
+    if lifetime is None:
+      lifetime = self.lifetime
 
-        Returns:
-            str: Encoded JWT token string.
-        """
-        return self._token_backend.encode(self.payload)
+    assert lifetime is not None
 
-    def set_exp(self, from_time: datetime | None = None, lifetime: timedelta | None = None) -> None:
-        """Set token expiration time.
+    dt = from_time + lifetime
+    self.payload["exp"] = timegm(dt.timetuple())
 
-        Args:
-            from_time: Base time for expiration calculation.
-            lifetime: Token lifetime duration.
-        """
-        if from_time is None:
-            from_time = self.current_time
-
-        if lifetime is None:
-            lifetime = self.lifetime
-
-        assert lifetime is not None
-
-        dt = from_time + lifetime
-        self.payload["exp"] = timegm(dt.timetuple())
-
-    def set_jti(self) -> None:
-        """Set JWT ID (unique identifier) for the token."""
-        self.payload["jti"] = uuid4().hex
+  def set_jti(self) -> None:
+    """Set JWT ID (unique identifier) for the token."""
+    self.payload["jti"] = uuid4().hex
 
 
 class AccessToken(Token):
-    """Access token class for API authentication.
+  """Access token class for API authentication.
 
-    Short-lived token used for API access authentication.
-    """
+  Short-lived token used for API access authentication.
+  """
 
-    token_type = "access"
-    lifetime = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
+  token_type = "access"
+  lifetime = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
 
 
 class RefreshToken(Token):
-    """Refresh token class for token renewal.
+  """Refresh token class for token renewal.
 
-    Long-lived token used to generate new access tokens.
+  Long-lived token used to generate new access tokens.
+  """
+
+  token_type = "refresh"
+  lifetime = timedelta(minutes=config.REFRESH_TOKEN_EXPIRE_MINUTES)
+  no_copy_claims = ("type", "exp", "jti")
+
+  @property
+  def access_token(self) -> AccessToken:
+    """Generate new access token from refresh token.
+
+    Returns:
+        AccessToken: New access token with copied claims.
     """
+    access = AccessToken()
+    access.set_exp(from_time=self.current_time)
 
-    token_type = "refresh"
-    lifetime = timedelta(minutes=config.REFRESH_TOKEN_EXPIRE_MINUTES)
-    no_copy_claims = ("type", "exp", "jti")
+    no_copy = self.no_copy_claims
+    for claim, value in self.payload.items():
+      if claim in no_copy:
+        continue
+      access[claim] = value
 
-    @property
-    def access_token(self) -> AccessToken:
-        """Generate new access token from refresh token.
-
-        Returns:
-            AccessToken: New access token with copied claims.
-        """
-        access = AccessToken()
-        access.set_exp(from_time=self.current_time)
-
-        no_copy = self.no_copy_claims
-        for claim, value in self.payload.items():
-            if claim in no_copy:
-                continue
-            access[claim] = value
-
-        return access
+    return access

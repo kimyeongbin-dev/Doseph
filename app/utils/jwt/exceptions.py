@@ -6,16 +6,16 @@ including backend errors and token validation failures.
 
 
 class TokenBackendError(Exception):
-    """Base exception for token backend errors."""
+  """Base exception for token backend errors."""
 
 
 class TokenBackendExpiredError(TokenBackendError):
-    """Exception raised when token is expired."""
+  """Exception raised when token is expired."""
 
 
 class TokenError(Exception):
-    """Base exception for token-related errors."""
+  """Base exception for token-related errors."""
 
 
 class ExpiredTokenError(TokenError):
-    """Exception raised when token has expired."""
+  """Exception raised when token has expired."""

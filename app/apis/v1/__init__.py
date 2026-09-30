@@ -49,4 +49,4 @@ v1_routers.include_router(security_router)
 # 이어지지 않더라도(프로드 토큰 교환은 실제 카카오로 나감) 불필요한 공격 표면이므로
 # 환경 게이팅한다. dev 로그인 백도어를 제거한 것과 같은 원칙.
 if config.ENV == Env.LOCAL:
-    v1_routers.include_router(mock_router)
+  v1_routers.include_router(mock_router)

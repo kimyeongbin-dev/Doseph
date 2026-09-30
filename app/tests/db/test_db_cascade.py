@@ -43,13 +43,13 @@ from app.services.medication_service import MedicationService
 from app.services.oauth import OAuthService
 from app.services.profile_service import ProfileService
 from app.tests.db.conftest import (
-    create_account,
-    create_challenge,
-    create_chat_session,
-    create_lifestyle_guide,
-    create_medication,
-    create_prescription_group,
-    create_profile,
+  create_account,
+  create_challenge,
+  create_chat_session,
+  create_lifestyle_guide,
+  create_medication,
+  create_prescription_group,
+  create_profile,
 )
 
 pytestmark = [pytest.mark.db, pytest.mark.asyncio(loop_scope="session")]
@@ -58,20 +58,20 @@ pytestmark = [pytest.mark.db, pytest.mark.asyncio(loop_scope="session")]
 # ── 처방전 그룹 삭제 -> 약이 함께 정리되는가 ─────────────────────────
 # 흐름: 계정/프로필/그룹/약 생성 -> 그룹 삭제 -> 약 행이 사라졌는지 직접 확인
 async def test_deleting_prescription_group_removes_its_medications(db: None) -> None:
-    """Deleting a prescription group must physically remove its medications."""
-    account = await create_account()
-    profile = await create_profile(account)
-    group = await create_prescription_group(profile)
-    medication = await create_medication(profile, group)
+  """Deleting a prescription group must physically remove its medications."""
+  account = await create_account()
+  profile = await create_profile(account)
+  group = await create_prescription_group(profile)
+  medication = await create_medication(profile, group)
 
-    await MedicationService().delete_prescription_group_with_owner_check(
-        ids=[medication.id],
-        profile_id=profile.id,
-        account_id=account.id,
-    )
+  await MedicationService().delete_prescription_group_with_owner_check(
+    ids=[medication.id],
+    profile_id=profile.id,
+    account_id=account.id,
+  )
 
-    # QA-01: soft delete 폐지 — "삭제 표시"가 아니라 **행이 없는가**를 본다.
-    assert await Medication.filter(id=medication.id).count() == 0, "처방전 그룹을 지웠는데 약 행이 남아 있다"
+  # QA-01: soft delete 폐지 — "삭제 표시"가 아니라 **행이 없는가**를 본다.
+  assert await Medication.filter(id=medication.id).count() == 0, "처방전 그룹을 지웠는데 약 행이 남아 있다"
 
 
 # ── ⭐ 가이드 삭제 -> 그 가이드의 챌린지 전부 삭제 ──────────────────────────
@@ -86,103 +86,103 @@ async def test_deleting_prescription_group_removes_its_medications(db: None) -> 
 # 그 가이드에서 나온 챌린지는 DB 가 함께 지운다. 손으로 도는 루프가 필요 없다.
 # (사용자가 직접 만든 챌린지는 guide_id 가 NULL 이라 영향받지 않는다)
 async def test_deleting_guide_removes_all_its_challenges(db: None) -> None:
-    """Every challenge of a deleted guide is removed — started ones included."""
-    account = await create_account()
-    profile = await create_profile(account)
-    group = await create_prescription_group(profile)
-    medication = await create_medication(profile, group)
-    guide = await create_lifestyle_guide(profile)
+  """Every challenge of a deleted guide is removed — started ones included."""
+  account = await create_account()
+  profile = await create_profile(account)
+  group = await create_prescription_group(profile)
+  medication = await create_medication(profile, group)
+  guide = await create_lifestyle_guide(profile)
 
-    unstarted = await create_challenge(profile, guide=guide, is_active=False, title="아직 시작 안 함")
-    started = await create_challenge(
-        profile,
-        guide=guide,
-        is_active=True,
-        started_at=datetime.now(UTC),
-        title="진행 중",
-    )
+  unstarted = await create_challenge(profile, guide=guide, is_active=False, title="아직 시작 안 함")
+  started = await create_challenge(
+    profile,
+    guide=guide,
+    is_active=True,
+    started_at=datetime.now(UTC),
+    title="진행 중",
+  )
 
-    await MedicationService().delete_prescription_group_with_owner_check(
-        ids=[medication.id],
-        profile_id=profile.id,
-        account_id=account.id,
-    )
+  await MedicationService().delete_prescription_group_with_owner_check(
+    ids=[medication.id],
+    profile_id=profile.id,
+    account_id=account.id,
+  )
 
-    assert await Challenge.filter(id=unstarted.id).count() == 0, "미시작 챌린지가 남아 있다"
-    assert await Challenge.filter(id=started.id).count() == 0, (
-        "진행 중이던 챌린지가 남아 있다 — 진행분까지 삭제하는 정책이다(QA-01)"
-    )
+  assert await Challenge.filter(id=unstarted.id).count() == 0, "미시작 챌린지가 남아 있다"
+  assert await Challenge.filter(id=started.id).count() == 0, (
+    "진행 중이던 챌린지가 남아 있다 — 진행분까지 삭제하는 정책이다(QA-01)"
+  )
 
 
 # ── 사용자가 직접 만든 챌린지는 영향받지 않는가 ─────────────────────────────
 # 흐름: guide_id 가 NULL 인 챌린지는 가이드 삭제와 무관해야 한다
 # FK CASCADE 에 맡긴 뒤 "너무 많이 지우지 않는가"를 확인하는 짝 테스트다.
 async def test_deleting_guide_does_not_touch_user_created_challenges(db: None) -> None:
-    """A challenge with no source guide must survive guide deletion."""
-    account = await create_account()
-    profile = await create_profile(account)
-    group = await create_prescription_group(profile)
-    medication = await create_medication(profile, group)
-    await create_lifestyle_guide(profile)
+  """A challenge with no source guide must survive guide deletion."""
+  account = await create_account()
+  profile = await create_profile(account)
+  group = await create_prescription_group(profile)
+  medication = await create_medication(profile, group)
+  await create_lifestyle_guide(profile)
 
-    standalone = await create_challenge(profile, guide=None, title="직접 만든 챌린지")
+  standalone = await create_challenge(profile, guide=None, title="직접 만든 챌린지")
 
-    await MedicationService().delete_prescription_group_with_owner_check(
-        ids=[medication.id],
-        profile_id=profile.id,
-        account_id=account.id,
-    )
+  await MedicationService().delete_prescription_group_with_owner_check(
+    ids=[medication.id],
+    profile_id=profile.id,
+    account_id=account.id,
+  )
 
-    assert await Challenge.filter(id=standalone.id).count() == 1, (
-        "가이드에서 나오지 않은 챌린지까지 지워졌다 — cascade 범위가 너무 넓다"
-    )
+  assert await Challenge.filter(id=standalone.id).count() == 1, (
+    "가이드에서 나오지 않은 챌린지까지 지워졌다 — cascade 범위가 너무 넓다"
+  )
 
 
 # ── 가이드 자체는 정리되는가 ──────────────────────────────────────────
 async def test_cascade_removes_the_guide_itself(db: None) -> None:
-    """The guide is removed once its prescription group is deleted."""
-    account = await create_account()
-    profile = await create_profile(account)
-    group = await create_prescription_group(profile)
-    medication = await create_medication(profile, group)
-    guide = await create_lifestyle_guide(profile)
+  """The guide is removed once its prescription group is deleted."""
+  account = await create_account()
+  profile = await create_profile(account)
+  group = await create_prescription_group(profile)
+  medication = await create_medication(profile, group)
+  guide = await create_lifestyle_guide(profile)
 
-    await MedicationService().delete_prescription_group_with_owner_check(
-        ids=[medication.id],
-        profile_id=profile.id,
-        account_id=account.id,
-    )
+  await MedicationService().delete_prescription_group_with_owner_check(
+    ids=[medication.id],
+    profile_id=profile.id,
+    account_id=account.id,
+  )
 
-    assert await LifestyleGuide.filter(id=guide.id).first() is None, "가이드가 정리되지 않았다"
+  assert await LifestyleGuide.filter(id=guide.id).first() is None, "가이드가 정리되지 않았다"
 
 
 # ── 남의 프로필 데이터까지 쓸어가지 않는가 ───────────────────────────
 # 흐름: cascade 의 범위(scope)가 profile 로 제한되는지 확인
 # 범위를 넓게 잡은 cascade 는 "동작은 하는데 남의 것도 지우는" 최악의 형태다.
 async def test_cascade_does_not_touch_another_profile(db: None) -> None:
-    """Cascade must stay inside the target profile."""
-    account = await create_account()
-    profile = await create_profile(account)
-    other_profile = await create_profile(account, name="가족")
+  """Cascade must stay inside the target profile."""
+  account = await create_account()
+  profile = await create_profile(account)
+  other_profile = await create_profile(account, name="가족")
 
-    group = await create_prescription_group(profile)
-    medication = await create_medication(profile, group)
+  group = await create_prescription_group(profile)
+  medication = await create_medication(profile, group)
 
-    other_guide = await create_lifestyle_guide(other_profile)
-    other_challenge = await create_challenge(other_profile, guide=other_guide, is_active=False)
+  other_guide = await create_lifestyle_guide(other_profile)
+  other_challenge = await create_challenge(other_profile, guide=other_guide, is_active=False)
 
-    await MedicationService().delete_prescription_group_with_owner_check(
-        ids=[medication.id],
-        profile_id=profile.id,
-        account_id=account.id,
-    )
+  await MedicationService().delete_prescription_group_with_owner_check(
+    ids=[medication.id],
+    profile_id=profile.id,
+    account_id=account.id,
+  )
 
-    assert await LifestyleGuide.filter(id=other_guide.id).first() is not None, (
-        "다른 프로필의 가이드까지 지워졌다 — cascade 범위가 너무 넓다"
-    )
-    assert await Challenge.filter(id=other_challenge.id).count() == 1, (
-        "다른 프로필의 챌린지가 사라졌다 — cascade 범위가 너무 넓다"
-    )
+  assert await LifestyleGuide.filter(id=other_guide.id).first() is not None, (
+    "다른 프로필의 가이드까지 지워졌다 — cascade 범위가 너무 넓다"
+  )
+  assert await Challenge.filter(id=other_challenge.id).count() == 1, (
+    "다른 프로필의 챌린지가 사라졌다 — cascade 범위가 너무 넓다"
+  )
 
 
 # ── ⭐ 프로필 삭제 -> 자식 8종 전부 (FK CASCADE 에 위임) ────────────────────
@@ -196,119 +196,119 @@ async def test_cascade_does_not_touch_another_profile(db: None) -> None:
 #
 # 팩토리가 없는 3종(intake_log · daily_symptom_log · ocr_draft)은 raw SQL 로 최소 행만 만든다.
 async def test_deleting_profile_removes_every_child_row(db: None) -> None:
-    """Deleting a profile must remove the row and every child row."""
-    account = await create_account()
-    await create_profile(account)  # SELF — 삭제 대상이 아님
-    family = await create_profile(account, relation_type=RelationType.MOTHER, name="가족")
+  """Deleting a profile must remove the row and every child row."""
+  account = await create_account()
+  await create_profile(account)  # SELF — 삭제 대상이 아님
+  family = await create_profile(account, relation_type=RelationType.MOTHER, name="가족")
 
-    group = await create_prescription_group(family)
-    medication = await create_medication(family, group)
-    challenge = await create_challenge(family)
-    session = await create_chat_session(account, family)
-    message = await ChatMessage.create(session=session, sender_type=SenderType.USER, content="안녕")
-    guide = await create_lifestyle_guide(family)
+  group = await create_prescription_group(family)
+  medication = await create_medication(family, group)
+  challenge = await create_challenge(family)
+  session = await create_chat_session(account, family)
+  message = await ChatMessage.create(session=session, sender_type=SenderType.USER, content="안녕")
+  guide = await create_lifestyle_guide(family)
 
-    connection = connections.get("default")
-    await connection.execute_query(
-        "insert into intake_logs (id, scheduled_date, scheduled_time, medication_id, profile_id) "
-        "values (gen_random_uuid(), '2026-09-01', '08:00+00', $1, $2)",
-        [medication.id, family.id],
-    )
-    await connection.execute_query(
-        "insert into daily_symptom_logs (id, log_date, symptoms, profile_id) "
-        "values (gen_random_uuid(), '2026-09-01', '[]'::jsonb, $1)",
-        [family.id],
-    )
-    await connection.execute_query(
-        "insert into ocr_drafts (id, image_hash, profile_id) values (gen_random_uuid(), 'qa01-hash', $1)",
-        [family.id],
-    )
+  connection = connections.get("default")
+  await connection.execute_query(
+    "insert into intake_logs (id, scheduled_date, scheduled_time, medication_id, profile_id) "
+    "values (gen_random_uuid(), '2026-09-01', '08:00+00', $1, $2)",
+    [medication.id, family.id],
+  )
+  await connection.execute_query(
+    "insert into daily_symptom_logs (id, log_date, symptoms, profile_id) "
+    "values (gen_random_uuid(), '2026-09-01', '[]'::jsonb, $1)",
+    [family.id],
+  )
+  await connection.execute_query(
+    "insert into ocr_drafts (id, image_hash, profile_id) values (gen_random_uuid(), 'qa01-hash', $1)",
+    [family.id],
+  )
 
-    await ProfileService().delete_profile_with_owner_check(family.id, account.id)
+  await ProfileService().delete_profile_with_owner_check(family.id, account.id)
 
-    assert await Profile.filter(id=family.id).count() == 0, "프로필 행이 남아 있다"
-    assert await PrescriptionGroup.filter(id=group.id).count() == 0, "처방전 그룹이 남아 있다"
-    assert await Medication.filter(id=medication.id).count() == 0, "약이 남아 있다"
-    assert await Challenge.filter(id=challenge.id).count() == 0, "챌린지가 남아 있다"
-    assert await ChatSession.filter(id=session.id).count() == 0, "세션이 남아 있다"
-    assert await ChatMessage.filter(id=message.id).count() == 0, "메시지가 남아 있다"
-    assert await LifestyleGuide.filter(id=guide.id).count() == 0, "가이드가 남아 있다"
+  assert await Profile.filter(id=family.id).count() == 0, "프로필 행이 남아 있다"
+  assert await PrescriptionGroup.filter(id=group.id).count() == 0, "처방전 그룹이 남아 있다"
+  assert await Medication.filter(id=medication.id).count() == 0, "약이 남아 있다"
+  assert await Challenge.filter(id=challenge.id).count() == 0, "챌린지가 남아 있다"
+  assert await ChatSession.filter(id=session.id).count() == 0, "세션이 남아 있다"
+  assert await ChatMessage.filter(id=message.id).count() == 0, "메시지가 남아 있다"
+  assert await LifestyleGuide.filter(id=guide.id).count() == 0, "가이드가 남아 있다"
 
-    # 팩토리 없는 3종 — profile_id 로 직접 센다.
-    # 테이블명을 f-string 으로 끼워넣지 않는다(정적 분석이 SQL 주입으로 본다).
-    orphan_counts = {
-        "intake_logs": (await _count_by_profile(connection, "intake_logs", family.id)),
-        "daily_symptom_logs": (await _count_by_profile(connection, "daily_symptom_logs", family.id)),
-        "ocr_drafts": (await _count_by_profile(connection, "ocr_drafts", family.id)),
-    }
-    assert orphan_counts == {"intake_logs": 0, "daily_symptom_logs": 0, "ocr_drafts": 0}, (
-        f"FK 가 닿지 않아 고아 행이 남았다: {orphan_counts}"
-    )
+  # 팩토리 없는 3종 — profile_id 로 직접 센다.
+  # 테이블명을 f-string 으로 끼워넣지 않는다(정적 분석이 SQL 주입으로 본다).
+  orphan_counts = {
+    "intake_logs": (await _count_by_profile(connection, "intake_logs", family.id)),
+    "daily_symptom_logs": (await _count_by_profile(connection, "daily_symptom_logs", family.id)),
+    "ocr_drafts": (await _count_by_profile(connection, "ocr_drafts", family.id)),
+  }
+  assert orphan_counts == {"intake_logs": 0, "daily_symptom_logs": 0, "ocr_drafts": 0}, (
+    f"FK 가 닿지 않아 고아 행이 남았다: {orphan_counts}"
+  )
 
 
 # ── SELF 프로필은 일반 삭제로 지워지지 않는다 ────────────────────────
 # 흐름: SELF 는 계정과 묶여 있어 탈퇴 흐름으로만 제거돼야 한다
 async def test_self_profile_cannot_be_deleted_directly(db: None) -> None:
-    """The SELF profile must be refused by the normal delete path."""
-    account = await create_account()
-    self_profile = await create_profile(account)
+  """The SELF profile must be refused by the normal delete path."""
+  account = await create_account()
+  self_profile = await create_profile(account)
 
-    with pytest.raises(HTTPException) as raised:
-        await ProfileService().delete_profile_with_owner_check(self_profile.id, account.id)
+  with pytest.raises(HTTPException) as raised:
+    await ProfileService().delete_profile_with_owner_check(self_profile.id, account.id)
 
-    assert raised.value.status_code == 403
+  assert raised.value.status_code == 403
 
 
 # ── 세션 삭제 -> 메시지 ───────────────────────────────────────────────
 async def test_deleting_chat_session_cascades_to_messages(db: None) -> None:
-    """Deleting a chat session must physically remove its messages."""
-    account = await create_account()
-    profile = await create_profile(account)
-    session = await create_chat_session(account, profile)
-    message = await ChatMessage.create(session=session, sender_type=SenderType.USER, content="안녕")
+  """Deleting a chat session must physically remove its messages."""
+  account = await create_account()
+  profile = await create_profile(account)
+  session = await create_chat_session(account, profile)
+  message = await ChatMessage.create(session=session, sender_type=SenderType.USER, content="안녕")
 
-    await ChatSessionService().delete_session_with_owner_check(session.id, account.id)
+  await ChatSessionService().delete_session_with_owner_check(session.id, account.id)
 
-    # 메시지는 FK(messages.session_id ON DELETE CASCADE)가 지운다 — 손으로 돌지 않는다.
-    assert await ChatMessage.filter(id=message.id).count() == 0, "세션을 지웠는데 메시지 행이 남아 있다"
+  # 메시지는 FK(messages.session_id ON DELETE CASCADE)가 지운다 — 손으로 돌지 않는다.
+  assert await ChatMessage.filter(id=message.id).count() == 0, "세션을 지웠는데 메시지 행이 남아 있다"
 
 
 # ── 계정 탈퇴 -> 전부 ─────────────────────────────────────────────────
 # 흐름: refresh token hard delete + 모든 프로필(SELF 포함) cascade + 계정 비활성화
 # 탈퇴는 되돌릴 수 없는 경로라 "무엇이 남는가"를 행으로 확인하는 값이 가장 크다.
 async def test_account_withdrawal_cascades_everything(db: None) -> None:
-    """Account withdrawal must revoke tokens, cascade profiles and deactivate."""
-    account = await create_account()
-    self_profile = await create_profile(account)
-    group = await create_prescription_group(self_profile)
-    medication = await create_medication(self_profile, group)
-    await RefreshToken.create(
-        account=account,
-        token_hash=uuid4().hex,
-        expires_at=datetime.now(UTC) + timedelta(days=7),
-        is_revoked=False,
-    )
-    # 계정 직속 세션 — 프로필 cascade 가 아니라 탈퇴 흐름이 따로 처리하는 경로
-    session = await create_chat_session(account, self_profile)
-    message = await ChatMessage.create(session=session, sender_type=SenderType.USER, content="탈퇴 전 대화")
+  """Account withdrawal must revoke tokens, cascade profiles and deactivate."""
+  account = await create_account()
+  self_profile = await create_profile(account)
+  group = await create_prescription_group(self_profile)
+  medication = await create_medication(self_profile, group)
+  await RefreshToken.create(
+    account=account,
+    token_hash=uuid4().hex,
+    expires_at=datetime.now(UTC) + timedelta(days=7),
+    is_revoked=False,
+  )
+  # 계정 직속 세션 — 프로필 cascade 가 아니라 탈퇴 흐름이 따로 처리하는 경로
+  session = await create_chat_session(account, self_profile)
+  message = await ChatMessage.create(session=session, sender_type=SenderType.USER, content="탈퇴 전 대화")
 
-    await OAuthService().delete_account(account)
+  await OAuthService().delete_account(account)
 
-    # QA-02 해소(2026-09-15): 전에는 is_revoked=True 로 표시만 해서 탈퇴 계정의
-    # token_hash 행이 남았다(주석은 "hard-delete"라 적혀 있었다 — 잠금-불일치).
-    # 이제 **행 자체를 지운다** — 탈퇴는 폐기가 아니라 erasure 이고, 재사용 가능한
-    # 비밀을 남기지 않는 것이 데이터 최소화의 요구다.
-    assert await RefreshToken.filter(account_id=account.id).count() == 0, (
-        "탈퇴했는데 refresh token 행이 남아 있다 — token_hash 가 DB 에 잔존한다"
-    )
-    assert await Profile.filter(id=self_profile.id).count() == 0, "SELF 프로필 행이 남아 있다"
-    assert await Medication.filter(id=medication.id).count() == 0, "약 행이 남아 있다"
+  # QA-02 해소(2026-09-15): 전에는 is_revoked=True 로 표시만 해서 탈퇴 계정의
+  # token_hash 행이 남았다(주석은 "hard-delete"라 적혀 있었다 — 잠금-불일치).
+  # 이제 **행 자체를 지운다** — 탈퇴는 폐기가 아니라 erasure 이고, 재사용 가능한
+  # 비밀을 남기지 않는 것이 데이터 최소화의 요구다.
+  assert await RefreshToken.filter(account_id=account.id).count() == 0, (
+    "탈퇴했는데 refresh token 행이 남아 있다 — token_hash 가 DB 에 잔존한다"
+  )
+  assert await Profile.filter(id=self_profile.id).count() == 0, "SELF 프로필 행이 남아 있다"
+  assert await Medication.filter(id=medication.id).count() == 0, "약 행이 남아 있다"
 
-    assert await ChatSession.filter(id=session.id).count() == 0, "계정 직속 세션 행이 남아 있다"
-    assert await ChatMessage.filter(id=message.id).count() == 0, "세션 메시지 행이 남아 있다"
+  assert await ChatSession.filter(id=session.id).count() == 0, "계정 직속 세션 행이 남아 있다"
+  assert await ChatMessage.filter(id=message.id).count() == 0, "세션 메시지 행이 남아 있다"
 
-    # QA-01 S5: 계정도 물리 삭제다 — "비활성 표시"가 아니라 행이 사라진다.
-    assert await Account.filter(id=account.id).count() == 0, "탈퇴한 계정 행이 남아 있다"
+  # QA-01 S5: 계정도 물리 삭제다 — "비활성 표시"가 아니라 행이 사라진다.
+  assert await Account.filter(id=account.id).count() == 0, "탈퇴한 계정 행이 남아 있다"
 
 
 # ── ⭐ 탈퇴 후 재가입 — 유니크 제약과 충돌하지 않는가 ────────────────────────
@@ -320,43 +320,43 @@ async def test_account_withdrawal_cascades_everything(db: None) -> None:
 #    다시 로그인하면 "조회 실패 -> 생성 시도 -> 유니크 충돌" 이 날 수밖에 없었다.
 #    계정을 물리 삭제하면 제약이 풀려 정상 재가입이 된다.
 async def test_rejoin_after_withdrawal_is_possible(db: None) -> None:
-    """After withdrawal the same provider identity must be able to sign up again."""
-    account = await create_account()
-    provider = account.auth_provider
-    provider_account_id = account.provider_account_id
-    await create_profile(account)
+  """After withdrawal the same provider identity must be able to sign up again."""
+  account = await create_account()
+  provider = account.auth_provider
+  provider_account_id = account.provider_account_id
+  await create_profile(account)
 
-    await OAuthService().delete_account(account)
+  await OAuthService().delete_account(account)
 
-    # 같은 신원으로 재가입 — 유니크 제약에 걸리면 여기서 IntegrityError 가 난다.
-    rejoined = await Account.create(
-        auth_provider=provider,
-        provider_account_id=provider_account_id,
-        nickname="재가입",
-        is_active=True,
-    )
+  # 같은 신원으로 재가입 — 유니크 제약에 걸리면 여기서 IntegrityError 가 난다.
+  rejoined = await Account.create(
+    auth_provider=provider,
+    provider_account_id=provider_account_id,
+    nickname="재가입",
+    is_active=True,
+  )
 
-    assert rejoined.id != account.id, "재가입은 새 계정이어야 한다"
-    assert await Account.filter(id=account.id).count() == 0, "탈퇴한 계정 행이 남아 있다"
+  assert rejoined.id != account.id, "재가입은 새 계정이어야 한다"
+  assert await Account.filter(id=account.id).count() == 0, "탈퇴한 계정 행이 남아 있다"
 
 
 async def _count_by_profile(connection: Any, table: str, profile_id: Any) -> int:
-    """profile_id 로 자식 테이블의 행 수를 센다.
+  """profile_id 로 자식 테이블의 행 수를 센다.
 
-    테이블명은 이 파일 안의 **고정 리터럴**만 들어온다(외부 입력 아님).
+  테이블명은 이 파일 안의 **고정 리터럴**만 들어온다(외부 입력 아님).
 
-    Args:
-        connection: Tortoise connection.
-        table: 자식 테이블 이름.
-        profile_id: 대상 프로필 UUID.
+  Args:
+      connection: Tortoise connection.
+      table: 자식 테이블 이름.
+      profile_id: 대상 프로필 UUID.
 
-    Returns:
-        남아 있는 행 수.
-    """
-    queries = {
-        "intake_logs": "select count(*) as n from intake_logs where profile_id = $1",
-        "daily_symptom_logs": "select count(*) as n from daily_symptom_logs where profile_id = $1",
-        "ocr_drafts": "select count(*) as n from ocr_drafts where profile_id = $1",
-    }
-    _, rows = await connection.execute_query(queries[table], [profile_id])
-    return int(rows[0]["n"])
+  Returns:
+      남아 있는 행 수.
+  """
+  queries = {
+    "intake_logs": "select count(*) as n from intake_logs where profile_id = $1",
+    "daily_symptom_logs": "select count(*) as n from daily_symptom_logs where profile_id = $1",
+    "ocr_drafts": "select count(*) as n from ocr_drafts where profile_id = $1",
+  }
+  _, rows = await connection.execute_query(queries[table], [profile_id])
+  return int(rows[0]["n"])

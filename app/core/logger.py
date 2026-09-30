@@ -55,202 +55,202 @@ request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id
 
 
 def get_request_id() -> str:
-    """현재 컨텍스트의 request_id (미설정 시 ``-``)."""
-    return request_id_var.get()
+  """현재 컨텍스트의 request_id (미설정 시 ``-``)."""
+  return request_id_var.get()
 
 
 class JsonFormatter(logging.Formatter):
-    """JSON line formatter — 한 record 당 한 줄 JSON 출력.
+  """JSON line formatter — 한 record 당 한 줄 JSON 출력.
 
-    필드: ts (UTC ISO 8601), level, logger, msg, module, line, exception (있을 때).
-    ``logger.exception()`` 호출 시 stack trace 가 ``exception`` 에 포함된다.
-    """
+  필드: ts (UTC ISO 8601), level, logger, msg, module, line, exception (있을 때).
+  ``logger.exception()`` 호출 시 stack trace 가 ``exception`` 에 포함된다.
+  """
 
-    def format(self, record: logging.LogRecord) -> str:
-        """Render the record as a single JSON line."""
-        payload: dict[str, object] = {
-            "ts": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
-            "level": record.levelname,
-            "logger": record.name,
-            "request_id": getattr(record, "request_id", request_id_var.get()),
-            "msg": record.getMessage(),
-            "module": record.module,
-            "func": record.funcName,
-            "line": record.lineno,
-        }
-        if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
-        return json.dumps(payload, ensure_ascii=False)
+  def format(self, record: logging.LogRecord) -> str:
+    """Render the record as a single JSON line."""
+    payload: dict[str, object] = {
+      "ts": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
+      "level": record.levelname,
+      "logger": record.name,
+      "request_id": getattr(record, "request_id", request_id_var.get()),
+      "msg": record.getMessage(),
+      "module": record.module,
+      "func": record.funcName,
+      "line": record.lineno,
+    }
+    if record.exc_info:
+      payload["exception"] = self.formatException(record.exc_info)
+    return json.dumps(payload, ensure_ascii=False)
 
 
 # ── 메시지 트렁케이션 필터 (재사용) ───────────────────────────────────
 # 흐름: 긴 메시지 감지 -> 상한 초과분 잘라 record 재기록 -> 모든 핸들러 공통 적용
 # 핸들러에 부착하면 자식 logger 전파 record 에도 적용됨(logger 부착은 전파 미적용).
 class TruncateFilter(logging.Filter):
-    """단일 로그 메시지를 ``_MAX_MSG_LEN`` 으로 잘라 메모리/저장 폭주를 막는다.
+  """단일 로그 메시지를 ``_MAX_MSG_LEN`` 으로 잘라 메모리/저장 폭주를 막는다.
 
-    ``%``-args 를 미리 병합해 ``record.msg`` 에 넣고 ``args`` 를 비운다
-    (핸들러마다 재병합 방지, lazy 포맷 결과를 1회만 계산).
-    """
+  ``%``-args 를 미리 병합해 ``record.msg`` 에 넣고 ``args`` 를 비운다
+  (핸들러마다 재병합 방지, lazy 포맷 결과를 1회만 계산).
+  """
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        """Truncate over-long messages so a single log cannot exhaust memory."""
-        message = record.getMessage()
-        if len(message) > _MAX_MSG_LEN:
-            dropped = len(message) - _MAX_MSG_LEN
-            message = f"{message[:_MAX_MSG_LEN]}…[truncated {dropped} chars]"
-        record.msg = message
-        record.args = None
-        return True
+  def filter(self, record: logging.LogRecord) -> bool:
+    """Truncate over-long messages so a single log cannot exhaust memory."""
+    message = record.getMessage()
+    if len(message) > _MAX_MSG_LEN:
+      dropped = len(message) - _MAX_MSG_LEN
+      message = f"{message[:_MAX_MSG_LEN]}…[truncated {dropped} chars]"
+    record.msg = message
+    record.args = None
+    return True
 
 
 # ── request_id 주입 필터 (재사용) ─────────────────────────────────────
 # 흐름: 현재 contextvar 의 request_id -> record.request_id 부착
 #       -> 콘솔 포맷(%(request_id)s) / JSON(request_id 필드) 공통 노출
 class RequestIdFilter(logging.Filter):
-    """현재 컨텍스트의 request_id 를 record 에 부착(모든 핸들러 공통)."""
+  """현재 컨텍스트의 request_id 를 record 에 부착(모든 핸들러 공통)."""
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        """Attach the current request id to the record."""
-        record.request_id = request_id_var.get()
-        return True
+  def filter(self, record: logging.LogRecord) -> bool:
+    """Attach the current request id to the record."""
+    record.request_id = request_id_var.get()
+    return True
 
 
 # ── 시간 + 크기 병행 회전 핸들러 (재사용) ──────────────────────────────
 # 흐름: 시간 회전(부모) 판단 -> 미해당 시 크기 상한 판단 -> 초과면 회전
 #       + 생성 파일은 제한적 권한(_FILE_MODE)으로 오픈(보안).
 class SizeTimedRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
-    """TimedRotating(시간)에 크기 상한을 더한 회전 핸들러.
+  """TimedRotating(시간)에 크기 상한을 더한 회전 핸들러.
 
-    회전 주기 내 런어웨이 로그가 단일 파일을 비대하게 만드는 것을 방지한다.
-    """
+  회전 주기 내 런어웨이 로그가 단일 파일을 비대하게 만드는 것을 방지한다.
+  """
 
-    def __init__(self, *args: object, max_bytes: int = _MAX_BYTES, **kwargs: object) -> None:
-        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
-        self._max_bytes = max_bytes
+  def __init__(self, *args: object, max_bytes: int = _MAX_BYTES, **kwargs: object) -> None:
+    super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+    self._max_bytes = max_bytes
 
-    @override
-    def _open(self) -> TextIOWrapper:
-        stream = super()._open()
-        with contextlib.suppress(OSError):
-            Path(self.baseFilename).chmod(_FILE_MODE)  # world 접근 차단(보안)
-        return stream
+  @override
+  def _open(self) -> TextIOWrapper:
+    stream = super()._open()
+    with contextlib.suppress(OSError):
+      Path(self.baseFilename).chmod(_FILE_MODE)  # world 접근 차단(보안)
+    return stream
 
-    @override
-    def shouldRollover(self, record: logging.LogRecord) -> int:
-        if super().shouldRollover(record):
-            return 1
-        if self._max_bytes > 0:
-            if self.stream is None:
-                self.stream = self._open()
-            message = f"{self.format(record)}{self.terminator}"
-            self.stream.seek(0, os.SEEK_END)
-            if self.stream.tell() + len(message.encode("utf-8")) >= self._max_bytes:
-                return 1
-        return 0
+  @override
+  def shouldRollover(self, record: logging.LogRecord) -> int:
+    if super().shouldRollover(record):
+      return 1
+    if self._max_bytes > 0:
+      if self.stream is None:
+        self.stream = self._open()
+      message = f"{self.format(record)}{self.terminator}"
+      self.stream.seek(0, os.SEEK_END)
+      if self.stream.tell() + len(message.encode("utf-8")) >= self._max_bytes:
+        return 1
+    return 0
 
 
 def _is_prod() -> bool:
-    """``ENV`` 가 prod 인지 (config 의존 없이 os.environ 직접 참조 — 결합도↓)."""
-    return os.environ.get("ENV", "local").strip().lower() == "prod"
+  """``ENV`` 가 prod 인지 (config 의존 없이 os.environ 직접 참조 — 결합도↓)."""
+  return os.environ.get("ENV", "local").strip().lower() == "prod"
 
 
 def _resolve_log_dir() -> Path:
-    """``LOG_DIR`` env 우선, 미설정 시 ``/app/logs``. 디렉토리 idempotent 생성 + 권한 제한."""
-    log_dir = Path(os.environ.get(_LOG_DIR_ENV, _DEFAULT_LOG_DIR))
-    log_dir.mkdir(parents=True, exist_ok=True)
-    with contextlib.suppress(OSError):  # world 접근 차단(보안). Windows 는 무시됨(무해).
-        log_dir.chmod(_DIR_MODE)
-    return log_dir
+  """``LOG_DIR`` env 우선, 미설정 시 ``/app/logs``. 디렉토리 idempotent 생성 + 권한 제한."""
+  log_dir = Path(os.environ.get(_LOG_DIR_ENV, _DEFAULT_LOG_DIR))
+  log_dir.mkdir(parents=True, exist_ok=True)
+  with contextlib.suppress(OSError):  # world 접근 차단(보안). Windows 는 무시됨(무해).
+    log_dir.chmod(_DIR_MODE)
+  return log_dir
 
 
 # ── 로거 셋업 (콘솔 + 회전 파일 핸들러) ────────────────────────────────
 # 흐름: 기존 핸들러 있으면 재사용 -> 트렁케이션 필터 -> 콘솔 핸들러 부착
 #       -> 파일 핸들러(권한제한·시간+크기 회전) 부착 -> 실패 시 콘솔만 폴백
 def setup_logger(
-    name: str = "app",
-    level: int = logging.INFO,
+  name: str = "app",
+  level: int = logging.INFO,
 ) -> logging.Logger:
-    """Set up a logger with console + rotating-file handlers.
+  """Set up a logger with console + rotating-file handlers.
 
-    Args:
-        name: Logger name for identification. 같은 이름으로 두 번 호출되면
-            기존 logger 를 그대로 반환 (handler 중복 방지).
-        level: Logging level (default: INFO).
+  Args:
+      name: Logger name for identification. 같은 이름으로 두 번 호출되면
+          기존 logger 를 그대로 반환 (handler 중복 방지).
+      level: Logging level (default: INFO).
 
-    Returns:
-        logging.Logger: Configured logger instance.
-    """
-    logger = logging.getLogger(name)
-    if logger.handlers:
-        return logger
-
-    logger.setLevel(level)
-    logger.propagate = False  # 루트 logger 로 중복 전달 방지
-
-    # env 기반 포맷: prod=JSON(수집·분석) / local·dev=사람형식(직접 읽기 쉬움).
-    # 콘솔·파일 동일 포맷터 사용 — local 파일도 사람형식으로 읽기 쉽게.
-    active_formatter: logging.Formatter = JsonFormatter() if _is_prod() else logging.Formatter(_CONSOLE_FORMAT)
-    # 필터는 핸들러에 부착(자식 logger 전파 record 에도 적용되도록).
-    # 순서: truncate(크기) -> scrub(민감패턴 안전망) -> request_id(컨텍스트).
-    # scrub 은 병합·트렁케이트된 최종 메시지에 적용돼야 하므로 truncate 뒤.
-    truncate_filter = TruncateFilter()
-    scrub_filter = ScrubFilter()
-    request_id_filter = RequestIdFilter()
-
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(active_formatter)
-    console_handler.addFilter(truncate_filter)
-    console_handler.addFilter(scrub_filter)
-    console_handler.addFilter(request_id_filter)
-    logger.addHandler(console_handler)
-
-    try:
-        log_dir = _resolve_log_dir()
-        file_handler = SizeTimedRotatingFileHandler(
-            log_dir / f"{name}.log",
-            when=_ROTATE_WHEN,
-            interval=_ROTATE_INTERVAL_HOURS,
-            backupCount=_ROTATE_BACKUP_COUNT,
-            encoding="utf-8",
-            utc=True,
-        )
-        file_handler.addFilter(truncate_filter)
-        file_handler.addFilter(scrub_filter)
-        file_handler.addFilter(request_id_filter)
-        # 백업 파일 이름에 ISO 타임스탬프 suffix (예: app.log.2026-05-01_15)
-        file_handler.suffix = "%Y-%m-%d_%H"
-        file_handler.setFormatter(active_formatter)
-        logger.addHandler(file_handler)
-    except OSError:
-        # 파일 시스템 권한 문제 등으로 파일 핸들러 생성 실패 시 콘솔만 유지.
-        # 정확한 원인은 콘솔 logger 가 직접 emit (logger 자기 자신에 의존하지 않음).
-        logger.warning("Failed to attach TimedRotatingFileHandler — console only", exc_info=True)
-
+  Returns:
+      logging.Logger: Configured logger instance.
+  """
+  logger = logging.getLogger(name)
+  if logger.handlers:
     return logger
+
+  logger.setLevel(level)
+  logger.propagate = False  # 루트 logger 로 중복 전달 방지
+
+  # env 기반 포맷: prod=JSON(수집·분석) / local·dev=사람형식(직접 읽기 쉬움).
+  # 콘솔·파일 동일 포맷터 사용 — local 파일도 사람형식으로 읽기 쉽게.
+  active_formatter: logging.Formatter = JsonFormatter() if _is_prod() else logging.Formatter(_CONSOLE_FORMAT)
+  # 필터는 핸들러에 부착(자식 logger 전파 record 에도 적용되도록).
+  # 순서: truncate(크기) -> scrub(민감패턴 안전망) -> request_id(컨텍스트).
+  # scrub 은 병합·트렁케이트된 최종 메시지에 적용돼야 하므로 truncate 뒤.
+  truncate_filter = TruncateFilter()
+  scrub_filter = ScrubFilter()
+  request_id_filter = RequestIdFilter()
+
+  console_handler = logging.StreamHandler(sys.stdout)
+  console_handler.setFormatter(active_formatter)
+  console_handler.addFilter(truncate_filter)
+  console_handler.addFilter(scrub_filter)
+  console_handler.addFilter(request_id_filter)
+  logger.addHandler(console_handler)
+
+  try:
+    log_dir = _resolve_log_dir()
+    file_handler = SizeTimedRotatingFileHandler(
+      log_dir / f"{name}.log",
+      when=_ROTATE_WHEN,
+      interval=_ROTATE_INTERVAL_HOURS,
+      backupCount=_ROTATE_BACKUP_COUNT,
+      encoding="utf-8",
+      utc=True,
+    )
+    file_handler.addFilter(truncate_filter)
+    file_handler.addFilter(scrub_filter)
+    file_handler.addFilter(request_id_filter)
+    # 백업 파일 이름에 ISO 타임스탬프 suffix (예: app.log.2026-05-01_15)
+    file_handler.suffix = "%Y-%m-%d_%H"
+    file_handler.setFormatter(active_formatter)
+    logger.addHandler(file_handler)
+  except OSError:
+    # 파일 시스템 권한 문제 등으로 파일 핸들러 생성 실패 시 콘솔만 유지.
+    # 정확한 원인은 콘솔 logger 가 직접 emit (logger 자기 자신에 의존하지 않음).
+    logger.warning("Failed to attach TimedRotatingFileHandler — console only", exc_info=True)
+
+  return logger
 
 
 # ── 전역 예외 핸들러 로깅 헬퍼 (재사용) ────────────────────────────────
 # 흐름: 잡은 예외 + 요청 컨텍스트(kind/method/path) -> ERROR 로그(스택 포함)
 # 프레임워크 비의존(Request 대신 method/path 문자열) → 단위테스트 용이·재사용.
 def log_handled_exception(
-    logger: logging.Logger,
-    exc: Exception,
-    *,
-    method: str,
-    path: str,
-    kind: str,
+  logger: logging.Logger,
+  exc: Exception,
+  *,
+  method: str,
+  path: str,
+  kind: str,
 ) -> None:
-    """전역 예외 핸들러가 잡은 예외를 요청 컨텍스트 + 스택과 함께 ERROR 기록.
+  """전역 예외 핸들러가 잡은 예외를 요청 컨텍스트 + 스택과 함께 ERROR 기록.
 
-    Args:
-        logger: 기록에 사용할 로거.
-        exc: 잡힌 예외 인스턴스.
-        method: HTTP 메서드(예: GET).
-        path: 요청 경로(예: /api/v1/...).
-        kind: 분류 라벨(예: ``orm`` / ``db_connection`` / ``unhandled``).
-    """
-    logger.error("[%s] %s during %s %s", kind, type(exc).__name__, method, path, exc_info=exc)
+  Args:
+      logger: 기록에 사용할 로거.
+      exc: 잡힌 예외 인스턴스.
+      method: HTTP 메서드(예: GET).
+      path: 요청 경로(예: /api/v1/...).
+      kind: 분류 라벨(예: ``orm`` / ``db_connection`` / ``unhandled``).
+  """
+  logger.error("[%s] %s during %s %s", kind, type(exc).__name__, method, path, exc_info=exc)
 
 
 # ── 외부 경계 관측 로깅 (재사용 async 컨텍스트) ────────────────────────
@@ -261,47 +261,45 @@ def log_handled_exception(
 # 주의: 호출자는 PII/token 을 operation/context 에 넣지 않을 책임(CLAUDE.md §9).
 @contextlib.asynccontextmanager
 async def log_boundary(
-    logger: logging.Logger,
-    operation: str,
-    **context: object,
+  logger: logging.Logger,
+  operation: str,
+  **context: object,
 ) -> AsyncIterator[None]:
-    """외부 서비스 호출 경계의 시작·성공·실패를 표준 형식으로 기록.
+  """외부 서비스 호출 경계의 시작·성공·실패를 표준 형식으로 기록.
 
-    번역된 예외(HTTPException 등)가 상위에서 삼켜져 서버 로그에 남지 않는
-    문제를 방지 — 경계에서 원본 실패를 먼저 관측한 뒤 예외를 재전파한다.
+  번역된 예외(HTTPException 등)가 상위에서 삼켜져 서버 로그에 남지 않는
+  문제를 방지 — 경계에서 원본 실패를 먼저 관측한 뒤 예외를 재전파한다.
 
-    Args:
-        logger: 기록에 사용할 (호출 모듈의) 로거.
-        operation: 경계 식별 라벨(예: ``kakao_token_exchange``).
-        **context: 안전한 부가 컨텍스트(예: ``url=...``). token/PII 금지.
+  Args:
+      logger: 기록에 사용할 (호출 모듈의) 로거.
+      operation: 경계 식별 라벨(예: ``kakao_token_exchange``).
+      **context: 안전한 부가 컨텍스트(예: ``url=...``). token/PII 금지.
 
-    Yields:
-        None: ``async with`` 본문에서 실제 I/O 를 수행한다.
-    """
-    ctx = " ".join(f"{key}={value}" for key, value in context.items())
-    logger.debug("[BOUNDARY] %s 시작 %s", operation, ctx)
-    start = time.perf_counter()
-    try:
-        yield
-    except Exception as exc:
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        status_code = getattr(getattr(exc, "response", None), "status_code", None)
-        if isinstance(status_code, int) and 400 <= status_code < 500:
-            # 설정/클라이언트 오류(예: 카카오 KOE320) — 재현 가능·스택 불필요.
-            logger.warning(
-                "[BOUNDARY] %s 실패(4xx) status=%s %s (%.0fms): %s", operation, status_code, ctx, elapsed_ms, exc
-            )
-        else:
-            # 서버 5xx·네트워크·예상 밖 버그 — 스택 포함해 원인 추적.
-            # 🔒 TRY400 억제는 «정당한 예외» 다 — exc_info=exc 로 이미 스택을 남긴다.
-            #    logger.exception 은 «현재 처리 중인 예외» 를 쓰므로 여기선 의미가 달라진다.
-            logger.error(  # noqa: TRY400
-                "[BOUNDARY] %s 실패 %s (%.0fms)", operation, ctx, elapsed_ms, exc_info=exc
-            )
-        raise
+  Yields:
+      None: ``async with`` 본문에서 실제 I/O 를 수행한다.
+  """
+  ctx = " ".join(f"{key}={value}" for key, value in context.items())
+  logger.debug("[BOUNDARY] %s 시작 %s", operation, ctx)
+  start = time.perf_counter()
+  try:
+    yield
+  except Exception as exc:
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    status_code = getattr(getattr(exc, "response", None), "status_code", None)
+    if isinstance(status_code, int) and 400 <= status_code < 500:
+      # 설정/클라이언트 오류(예: 카카오 KOE320) — 재현 가능·스택 불필요.
+      logger.warning("[BOUNDARY] %s 실패(4xx) status=%s %s (%.0fms): %s", operation, status_code, ctx, elapsed_ms, exc)
     else:
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        logger.info("[BOUNDARY] %s 성공 %s (%.0fms)", operation, ctx, elapsed_ms)
+      # 서버 5xx·네트워크·예상 밖 버그 — 스택 포함해 원인 추적.
+      # 🔒 TRY400 억제는 «정당한 예외» 다 — exc_info=exc 로 이미 스택을 남긴다.
+      #    logger.exception 은 «현재 처리 중인 예외» 를 쓰므로 여기선 의미가 달라진다.
+      logger.error(  # noqa: TRY400
+        "[BOUNDARY] %s 실패 %s (%.0fms)", operation, ctx, elapsed_ms, exc_info=exc
+      )
+    raise
+  else:
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    logger.info("[BOUNDARY] %s 성공 %s (%.0fms)", operation, ctx, elapsed_ms)
 
 
 # Global loggers for the application.

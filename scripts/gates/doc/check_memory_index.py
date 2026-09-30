@@ -63,83 +63,83 @@ PENDING_WORDS = ("대기", "pending", "미착수", "다음은", "진행 예정",
 # ⚠️ 처음엔 `- [` 목록 항목만 봤는데, 상단 상시규칙 배너(`> 🧹 ... [정책](x.md)`)에서
 #    링크된 파일이 orphan 으로 잘못 걸렸다. **도달 가능성**이 기준이지 서식이 아니다.
 def index_entries() -> dict[str, str]:
-    """메모리 인덱스에서 (파일명 -> 설명) 쌍을 긁어낸다."""
-    entries: dict[str, str] = {}
-    for line in INDEX.read_text(encoding="utf-8").splitlines():
-        for match in LINK.finditer(line):
-            entries.setdefault(match.group(1), line.strip())
-    return entries
+  """메모리 인덱스에서 (파일명 -> 설명) 쌍을 긁어낸다."""
+  entries: dict[str, str] = {}
+  for line in INDEX.read_text(encoding="utf-8").splitlines():
+    for match in LINK.finditer(line):
+      entries.setdefault(match.group(1), line.strip())
+  return entries
 
 
 # ── 검사 본문 ───────────────────────────────────────────────────────────
 # 흐름: 인덱스 수집 -> dangling/orphan(실패) -> 상태어 충돌(보고)
 def main() -> int:
-    """인덱스와 실제 메모리 파일을 대조하고 결과를 인쇄한다."""
-    # fail-closed: 인덱스를 못 찾으면 "정합하다"가 아니라 "검사하지 못했다"이다.
-    # 이 훅은 pre-push 로컬 전용이라 메모리가 없을 이유가 없다.
-    if not INDEX.exists():
-        print(f"❌ 메모리 인덱스가 없다 — {INDEX}")
-        print("   경로가 바뀌었거나 메모리가 사라졌다. 검사가 무력화된 상태다(fail-closed).")
-        return 1
+  """인덱스와 실제 메모리 파일을 대조하고 결과를 인쇄한다."""
+  # fail-closed: 인덱스를 못 찾으면 "정합하다"가 아니라 "검사하지 못했다"이다.
+  # 이 훅은 pre-push 로컬 전용이라 메모리가 없을 이유가 없다.
+  if not INDEX.exists():
+    print(f"❌ 메모리 인덱스가 없다 — {INDEX}")
+    print("   경로가 바뀌었거나 메모리가 사라졌다. 검사가 무력화된 상태다(fail-closed).")
+    return 1
 
-    entries = index_entries()
-    if not entries:
-        print("❌ 인덱스에서 메모리 줄을 한 건도 못 읽었다. 형식이 바뀌었거나 파서가 깨졌다.")
-        return 1
+  entries = index_entries()
+  if not entries:
+    print("❌ 인덱스에서 메모리 줄을 한 건도 못 읽었다. 형식이 바뀌었거나 파서가 깨졌다.")
+    return 1
 
-    files = {p.name for p in MEMORY_DIR.glob("*.md")} - {"MEMORY.md"}
+  files = {p.name for p in MEMORY_DIR.glob("*.md")} - {"MEMORY.md"}
 
-    dangling = sorted(name for name in entries if name not in files)
-    orphan = sorted(files - set(entries))
+  dangling = sorted(name for name in entries if name not in files)
+  orphan = sorted(files - set(entries))
 
-    conflicts: list[str] = []
-    for name, line in sorted(entries.items()):
-        if name not in files:
-            continue
-        body = (MEMORY_DIR / name).read_text(encoding="utf-8")
-        found = DESCRIPTION.search(body)
-        if not found:
-            continue
-        description = found.group(1)
-        body_done = any(w in description for w in DONE_WORDS)
-        index_pending = any(w in line for w in PENDING_WORDS)
-        index_done = any(w in line for w in DONE_WORDS)
-        if body_done and index_pending and not index_done:
-            conflicts.append(f"{name}\n      본문 : {description[:90]}\n      인덱스: {line[:90]}")
+  conflicts: list[str] = []
+  for name, line in sorted(entries.items()):
+    if name not in files:
+      continue
+    body = (MEMORY_DIR / name).read_text(encoding="utf-8")
+    found = DESCRIPTION.search(body)
+    if not found:
+      continue
+    description = found.group(1)
+    body_done = any(w in description for w in DONE_WORDS)
+    index_pending = any(w in line for w in PENDING_WORDS)
+    index_done = any(w in line for w in DONE_WORDS)
+    if body_done and index_pending and not index_done:
+      conflicts.append(f"{name}\n      본문 : {description[:90]}\n      인덱스: {line[:90]}")
 
-    if conflicts:
-        print(f"🟡 상태어 충돌 {len(conflicts)}건 — 인덱스가 본문보다 낡았을 수 있다 (보고, 차단 아님):")
-        for item in conflicts:
-            print(f"   - {item}")
-        print()
+  if conflicts:
+    print(f"🟡 상태어 충돌 {len(conflicts)}건 — 인덱스가 본문보다 낡았을 수 있다 (보고, 차단 아님):")
+    for item in conflicts:
+      print(f"   - {item}")
+    print()
 
-    failed = False
-    if dangling:
-        print(f"❌ 인덱스가 **없는 파일**을 가리킨다 {len(dangling)}건:")
-        for name in dangling:
-            print(f"   - {name}")
-        failed = True
-    if orphan:
-        print(f"❌ 인덱스에 **없는 메모리 파일** {len(orphan)}건 (회상되지 않으면 영원히 안 읽힌다):")
-        for name in orphan:
-            print(f"   - {name}")
-        failed = True
+  failed = False
+  if dangling:
+    print(f"❌ 인덱스가 **없는 파일**을 가리킨다 {len(dangling)}건:")
+    for name in dangling:
+      print(f"   - {name}")
+    failed = True
+  if orphan:
+    print(f"❌ 인덱스에 **없는 메모리 파일** {len(orphan)}건 (회상되지 않으면 영원히 안 읽힌다):")
+    for name in orphan:
+      print(f"   - {name}")
+    failed = True
 
-    if failed:
-        return 1
+  if failed:
+    return 1
 
-    if len(entries) < MIN_MEMORIES or len(files) < MIN_MEMORIES:
-        print(
-            f"❌ 대상이 줄었다 — 인덱스 항목 {len(entries)}건 · 파일 {len(files)}건 (기대 각 ≥{MIN_MEMORIES}).",
-            file=sys.stderr,
-        )
-        print("   메모리를 대량 삭제했거나 파싱이 깨졌다. 줄어든 것도 실패다(fail-closed).", file=sys.stderr)
-        return 1
-    print(f"✅ 메모리 인덱스 정합 — 항목 {len(entries)}건 · 파일 {len(files)}건 · dangling 0 · orphan 0.")
-    if not conflicts:
-        print("   (상태어 충돌도 없음. 단 이 검사는 실측 검출률 50% 라 '깨끗함'의 증거가 아니다.)")
-    return 0
+  if len(entries) < MIN_MEMORIES or len(files) < MIN_MEMORIES:
+    print(
+      f"❌ 대상이 줄었다 — 인덱스 항목 {len(entries)}건 · 파일 {len(files)}건 (기대 각 ≥{MIN_MEMORIES}).",
+      file=sys.stderr,
+    )
+    print("   메모리를 대량 삭제했거나 파싱이 깨졌다. 줄어든 것도 실패다(fail-closed).", file=sys.stderr)
+    return 1
+  print(f"✅ 메모리 인덱스 정합 — 항목 {len(entries)}건 · 파일 {len(files)}건 · dangling 0 · orphan 0.")
+  if not conflicts:
+    print("   (상태어 충돌도 없음. 단 이 검사는 실측 검출률 50% 라 '깨끗함'의 증거가 아니다.)")
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

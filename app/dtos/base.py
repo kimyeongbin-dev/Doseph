@@ -8,10 +8,10 @@ from pydantic import BaseModel, ConfigDict
 
 
 class BaseSerializerModel(BaseModel):
-    """Base serializer model with common configuration.
+  """Base serializer model with common configuration.
 
-    Provides common configuration for all DTO models including
-    automatic attribute mapping from ORM models.
-    """
+  Provides common configuration for all DTO models including
+  automatic attribute mapping from ORM models.
+  """
 
-    model_config = ConfigDict(from_attributes=True)
+  model_config = ConfigDict(from_attributes=True)

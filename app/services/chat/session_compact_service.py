@@ -47,109 +47,109 @@ _MIN_MESSAGES_FOR_SUMMARY: int = 2
 
 @dataclass(frozen=True)
 class CompactMessage:
-    """Minimal message projection needed for compaction.
+  """Minimal message projection needed for compaction.
 
-    Deliberately decoupled from ``ChatMessage`` ORM objects so the service
-    is pure-Python testable without a DB. Callers map rows to this shape.
-    """
+  Deliberately decoupled from ``ChatMessage`` ORM objects so the service
+  is pure-Python testable without a DB. Callers map rows to this shape.
+  """
 
-    role: str  # "user" | "assistant"
-    content: str
-    intent: str | None  # classifier output stored on user-turn metadata
+  role: str  # "user" | "assistant"
+  content: str
+  intent: str | None  # classifier output stored on user-turn metadata
 
 
 @dataclass(frozen=True)
 class CompactInput:
-    """Input payload for a single compaction run."""
+  """Input payload for a single compaction run."""
 
-    prev_summary: str | None
-    messages: list[CompactMessage]
+  prev_summary: str | None
+  messages: list[CompactMessage]
 
 
 class SessionCompactService:
-    """Orchestrates pollution filtering + LLM summarisation.
+  """Orchestrates pollution filtering + LLM summarisation.
 
-    The RAG generator is injected so tests can exercise filter + contract
-    logic without a live OpenAI client. In production, FastAPI wires in
-    the ``RQRAGGenerator`` adapter which enqueues ``compact_messages_job``.
+  The RAG generator is injected so tests can exercise filter + contract
+  logic without a live OpenAI client. In production, FastAPI wires in
+  the ``RQRAGGenerator`` adapter which enqueues ``compact_messages_job``.
+  """
+
+  def __init__(self, rag_generator: object) -> None:
+    """Store the LLM generator dependency.
+
+    Args:
+        rag_generator: Any object exposing an awaitable
+            ``summarize_messages(messages, prev_summary)`` returning
+            a ``SummaryResult``.
     """
+    self.rag_generator = rag_generator
 
-    def __init__(self, rag_generator: object) -> None:
-        """Store the LLM generator dependency.
+  def filter_noise(self, messages: list[CompactMessage]) -> list[CompactMessage]:
+    """Drop USER turns classified as noise along with their paired ASSISTANT turn.
 
-        Args:
-            rag_generator: Any object exposing an awaitable
-                ``summarize_messages(messages, prev_summary)`` returning
-                a ``SummaryResult``.
-        """
-        self.rag_generator = rag_generator
+    Rules (사라진 계획 «세션 컴팩트 Z-5»):
+    - If a USER turn's ``intent`` is in :data:`_NOISE_INTENTS`, remove it
+      and the immediately following ASSISTANT turn (if any).
+    - Missing/None intent is kept — losing medical context is worse than
+      retaining a little noise.
+    - Order is preserved; no interleaving is introduced.
+    """
+    kept: list[CompactMessage] = []
+    skip_next_assistant = False
 
-    def filter_noise(self, messages: list[CompactMessage]) -> list[CompactMessage]:
-        """Drop USER turns classified as noise along with their paired ASSISTANT turn.
-
-        Rules (사라진 계획 «세션 컴팩트 Z-5»):
-        - If a USER turn's ``intent`` is in :data:`_NOISE_INTENTS`, remove it
-          and the immediately following ASSISTANT turn (if any).
-        - Missing/None intent is kept — losing medical context is worse than
-          retaining a little noise.
-        - Order is preserved; no interleaving is introduced.
-        """
-        kept: list[CompactMessage] = []
+    for msg in messages:
+      if skip_next_assistant:
         skip_next_assistant = False
+        if msg.role == "assistant":
+          continue
+        # Unexpected role ordering — fall through and keep the message.
 
-        for msg in messages:
-            if skip_next_assistant:
-                skip_next_assistant = False
-                if msg.role == "assistant":
-                    continue
-                # Unexpected role ordering — fall through and keep the message.
+      if msg.role == "user" and msg.intent in _NOISE_INTENTS:
+        skip_next_assistant = True
+        continue
 
-            if msg.role == "user" and msg.intent in _NOISE_INTENTS:
-                skip_next_assistant = True
-                continue
+      kept.append(msg)
 
-            kept.append(msg)
+    return kept
 
-        return kept
+  async def summarize(self, payload: CompactInput) -> SummaryResult:
+    """Filter noise, then delegate to the LLM generator.
 
-    async def summarize(self, payload: CompactInput) -> SummaryResult:
-        """Filter noise, then delegate to the LLM generator.
+    Returns ``SummaryStatus.EMPTY`` without calling the LLM when too
+    few messages remain after filtering. Technical failures surface as
+    ``FALLBACK`` so the caller keeps the previously stored summary.
+    """
+    filtered = self.filter_noise(payload.messages)
 
-        Returns ``SummaryStatus.EMPTY`` without calling the LLM when too
-        few messages remain after filtering. Technical failures surface as
-        ``FALLBACK`` so the caller keeps the previously stored summary.
-        """
-        filtered = self.filter_noise(payload.messages)
+    if len(filtered) < _MIN_MESSAGES_FOR_SUMMARY:
+      logger.info(
+        "[COMPACT] skip: filtered=%d min=%d (nothing worth summarising)",
+        len(filtered),
+        _MIN_MESSAGES_FOR_SUMMARY,
+      )
+      return SummaryResult(
+        status=SummaryStatus.EMPTY,
+        summary="",
+        consumed_message_count=0,
+        token_usage=None,
+      )
 
-        if len(filtered) < _MIN_MESSAGES_FOR_SUMMARY:
-            logger.info(
-                "[COMPACT] skip: filtered=%d min=%d (nothing worth summarising)",
-                len(filtered),
-                _MIN_MESSAGES_FOR_SUMMARY,
-            )
-            return SummaryResult(
-                status=SummaryStatus.EMPTY,
-                summary="",
-                consumed_message_count=0,
-                token_usage=None,
-            )
+    forwarded = [{"role": m.role, "content": m.content} for m in filtered]
 
-        forwarded = [{"role": m.role, "content": m.content} for m in filtered]
+    try:
+      result = await self.rag_generator.summarize_messages(
+        messages=forwarded,
+        prev_summary=payload.prev_summary,
+      )
+    except Exception:
+      # logger.exception automatically attaches the stack trace; the
+      # exception does not bubble because compaction is best-effort.
+      logger.exception("[COMPACT] generator failed; fallback to prior summary")
+      return SummaryResult(
+        status=SummaryStatus.FALLBACK,
+        summary="",
+        consumed_message_count=0,
+        token_usage=None,
+      )
 
-        try:
-            result = await self.rag_generator.summarize_messages(
-                messages=forwarded,
-                prev_summary=payload.prev_summary,
-            )
-        except Exception:
-            # logger.exception automatically attaches the stack trace; the
-            # exception does not bubble because compaction is best-effort.
-            logger.exception("[COMPACT] generator failed; fallback to prior summary")
-            return SummaryResult(
-                status=SummaryStatus.FALLBACK,
-                summary="",
-                consumed_message_count=0,
-                token_usage=None,
-            )
-
-        return result
+    return result

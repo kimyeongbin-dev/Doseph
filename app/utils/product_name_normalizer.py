@@ -24,32 +24,32 @@ _WHITESPACE_RE = re.compile(r"\s+")
 
 
 def normalize_product_name(name: str | None) -> str:
-    """Strip all whitespace, NFKC-normalize, and lower-case a product name.
+  """Strip all whitespace, NFKC-normalize, and lower-case a product name.
 
-    Args:
-        name: Raw medicine_name / product_name. ``None`` or empty string
-            returns the empty string for NULL safety.
+  Args:
+      name: Raw medicine_name / product_name. ``None`` or empty string
+          returns the empty string for NULL safety.
 
-    Returns:
-        Canonical name. Idempotent — feeding the result back in produces
-        the same value. Always a ``str``; never ``None``.
+  Returns:
+      Canonical name. Idempotent — feeding the result back in produces
+      the same value. Always a ``str``; never ``None``.
 
-    Examples:
-        >>> normalize_product_name(" 데모라니티딘정 150밀리그램 ")
-        '데모라니티딘정150밀리그램'
-        >>> normalize_product_name("Tylenol 500mg")
-        'tylenol500mg'
-        >>> normalize_product_name(None)
-        ''
-    """
-    if not name:
-        return ""
+  Examples:
+      >>> normalize_product_name(" 데모라니티딘정 150밀리그램 ")
+      '데모라니티딘정150밀리그램'
+      >>> normalize_product_name("Tylenol 500mg")
+      'tylenol500mg'
+      >>> normalize_product_name(None)
+      ''
+  """
+  if not name:
+    return ""
 
-    # NFKC: 전각→반각, NBSP→일반 공백 등 폭 변형 통일.
-    nfkc = unicodedata.normalize("NFKC", name)
+  # NFKC: 전각→반각, NBSP→일반 공백 등 폭 변형 통일.
+  nfkc = unicodedata.normalize("NFKC", name)
 
-    # 모든 공백 제거 — 시드 PRDUCT 가 공백 없는 표기를 쓰므로 입력 측을 맞춘다.
-    no_space = _WHITESPACE_RE.sub("", nfkc)
+  # 모든 공백 제거 — 시드 PRDUCT 가 공백 없는 표기를 쓰므로 입력 측을 맞춘다.
+  no_space = _WHITESPACE_RE.sub("", nfkc)
 
-    # 영문 대소문자 변형 흡수.
-    return no_space.lower()
+  # 영문 대소문자 변형 흡수.
+  return no_space.lower()

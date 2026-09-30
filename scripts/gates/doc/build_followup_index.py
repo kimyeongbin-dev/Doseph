@@ -29,9 +29,9 @@ import sys
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from scripts.gates._root import PRIVATE
 
@@ -87,66 +87,66 @@ CLOSED_SECTIONS = {"QA": ("§C", "§A"), "L": ("2. 닫힌",)}
 
 
 def tidy(text: str, limit: int = 150) -> str:
-    """표 셀에서 장식을 걷고 한 줄로 줄인다."""
-    clean = NOISE.sub("", text).replace("|", "/").strip()
-    clean = re.sub(r"\s+", " ", clean)
-    return clean[:limit] + ("…" if len(clean) > limit else "")
+  """표 셀에서 장식을 걷고 한 줄로 줄인다."""
+  clean = NOISE.sub("", text).replace("|", "/").strip()
+  clean = re.sub(r"\s+", " ", clean)
+  return clean[:limit] + ("…" if len(clean) > limit else "")
 
 
 # ── 원장 하나에서 항목을 긁는다 ─────────────────────────────────────
 # 흐름: 파일 읽기 -> 줄머리 앵커로 표 행·제목형 수집 -> (ID, 셀들) 목록
 def scrape(filename: str, prefix: str) -> list[tuple[str, list[str]]]:
-    """(ID, 셀 목록). `prefix` 로 시작하는 ID 만 남긴다.
+  """(ID, 셀 목록). `prefix` 로 시작하는 ID 만 남긴다.
 
-    🔑 마지막 셀 뒤에 **그 행이 있던 절 이름**을 붙인다 — `QA`·`L` 은 절이 상태를 말한다.
-    """
-    path = PRIVATE / filename
-    body = path.read_text(encoding="utf-8", errors="replace")
-    items: dict[str, list[str]] = {}
-    section = ""
-    for line in body.splitlines():
-        if line.startswith("## "):
-            section = line[3:].strip()
-        row = ROW.match(line)
-        if row and row.group(1).startswith(prefix):
-            cells = [c.strip() for c in row.group(2).split("|") if c.strip()]
-            items.setdefault(row.group(1), [*cells, f"§절={section}"])
-    section = ""
-    for line in body.splitlines():
-        if line.startswith("## "):
-            section = line[3:].strip()
-        head = HEAD.match(line)
-        if head and head.group(1).startswith(prefix):
-            items.setdefault(head.group(1), [head.group(2).strip(), f"§절={section}"])
-    return sorted(items.items(), key=lambda kv: int(re.sub(r"\D", "", kv[0]) or 0))
+  🔑 마지막 셀 뒤에 **그 행이 있던 절 이름**을 붙인다 — `QA`·`L` 은 절이 상태를 말한다.
+  """
+  path = PRIVATE / filename
+  body = path.read_text(encoding="utf-8", errors="replace")
+  items: dict[str, list[str]] = {}
+  section = ""
+  for line in body.splitlines():
+    if line.startswith("## "):
+      section = line[3:].strip()
+    row = ROW.match(line)
+    if row and row.group(1).startswith(prefix):
+      cells = [c.strip() for c in row.group(2).split("|") if c.strip()]
+      items.setdefault(row.group(1), [*cells, f"§절={section}"])
+  section = ""
+  for line in body.splitlines():
+    if line.startswith("## "):
+      section = line[3:].strip()
+    head = HEAD.match(line)
+    if head and head.group(1).startswith(prefix):
+      items.setdefault(head.group(1), [head.group(2).strip(), f"§절={section}"])
+  return sorted(items.items(), key=lambda kv: int(re.sub(r"\D", "", kv[0]) or 0))
 
 
 # ── 열림/닫힘 판정 ──────────────────────────────────────────────────
 # 흐름: 원장마다 다른 신호를 읽는다 — 구조(절) 또는 토큰
 # 🔴 두 방식이 섞이는 이유: `QA`·`L` 은 절이 갈라 놨고, `문서-N` 은 한 표에 섞여 있다.
 def open_count(rows: list[tuple[str, list[str]]], ledger: str) -> tuple[int, str | None]:
-    """(열린 건수, 문제 메시지 또는 None)."""
-    if ledger in CLOSED_SECTIONS:
-        marks = CLOSED_SECTIONS[ledger]
-        return sum(1 for _, cells in rows if not any(m in cells[-1] for m in marks)), None
+  """(열린 건수, 문제 메시지 또는 None)."""
+  if ledger in CLOSED_SECTIONS:
+    marks = CLOSED_SECTIONS[ledger]
+    return sum(1 for _, cells in rows if not any(m in cells[-1] for m in marks)), None
 
-    if ledger != "문서":
-        return len(rows), None
+  if ledger != "문서":
+    return len(rows), None
 
-    # 🔴 fail-closed — 토큰 없는 행이 하나라도 있으면 «열림» 수를 믿을 수 없다.
-    # 🔴 «상태 셀» 에서만 찾는다 — 전체를 이으면 **내용 셀의 같은 단어**가 먼저 걸린다.
-    #    `cells[-1]` 은 절 표식이므로 그 앞이 상태 셀이다.
-    def token(cells: list[str]) -> str | None:
-        cell = cells[-2] if len(cells) >= 2 else ""
-        found = STATUS_RE.search(cell)
-        return found.group(1) if found else None
+  # 🔴 fail-closed — 토큰 없는 행이 하나라도 있으면 «열림» 수를 믿을 수 없다.
+  # 🔴 «상태 셀» 에서만 찾는다 — 전체를 이으면 **내용 셀의 같은 단어**가 먼저 걸린다.
+  #    `cells[-1]` 은 절 표식이므로 그 앞이 상태 셀이다.
+  def token(cells: list[str]) -> str | None:
+    cell = cells[-2] if len(cells) >= 2 else ""
+    found = STATUS_RE.search(cell)
+    return found.group(1) if found else None
 
-    missing = [ident for ident, cells in rows if token(cells) is None]
-    if missing:
-        head = " · ".join(missing[:8]) + (" …" if len(missing) > 8 else "")
-        return 0, f"상태 토큰이 없는 `문서-N` {len(missing)}건 — {head}"
-    opened = sum(1 for _, cells in rows if token(cells) not in CLOSED_TOKENS)
-    return opened, None
+  missing = [ident for ident, cells in rows if token(cells) is None]
+  if missing:
+    head = " · ".join(missing[:8]) + (" …" if len(missing) > 8 else "")
+    return 0, f"상태 토큰이 없는 `문서-N` {len(missing)}건 — {head}"
+  opened = sum(1 for _, cells in rows if token(cells) not in CLOSED_TOKENS)
+  return opened, None
 
 
 # ── 트랙 B 구간 잘라내기 ─────────────────────────────────────────────
@@ -154,155 +154,155 @@ def open_count(rows: list[tuple[str, list[str]]], ledger: str) -> tuple[int, str
 # 🔴 예전엔 `split("###")[0]` 로 잘랐는데, 트랙 B 머리에 `####` 대응표가 들어오자
 #    **표 앞에서 잘려 B 를 0건**으로 셌다(2026-09-23, 문서-13). 앵커 없는 분할이다(D47).
 def track_b_block(roadmap: str) -> str:
-    """`## 트랙 B` 절 전체를 돌려준다.
+  """`## 트랙 B` 절 전체를 돌려준다.
 
-    Args:
-        roadmap: `ROADMAP.md` 전문.
+  Args:
+      roadmap: `ROADMAP.md` 전문.
 
-    Returns:
-        그 절의 본문. 없으면 빈 문자열.
-    """
-    marker = "## 트랙 B"
-    if marker not in roadmap:
-        return ""
-    rest = roadmap.split(marker, 1)[1]
-    following = re.search(r"(?m)^## ", rest)
-    return rest[: following.start()] if following else rest
+  Returns:
+      그 절의 본문. 없으면 빈 문자열.
+  """
+  marker = "## 트랙 B"
+  if marker not in roadmap:
+    return ""
+  rest = roadmap.split(marker, 1)[1]
+  following = re.search(r"(?m)^## ", rest)
+  return rest[: following.start()] if following else rest
 
 
 # ── 색인 본문 생성 ──────────────────────────────────────────────────
 # 흐름: 5개 원장 긁기 -> 바닥값 대조 -> 마크다운 조립
 def build() -> tuple[str, dict[str, int]]:
-    """(색인 본문, 원장별 건수)."""
-    qa = scrape("FOLLOWUP_QUEUE.md", "QA-")
-    docs = scrape("DOC_TRUTH_DRIFT.md", "문서-")
-    local = scrape("LOCAL_RESIDUE.md", "L-")
+  """(색인 본문, 원장별 건수)."""
+  qa = scrape("FOLLOWUP_QUEUE.md", "QA-")
+  docs = scrape("DOC_TRUTH_DRIFT.md", "문서-")
+  local = scrape("LOCAL_RESIDUE.md", "L-")
 
-    roadmap_body = (PRIVATE / "ROADMAP.md").read_text(encoding="utf-8", errors="replace")
-    tracks = sorted(
-        {
-            ident: [c.strip() for c in rest.split("|") if c.strip()]
-            for ident, rest in ROW.findall(roadmap_body)
-            if re.match(r"^(OCR|C|ARCH)-\d+$", ident)
-        }.items(),
-        key=lambda kv: (kv[0].split("-")[0], int(kv[0].split("-")[1])),
-    )
-    btrack = [
-        (f"B-{num}", [tidy(title), tidy(state, 60)]) for num, title, state in BSTEP.findall(track_b_block(roadmap_body))
-    ]
+  roadmap_body = (PRIVATE / "ROADMAP.md").read_text(encoding="utf-8", errors="replace")
+  tracks = sorted(
+    {
+      ident: [c.strip() for c in rest.split("|") if c.strip()]
+      for ident, rest in ROW.findall(roadmap_body)
+      if re.match(r"^(OCR|C|ARCH)-\d+$", ident)
+    }.items(),
+    key=lambda kv: (kv[0].split("-")[0], int(kv[0].split("-")[1])),
+  )
+  btrack = [
+    (f"B-{num}", [tidy(title), tidy(state, 60)]) for num, title, state in BSTEP.findall(track_b_block(roadmap_body))
+  ]
 
-    counts = {"QA": len(qa), "문서": len(docs), "L": len(local), "ROADMAP": len(tracks), "B": len(btrack)}
-    opens: dict[str, int] = {}
-    problems: list[str] = []
-    for key, rows in (("QA", qa), ("문서", docs), ("L", local)):
-        opened, why = open_count(rows, key)
-        opens[key] = opened
-        if why:
-            problems.append(why)
+  counts = {"QA": len(qa), "문서": len(docs), "L": len(local), "ROADMAP": len(tracks), "B": len(btrack)}
+  opens: dict[str, int] = {}
+  problems: list[str] = []
+  for key, rows in (("QA", qa), ("문서", docs), ("L", local)):
+    opened, why = open_count(rows, key)
+    opens[key] = opened
+    if why:
+      problems.append(why)
 
-    out = [
-        "<!-- doc-meta",
-        "kind:     queue",
-        "status:   current",
-        "note:     🤖 생성물이다 — 손으로 고치지 않는다. 원장을 고치고 다시 생성한다.",
-        "-->",
-        "",
-        "# 후속 과제 색인 (FOLLOWUP INDEX)",
-        "",
-        "> 🤖 **이 문서는 `scripts/gates/doc/build_followup_index.py` 가 만든다.**",
-        "> **손으로 고치지 말 것** — 다음 생성에서 통째로 덮인다. 고칠 곳은 **원장**이다.",
-        "> `pre-push` 게이트가 *생성물 == 커밋된 것*을 대조한다 — 원장만 고치고 다시 생성하지 않으면",
-        "> **push 가 막힌다.**",
-        ">",
-        "> 🔴 **이 색인은 *표에 적힌 것*을 옮길 뿐 내용을 판정하지 않는다.** 표가 거짓이면 색인도 거짓이다.",
-        "> 그리고 여기 **없는 ID 체계**가 있다 — `R##`(안전망 규칙) · `V-A`~`V-H`(헛된초록 유형) ·",
-        "> `S1`·`S2`…(PLAN 지역 ID) · `D##`(실수 대장). 후속 *과제*가 아니라서 범위 밖이다.",
-        "> 접두사 등록부 = `FILING.md` §3-3.",
-        ">",
-        "> 📤 **닫힌 항목은 여기 없다** — 원장이 항목 배출형이라 완료분은 축 폴더로 내려간다.",
-        "> QA 완료분 = `record/2026-09-21_qa-completed-record.md`. **ID 는 영구·재사용 금지**라,",
-        "> 여기서 번호가 비어 보여도 그 번호는 회수되지 않는다.",
-        "",
-        "---",
-        "",
-    ]
+  out = [
+    "<!-- doc-meta",
+    "kind:     queue",
+    "status:   current",
+    "note:     🤖 생성물이다 — 손으로 고치지 않는다. 원장을 고치고 다시 생성한다.",
+    "-->",
+    "",
+    "# 후속 과제 색인 (FOLLOWUP INDEX)",
+    "",
+    "> 🤖 **이 문서는 `scripts/gates/doc/build_followup_index.py` 가 만든다.**",
+    "> **손으로 고치지 말 것** — 다음 생성에서 통째로 덮인다. 고칠 곳은 **원장**이다.",
+    "> `pre-push` 게이트가 *생성물 == 커밋된 것*을 대조한다 — 원장만 고치고 다시 생성하지 않으면",
+    "> **push 가 막힌다.**",
+    ">",
+    "> 🔴 **이 색인은 *표에 적힌 것*을 옮길 뿐 내용을 판정하지 않는다.** 표가 거짓이면 색인도 거짓이다.",
+    "> 그리고 여기 **없는 ID 체계**가 있다 — `R##`(안전망 규칙) · `V-A`~`V-H`(헛된초록 유형) ·",
+    "> `S1`·`S2`…(PLAN 지역 ID) · `D##`(실수 대장). 후속 *과제*가 아니라서 범위 밖이다.",
+    "> 접두사 등록부 = `FILING.md` §3-3.",
+    ">",
+    "> 📤 **닫힌 항목은 여기 없다** — 원장이 항목 배출형이라 완료분은 축 폴더로 내려간다.",
+    "> QA 완료분 = `record/2026-09-21_qa-completed-record.md`. **ID 는 영구·재사용 금지**라,",
+    "> 여기서 번호가 비어 보여도 그 번호는 회수되지 않는다.",
+    "",
+    "---",
+    "",
+  ]
 
-    def table(title: str, rows: list[tuple[str, list[str]]], ledger: str) -> None:
-        out.append(f"## {title} — {len(rows)}건")
-        out.append("")
-        out.append(f"> 원장 = `{ledger}`")
-        out.append("")
-        out.append("| ID | 내용 |")
-        out.append("|---|---|")
-        for ident, cells in rows:
-            shown = [c for c in cells if c and c != "—" and not c.startswith("§절=")]
-            body = " · ".join(tidy(c, 110) for c in shown[:3])
-            out.append(f"| **{ident}** | {body} |")
-        out.append("")
+  def table(title: str, rows: list[tuple[str, list[str]]], ledger: str) -> None:
+    out.append(f"## {title} — {len(rows)}건")
+    out.append("")
+    out.append(f"> 원장 = `{ledger}`")
+    out.append("")
+    out.append("| ID | 내용 |")
+    out.append("|---|---|")
+    for ident, cells in rows:
+      shown = [c for c in cells if c and c != "—" and not c.startswith("§절=")]
+      body = " · ".join(tidy(c, 110) for c in shown[:3])
+      out.append(f"| **{ident}** | {body} |")
+    out.append("")
 
-    table("🧪 QA — 테스트·검증·게이트", qa, "docs-private/FOLLOWUP_QUEUE.md")
-    table("📄 문서-N — 문서↔현실 어긋남", docs, "docs-private/DOC_TRUTH_DRIFT.md")
-    table("💾 L-N — git 밖 로컬 잔재", local, "docs-private/LOCAL_RESIDUE.md")
-    table("🗺️ 트랙 C · OCR · ARCH", tracks, "docs-private/ROADMAP.md")
-    table("🧱 트랙 B — 정리·강화", btrack, "docs-private/ROADMAP.md")
+  table("🧪 QA — 테스트·검증·게이트", qa, "docs-private/FOLLOWUP_QUEUE.md")
+  table("📄 문서-N — 문서↔현실 어긋남", docs, "docs-private/DOC_TRUTH_DRIFT.md")
+  table("💾 L-N — git 밖 로컬 잔재", local, "docs-private/LOCAL_RESIDUE.md")
+  table("🗺️ 트랙 C · OCR · ARCH", tracks, "docs-private/ROADMAP.md")
+  table("🧱 트랙 B — 정리·강화", btrack, "docs-private/ROADMAP.md")
 
-    out += [
-        "---",
-        "",
-        "## 합계",
-        "",
-        "| 원장 | 등재 | **열림** | 바닥값 |",
-        "|---|---:|---:|---:|",
-        *[f"| {k} | {v} | {opens.get(k, chr(8212))} | {FLOORS[k]} |" for k, v in counts.items()],
-        f"| **총합** | **{sum(counts.values())}** | **{sum(opens.values())}**(QA·문서·L) | |",
-        "",
-        '> 🔢 **바닥값 아래로 떨어지면 게이트가 막는다** — *0건은 "없다"가 아니라 "못 셌다"이다.*',
-        "> 줄어든 것도 실패로 본다(대장 **D31** — `check_utf8_guard` 가 11건→1건이 되고도 초록이었다).",
-        "",
-    ]
-    return "\n".join(out), counts, opens, problems
+  out += [
+    "---",
+    "",
+    "## 합계",
+    "",
+    "| 원장 | 등재 | **열림** | 바닥값 |",
+    "|---|---:|---:|---:|",
+    *[f"| {k} | {v} | {opens.get(k, chr(8212))} | {FLOORS[k]} |" for k, v in counts.items()],
+    f"| **총합** | **{sum(counts.values())}** | **{sum(opens.values())}**(QA·문서·L) | |",
+    "",
+    '> 🔢 **바닥값 아래로 떨어지면 게이트가 막는다** — *0건은 "없다"가 아니라 "못 셌다"이다.*',
+    "> 줄어든 것도 실패로 본다(대장 **D31** — `check_utf8_guard` 가 11건→1건이 되고도 초록이었다).",
+    "",
+  ]
+  return "\n".join(out), counts, opens, problems
 
 
 def main() -> int:
-    """생성 또는 대조."""
-    parser = argparse.ArgumentParser(description="후속 과제 색인 생성/대조")
-    parser.add_argument("--check", action="store_true", help="쓰지 않고 대조만 한다(게이트 모드)")
-    args = parser.parse_args()
+  """생성 또는 대조."""
+  parser = argparse.ArgumentParser(description="후속 과제 색인 생성/대조")
+  parser.add_argument("--check", action="store_true", help="쓰지 않고 대조만 한다(게이트 모드)")
+  args = parser.parse_args()
 
-    content, counts, opens, problems = build()
+  content, counts, opens, problems = build()
 
-    # 🔴 열림을 «못 셌다» 면 그 수를 인쇄하지 않는다 — 0 을 답으로 내면 거짓 안심이다.
-    if problems:
-        print("[거부] 열림/닫힘을 셀 수 없다 — 상태 어휘가 빠졌다.", file=sys.stderr)
-        for line in problems:
-            print(f"  - {line}", file=sys.stderr)
-        print("  값은 `열림`·`완료`·`보냄`·`기각`·`부분` 중 하나다(FILING).", file=sys.stderr)
-        return 1
+  # 🔴 열림을 «못 셌다» 면 그 수를 인쇄하지 않는다 — 0 을 답으로 내면 거짓 안심이다.
+  if problems:
+    print("[거부] 열림/닫힘을 셀 수 없다 — 상태 어휘가 빠졌다.", file=sys.stderr)
+    for line in problems:
+      print(f"  - {line}", file=sys.stderr)
+    print("  값은 `열림`·`완료`·`보냄`·`기각`·`부분` 중 하나다(FILING).", file=sys.stderr)
+    return 1
 
-    low = {k: v for k, v in counts.items() if v < FLOORS[k]}
-    if low:
-        print("\n[거부] 원장에서 항목을 기대보다 적게 셌다 — 패턴이나 경로가 어긋났다.", file=sys.stderr)
-        for key, got in low.items():
-            print(f"  - {key}: {got}건 (기대 최소 {FLOORS[key]})", file=sys.stderr)
-        print("  0건은 '없다' 가 아니라 '못 셌다' 이다(fail-closed).\n", file=sys.stderr)
-        return 1
+  low = {k: v for k, v in counts.items() if v < FLOORS[k]}
+  if low:
+    print("\n[거부] 원장에서 항목을 기대보다 적게 셌다 — 패턴이나 경로가 어긋났다.", file=sys.stderr)
+    for key, got in low.items():
+      print(f"  - {key}: {got}건 (기대 최소 {FLOORS[key]})", file=sys.stderr)
+    print("  0건은 '없다' 가 아니라 '못 셌다' 이다(fail-closed).\n", file=sys.stderr)
+    return 1
 
-    tally = " · ".join(f"{k} {v}" + (f"(열림 {opens[k]})" if k in opens else "") for k, v in counts.items())
+  tally = " · ".join(f"{k} {v}" + (f"(열림 {opens[k]})" if k in opens else "") for k, v in counts.items())
 
-    if args.check:
-        current = INDEX.read_text(encoding="utf-8", errors="replace") if INDEX.exists() else ""
-        if current != content:
-            print("\n[거부] 후속 과제 색인이 원장과 어긋난다.", file=sys.stderr)
-            print("  원장을 고쳤으면 색인도 같은 동작으로 다시 만든다:", file=sys.stderr)
-            print("    uv run python -m scripts.gates.doc.build_followup_index\n", file=sys.stderr)
-            return 1
-        print(f"✅ 후속 과제 색인 정합 — {tally} · 총 {sum(counts.values())}건.")
-        return 0
-
-    INDEX.write_text(content, encoding="utf-8")
-    print(f"✅ 생성 — {INDEX.name} · {tally} · 총 {sum(counts.values())}건.")
+  if args.check:
+    current = INDEX.read_text(encoding="utf-8", errors="replace") if INDEX.exists() else ""
+    if current != content:
+      print("\n[거부] 후속 과제 색인이 원장과 어긋난다.", file=sys.stderr)
+      print("  원장을 고쳤으면 색인도 같은 동작으로 다시 만든다:", file=sys.stderr)
+      print("    uv run python -m scripts.gates.doc.build_followup_index\n", file=sys.stderr)
+      return 1
+    print(f"✅ 후속 과제 색인 정합 — {tally} · 총 {sum(counts.values())}건.")
     return 0
+
+  INDEX.write_text(content, encoding="utf-8")
+  print(f"✅ 생성 — {INDEX.name} · {tally} · 총 {sum(counts.values())}건.")
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

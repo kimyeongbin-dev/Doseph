@@ -38,9 +38,9 @@ import sys
 # Windows 콘솔 기본 코드페이지(cp949)에서 한글 출력이 깨지거나 죽지 않도록 고정한다.
 # 🔴 stdout 과 stderr 는 **서로를 보호하지 않는다** — 한쪽만 고정하면 다른 쪽이 크래시한다(대장 D36).
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import PRIVATE as PRIVATE_DIR
@@ -69,94 +69,90 @@ MIN_PAIRS = 26
 # 흐름: 완료기록 수집 -> 새 규약(plan: 필드)·옛 규약(본문 PLAN_XXX) 양쪽에서 짝 추출
 #       -> 각 짝의 스냅샷 존재 확인 -> 없으면 보고하고 exit 1
 def collect_records() -> list:
-    """`_legacy/` 밖의 완료기록 전부. 축 폴더로 흩어져 있어도 `rglob` 으로 모은다."""
-    return sorted(r for r in PRIVATE_DIR.rglob(RECORD_GLOB) if LEGACY_DIR not in r.parents)
+  """`_legacy/` 밖의 완료기록 전부. 축 폴더로 흩어져 있어도 `rglob` 으로 모은다."""
+  return sorted(r for r in PRIVATE_DIR.rglob(RECORD_GLOB) if LEGACY_DIR not in r.parents)
 
 
 def audit() -> tuple[list[tuple[str, str]], list[str], int, int]:
-    """(빠진 짝, PLAN 을 안 가리키는 기록, 새 규약 쌍 수, 옛 규약 쌍 수)."""
-    missing: list[tuple[str, str]] = []
-    unlinked: list[str] = []
-    new_pairs = old_pairs = 0
+  """(빠진 짝, PLAN 을 안 가리키는 기록, 새 규약 쌍 수, 옛 규약 쌍 수)."""
+  missing: list[tuple[str, str]] = []
+  unlinked: list[str] = []
+  new_pairs = old_pairs = 0
 
-    for record in collect_records():
-        body = record.read_text(encoding="utf-8", errors="replace")
+  for record in collect_records():
+    body = record.read_text(encoding="utf-8", errors="replace")
 
-        for slug in sorted(set(PLAN_FIELD.findall(body))):
-            new_pairs += 1
-            target = PLAN_DIR / (slug if slug.endswith(".md") else f"{slug}.md")
-            if not target.exists():
-                missing.append((record.name, f"plan/{target.name}"))
+    for slug in sorted(set(PLAN_FIELD.findall(body))):
+      new_pairs += 1
+      target = PLAN_DIR / (slug if slug.endswith(".md") else f"{slug}.md")
+      if not target.exists():
+        missing.append((record.name, f"plan/{target.name}"))
 
-        date = record.name[:10]
-        for plan in sorted(set(LEGACY_REFERENCE.findall(body))):
-            old_pairs += 1
-            snapshot = LEGACY_DIR / f"{date}_{plan}.snapshot.md"
-            if not snapshot.exists():
-                missing.append((record.name, f"_legacy/{snapshot.name}"))
+    date = record.name[:10]
+    for plan in sorted(set(LEGACY_REFERENCE.findall(body))):
+      old_pairs += 1
+      snapshot = LEGACY_DIR / f"{date}_{plan}.snapshot.md"
+      if not snapshot.exists():
+        missing.append((record.name, f"_legacy/{snapshot.name}"))
 
-        if not PLAN_FIELD.search(body) and not LEGACY_REFERENCE.search(body):
-            unlinked.append(record.name)
+    if not PLAN_FIELD.search(body) and not LEGACY_REFERENCE.search(body):
+      unlinked.append(record.name)
 
-    return missing, unlinked, new_pairs, old_pairs
+  return missing, unlinked, new_pairs, old_pairs
 
 
 def main() -> int:
-    """pre-push 훅 진입점.
+  """pre-push 훅 진입점.
 
-    Returns:
-        빠진 스냅샷이 없으면 0, 있으면 1 (push 거부).
-    """
-    if not PRIVATE_DIR.is_dir():
-        print(
-            f"\n[거부] {PRIVATE_DIR} 가 없다. 이 훅은 로컬 전용이라 없을 이유가 없다(fail-closed).\n", file=sys.stderr
-        )
-        return 1
+  Returns:
+      빠진 스냅샷이 없으면 0, 있으면 1 (push 거부).
+  """
+  if not PRIVATE_DIR.is_dir():
+    print(f"\n[거부] {PRIVATE_DIR} 가 없다. 이 훅은 로컬 전용이라 없을 이유가 없다(fail-closed).\n", file=sys.stderr)
+    return 1
 
-    if not collect_records():
-        print(f"\n[거부] 완료기록을 한 건도 못 찾았다 — {PRIVATE_DIR}/{RECORD_GLOB}", file=sys.stderr)
-        print("  경로 규약이 바뀌었거나 glob 이 어긋났다. 검사가 무력화된 상태다(fail-closed).\n", file=sys.stderr)
-        return 1
+  if not collect_records():
+    print(f"\n[거부] 완료기록을 한 건도 못 찾았다 — {PRIVATE_DIR}/{RECORD_GLOB}", file=sys.stderr)
+    print("  경로 규약이 바뀌었거나 glob 이 어긋났다. 검사가 무력화된 상태다(fail-closed).\n", file=sys.stderr)
+    return 1
 
-    missing, unlinked, new_pairs, old_pairs = audit()
+  missing, unlinked, new_pairs, old_pairs = audit()
 
-    if missing:
-        print("\n[거부] 완료기록은 있는데 PLAN 스냅샷이 없다 (대장 D27)\n", file=sys.stderr)
-        for record, target in missing:
-            print(f"  {record}\n    → 없음: docs-private/{target}", file=sys.stderr)
-        print(
-            "\n  완료기록과 PLAN 스냅샷은 한 동작이다."
-            "\n  새 규약: 기록의 `plan:` 필드가 가리키는 `plan/<슬러그>.md` 를 만든다(`mv`, 재작성 금지).\n",
-            file=sys.stderr,
-        )
-        return 1
-
-    # 🔴 대상이 사라지면 "누락 0" 은 의미가 없다. 옛 규약이 B-9 로 소멸하는 중이라
-    #    합계로 세지 않으면 이 게이트는 조용히 0쌍이 된다.
-    if new_pairs + old_pairs < MIN_PAIRS:
-        print(f"\n[거부] PLAN 참조를 {new_pairs + old_pairs}쌍밖에 못 셌다 (기대 최소 {MIN_PAIRS}쌍).", file=sys.stderr)
-        print(
-            "  `plan:` 필드 파싱이 깨졌거나 경로 규약이 또 바뀌었다 — B-9 전환은 합계를 줄이지 않는다.", file=sys.stderr
-        )
-        print("  0쌍은 '누락이 없다' 가 아니라 '아무것도 못 봤다' 이다(fail-closed).\n", file=sys.stderr)
-        return 1
-
-    # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다. 통과할 때도 **센 것**을 남긴다.
+  if missing:
+    print("\n[거부] 완료기록은 있는데 PLAN 스냅샷이 없다 (대장 D27)\n", file=sys.stderr)
+    for record, target in missing:
+      print(f"  {record}\n    → 없음: docs-private/{target}", file=sys.stderr)
     print(
-        f"✅ PLAN 스냅샷 정합 — 완료기록 {len(collect_records())}건 · "
-        f"새 규약 {new_pairs}쌍 · 옛 규약 {old_pairs}쌍 · 빠진 스냅샷 0."
+      "\n  완료기록과 PLAN 스냅샷은 한 동작이다."
+      "\n  새 규약: 기록의 `plan:` 필드가 가리키는 `plan/<슬러그>.md` 를 만든다(`mv`, 재작성 금지).\n",
+      file=sys.stderr,
     )
-    if old_pairs == 0:
-        print("   ⭐ 옛 규약 0쌍 — B-9 전환이 끝났다. LEGACY_REFERENCE 분기를 제거할 때다.")
-    if unlinked:
-        # 🟡 보고. B-9 가 끝나면 차단으로 승격한다 — 지금 막으면 옮기는 중인 20건이 전부 걸린다.
-        print(f"   🟡 PLAN 을 가리키지 않는 완료기록 {len(unlinked)}건 (B-9 종료 후 차단으로 승격):")
-        for name in unlinked[:8]:
-            print(f"      - {name}")
-        if len(unlinked) > 8:
-            print(f"      … 외 {len(unlinked) - 8}건")
-    return 0
+    return 1
+
+  # 🔴 대상이 사라지면 "누락 0" 은 의미가 없다. 옛 규약이 B-9 로 소멸하는 중이라
+  #    합계로 세지 않으면 이 게이트는 조용히 0쌍이 된다.
+  if new_pairs + old_pairs < MIN_PAIRS:
+    print(f"\n[거부] PLAN 참조를 {new_pairs + old_pairs}쌍밖에 못 셌다 (기대 최소 {MIN_PAIRS}쌍).", file=sys.stderr)
+    print("  `plan:` 필드 파싱이 깨졌거나 경로 규약이 또 바뀌었다 — B-9 전환은 합계를 줄이지 않는다.", file=sys.stderr)
+    print("  0쌍은 '누락이 없다' 가 아니라 '아무것도 못 봤다' 이다(fail-closed).\n", file=sys.stderr)
+    return 1
+
+  # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다. 통과할 때도 **센 것**을 남긴다.
+  print(
+    f"✅ PLAN 스냅샷 정합 — 완료기록 {len(collect_records())}건 · "
+    f"새 규약 {new_pairs}쌍 · 옛 규약 {old_pairs}쌍 · 빠진 스냅샷 0."
+  )
+  if old_pairs == 0:
+    print("   ⭐ 옛 규약 0쌍 — B-9 전환이 끝났다. LEGACY_REFERENCE 분기를 제거할 때다.")
+  if unlinked:
+    # 🟡 보고. B-9 가 끝나면 차단으로 승격한다 — 지금 막으면 옮기는 중인 20건이 전부 걸린다.
+    print(f"   🟡 PLAN 을 가리키지 않는 완료기록 {len(unlinked)}건 (B-9 종료 후 차단으로 승격):")
+    for name in unlinked[:8]:
+      print(f"      - {name}")
+    if len(unlinked) > 8:
+      print(f"      … 외 {len(unlinked) - 8}건")
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

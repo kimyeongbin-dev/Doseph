@@ -41,24 +41,24 @@ EXPECTED_PG_TRGM_VERSION = "1.6"
 
 #: 태그를 바꿀 때 함께 손봐야 하는 곳. 하나라도 빠지면 환경이 어긋난다.
 PINNED_IN = (
-    "docker-compose.yml",
-    ".github/workflows/checks.yml",
-    ".github/workflows/deploy.yml",
+  "docker-compose.yml",
+  ".github/workflows/checks.yml",
+  ".github/workflows/deploy.yml",
 )
 
 
 # ── Postgres 메이저 버전 핀 ───────────────────────────────────────────
 # 흐름: 테스트 DB 연결 -> server_version_num 조회 -> 메이저만 비교
 async def test_postgres_major_matches_prod(db: None) -> None:
-    """The server major version must match the pinned prod major."""
-    version_num = int(await _fetch_scalar("show server_version_num"))
-    major = version_num // 10000
+  """The server major version must match the pinned prod major."""
+  version_num = int(await _fetch_scalar("show server_version_num"))
+  major = version_num // 10000
 
-    assert major == EXPECTED_POSTGRES_MAJOR, (
-        f"Postgres 메이저가 핀과 다르다: {major} != {EXPECTED_POSTGRES_MAJOR}. "
-        f"이미지 태그를 되돌리거나, prod(Neon)가 올라갔다면 실측 후 이 상수와 "
-        f"{', '.join(PINNED_IN)} 를 함께 갱신할 것."
-    )
+  assert major == EXPECTED_POSTGRES_MAJOR, (
+    f"Postgres 메이저가 핀과 다르다: {major} != {EXPECTED_POSTGRES_MAJOR}. "
+    f"이미지 태그를 되돌리거나, prod(Neon)가 올라갔다면 실측 후 이 상수와 "
+    f"{', '.join(PINNED_IN)} 를 함께 갱신할 것."
+  )
 
 
 # ── 확장 버전 핀 ──────────────────────────────────────────────────────
@@ -66,39 +66,39 @@ async def test_postgres_major_matches_prod(db: None) -> None:
 # pgvector 가 prod 보다 새로우면 0.8.1+ 기능이 여기서만 통과하고 prod 에서 깨진다.
 # 패리티의 방향은 "최신"이 아니라 "prod 와 같게" 다.
 async def test_extension_versions_match_prod(db: None) -> None:
-    """Installed extension versions must match the pinned prod versions."""
-    rows = await _fetch_rows("select extname, extversion from pg_extension")
-    installed = {row["extname"]: row["extversion"] for row in rows}
+  """Installed extension versions must match the pinned prod versions."""
+  rows = await _fetch_rows("select extname, extversion from pg_extension")
+  installed = {row["extname"]: row["extversion"] for row in rows}
 
-    assert installed.get("vector") == EXPECTED_PGVECTOR_VERSION, (
-        f"pgvector 버전이 핀과 다르다: {installed.get('vector')} != {EXPECTED_PGVECTOR_VERSION}"
-    )
-    assert installed.get("pg_trgm") == EXPECTED_PG_TRGM_VERSION, (
-        f"pg_trgm 버전이 핀과 다르다: {installed.get('pg_trgm')} != {EXPECTED_PG_TRGM_VERSION}"
-    )
+  assert installed.get("vector") == EXPECTED_PGVECTOR_VERSION, (
+    f"pgvector 버전이 핀과 다르다: {installed.get('vector')} != {EXPECTED_PGVECTOR_VERSION}"
+  )
+  assert installed.get("pg_trgm") == EXPECTED_PG_TRGM_VERSION, (
+    f"pg_trgm 버전이 핀과 다르다: {installed.get('pg_trgm')} != {EXPECTED_PG_TRGM_VERSION}"
+  )
 
 
 async def _fetch_scalar(query: str) -> str:
-    """Run a scalar query on the current Tortoise connection.
+  """Run a scalar query on the current Tortoise connection.
 
-    Args:
-        query: SQL returning a single row with a single column.
+  Args:
+      query: SQL returning a single row with a single column.
 
-    Returns:
-        The scalar value as a string.
-    """
-    _, rows = await connections.get("default").execute_query(query)
-    return str(next(iter(rows[0].values())))
+  Returns:
+      The scalar value as a string.
+  """
+  _, rows = await connections.get("default").execute_query(query)
+  return str(next(iter(rows[0].values())))
 
 
 async def _fetch_rows(query: str) -> list[dict[str, Any]]:
-    """Run a query on the current Tortoise connection and return all rows.
+  """Run a query on the current Tortoise connection and return all rows.
 
-    Args:
-        query: SQL to execute.
+  Args:
+      query: SQL to execute.
 
-    Returns:
-        All result rows as dictionaries.
-    """
-    _, rows = await connections.get("default").execute_query(query)
-    return list(rows)
+  Returns:
+      All result rows as dictionaries.
+  """
+  _, rows = await connections.get("default").execute_query(query)
+  return list(rows)

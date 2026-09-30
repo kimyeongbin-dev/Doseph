@@ -56,9 +56,9 @@ import sys
 # Windows 콘솔 기본 코드페이지(cp949)에서 한글 출력이 깨지거나 죽지 않도록 고정한다.
 # 🔴 stdout 과 stderr 는 **서로를 보호하지 않는다** — 한쪽만 고정하면 다른 쪽이 크래시한다(대장 D36).
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import REPO_ROOT
@@ -85,189 +85,187 @@ MIN_MEASURED_FILES = 148
 # ── coverage json 리포트 읽기 ──────────────────────────────────────────
 # 흐름: 파일 존재 확인 -> JSON 파싱 -> 측정 대상만 추려 {경로: 미커버 줄수}
 def is_measured(path: str) -> bool:
-    """``app/``·``ai_worker/`` 의 비-테스트 소스인가."""
-    if not path.startswith(MEASURED_PREFIXES):
-        return False
-    return not any(part in path for part in EXCLUDED_PARTS)
+  """``app/``·``ai_worker/`` 의 비-테스트 소스인가."""
+  if not path.startswith(MEASURED_PREFIXES):
+    return False
+  return not any(part in path for part in EXCLUDED_PARTS)
 
 
 def load_report(report_path: Path) -> dict[str, int]:
-    """``coverage json`` 리포트에서 ``{경로: 미커버 줄수}`` 를 뽑는다.
+  """``coverage json`` 리포트에서 ``{경로: 미커버 줄수}`` 를 뽑는다.
 
-    Args:
-        report_path: ``coverage json -o`` 가 만든 리포트 경로.
+  Args:
+      report_path: ``coverage json -o`` 가 만든 리포트 경로.
 
-    Returns:
-        측정 대상 파일별 미커버 줄 수.
+  Returns:
+      측정 대상 파일별 미커버 줄 수.
 
-    Raises:
-        SystemExit: 리포트가 없거나 파싱 불가일 때 (fail-closed).
-    """
-    if not report_path.is_file():
-        print(f"\n[거부] 커버리지 리포트가 없다 — {report_path}", file=sys.stderr)
-        print("  먼저 `coverage run` 후 `coverage json -o coverage.json` 을 돌린다.", file=sys.stderr)
-        print("  리포트 부재를 통과시키면 **측정하지 않은 것이 초록**이 된다(fail-closed).\n", file=sys.stderr)
-        raise SystemExit(1)
+  Raises:
+      SystemExit: 리포트가 없거나 파싱 불가일 때 (fail-closed).
+  """
+  if not report_path.is_file():
+    print(f"\n[거부] 커버리지 리포트가 없다 — {report_path}", file=sys.stderr)
+    print("  먼저 `coverage run` 후 `coverage json -o coverage.json` 을 돌린다.", file=sys.stderr)
+    print("  리포트 부재를 통과시키면 **측정하지 않은 것이 초록**이 된다(fail-closed).\n", file=sys.stderr)
+    raise SystemExit(1)
 
-    try:
-        payload = json.loads(report_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        print(f"\n[거부] 커버리지 리포트를 읽지 못했다 — {exc}\n", file=sys.stderr)
-        raise SystemExit(1) from exc
+  try:
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+  except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+    print(f"\n[거부] 커버리지 리포트를 읽지 못했다 — {exc}\n", file=sys.stderr)
+    raise SystemExit(1) from exc
 
-    files = payload.get("files")
-    if not isinstance(files, dict):
-        print("\n[거부] 리포트에 `files` 가 없다 — coverage 출력 형식이 바뀌었다(fail-closed).\n", file=sys.stderr)
-        raise SystemExit(1)
+  files = payload.get("files")
+  if not isinstance(files, dict):
+    print("\n[거부] 리포트에 `files` 가 없다 — coverage 출력 형식이 바뀌었다(fail-closed).\n", file=sys.stderr)
+    raise SystemExit(1)
 
-    measured: dict[str, int] = {}
-    for raw_path, entry in files.items():
-        normalized = raw_path.replace("\\", "/")
-        if not is_measured(normalized):
-            continue
-        measured[normalized] = int(entry["summary"]["missing_lines"])
-    return measured
+  measured: dict[str, int] = {}
+  for raw_path, entry in files.items():
+    normalized = raw_path.replace("\\", "/")
+    if not is_measured(normalized):
+      continue
+    measured[normalized] = int(entry["summary"]["missing_lines"])
+  return measured
 
 
 # ── baseline 대조 ──────────────────────────────────────────────────────
 # 흐름: 바닥값 확인 -> 사라진 파일 탐지 -> 미커버 증가 탐지 -> 새 파일 보고
 def compare(current: dict[str, int], baseline: dict[str, int]) -> tuple[list[str], list[str], list[str]]:
-    """(미커버가 는 파일, 측정에서 사라진 파일, baseline 에 없는 새 파일)."""
-    worsened = [
-        f"{path}: 미커버 {baseline[path]} -> {current[path]} (+{current[path] - baseline[path]})"
-        for path in sorted(current)
-        if path in baseline and current[path] > baseline[path]
-    ]
-    # 🔴 baseline 에 있는데 리포트에 없다 = 그 파일이 **측정에서 빠졌다.**
-    #    파일을 지웠으면 `sync` 로 내려야 하고, 안 지웠다면 검사 범위가 조용히 줄어든 것이다.
-    vanished = sorted(set(baseline) - set(current))
-    appeared = sorted(set(current) - set(baseline))
-    return worsened, vanished, appeared
+  """(미커버가 는 파일, 측정에서 사라진 파일, baseline 에 없는 새 파일)."""
+  worsened = [
+    f"{path}: 미커버 {baseline[path]} -> {current[path]} (+{current[path] - baseline[path]})"
+    for path in sorted(current)
+    if path in baseline and current[path] > baseline[path]
+  ]
+  # 🔴 baseline 에 있는데 리포트에 없다 = 그 파일이 **측정에서 빠졌다.**
+  #    파일을 지웠으면 `sync` 로 내려야 하고, 안 지웠다면 검사 범위가 조용히 줄어든 것이다.
+  vanished = sorted(set(baseline) - set(current))
+  appeared = sorted(set(current) - set(baseline))
+  return worsened, vanished, appeared
 
 
 # ── baseline 산출물 검사 (pre-push 전용) ──────────────────────────────
 # 흐름: 존재 -> 파싱 -> 모양(경로·정수) -> 바닥값. 커버리지 리포트는 안 본다.
 def verify_baseline() -> int:
-    """`.coverage-baseline.json` 이 **CI 가 쓸 수 있는 상태인가**.
+  """`.coverage-baseline.json` 이 **CI 가 쓸 수 있는 상태인가**.
 
-    baseline 이 사라지거나 손상되면 CI 게이트가 통째로 죽는다 —
-    그때 나오는 것은 빨강이 아니라 *"baseline 이 없다"* 한 줄이고,
-    사람이 `sync` 로 덮어 버리면 **그동안의 기준이 조용히 사라진다.**
+  baseline 이 사라지거나 손상되면 CI 게이트가 통째로 죽는다 —
+  그때 나오는 것은 빨강이 아니라 *"baseline 이 없다"* 한 줄이고,
+  사람이 `sync` 로 덮어 버리면 **그동안의 기준이 조용히 사라진다.**
 
-    Returns:
-        온전하면 0, 아니면 1.
-    """
-    if not BASELINE_PATH.is_file():
-        print(f"\n[거부] baseline 이 없다 — {BASELINE_PATH.name}", file=sys.stderr)
-        print("  이 파일이 없으면 CI 의 커버리지 게이트가 **통째로 죽는다**(fail-closed).", file=sys.stderr)
-        print("  `... check_coverage_baseline sync <리포트>` 로 만든 뒤 커밋한다.\n", file=sys.stderr)
-        return 1
+  Returns:
+      온전하면 0, 아니면 1.
+  """
+  if not BASELINE_PATH.is_file():
+    print(f"\n[거부] baseline 이 없다 — {BASELINE_PATH.name}", file=sys.stderr)
+    print("  이 파일이 없으면 CI 의 커버리지 게이트가 **통째로 죽는다**(fail-closed).", file=sys.stderr)
+    print("  `... check_coverage_baseline sync <리포트>` 로 만든 뒤 커밋한다.\n", file=sys.stderr)
+    return 1
 
-    try:
-        baseline = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        print(f"\n[거부] baseline 을 읽지 못했다 — {exc}\n", file=sys.stderr)
-        return 1
+  try:
+    baseline = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+  except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+    print(f"\n[거부] baseline 을 읽지 못했다 — {exc}\n", file=sys.stderr)
+    return 1
 
-    if not isinstance(baseline, dict):
-        print("\n[거부] baseline 이 객체가 아니다 — 손으로 고쳤거나 형식이 바뀌었다.\n", file=sys.stderr)
-        return 1
+  if not isinstance(baseline, dict):
+    print("\n[거부] baseline 이 객체가 아니다 — 손으로 고쳤거나 형식이 바뀌었다.\n", file=sys.stderr)
+    return 1
 
-    malformed = [
-        path for path, missing in baseline.items() if not is_measured(str(path)) or not isinstance(missing, int)
-    ]
-    if malformed:
-        print("\n[거부] baseline 항목이 규약을 벗어났다 (경로 접두사 또는 값 타입)\n", file=sys.stderr)
-        for path in malformed[:8]:
-            print(f"  ✗ {path}", file=sys.stderr)
-        print(file=sys.stderr)
-        return 1
+  malformed = [path for path, missing in baseline.items() if not is_measured(str(path)) or not isinstance(missing, int)]
+  if malformed:
+    print("\n[거부] baseline 항목이 규약을 벗어났다 (경로 접두사 또는 값 타입)\n", file=sys.stderr)
+    for path in malformed[:8]:
+      print(f"  ✗ {path}", file=sys.stderr)
+    print(file=sys.stderr)
+    return 1
 
-    if len(baseline) < MIN_MEASURED_FILES:
-        print(
-            f"\n[거부] baseline 파일이 {len(baseline)}개뿐이다 (기대 최소 {MIN_MEASURED_FILES}개).",
-            file=sys.stderr,
-        )
-        print("  잘린 baseline 은 '기준이 낮다' 가 아니라 '기준이 없다' 이다(fail-closed).\n", file=sys.stderr)
-        return 1
+  if len(baseline) < MIN_MEASURED_FILES:
+    print(
+      f"\n[거부] baseline 파일이 {len(baseline)}개뿐이다 (기대 최소 {MIN_MEASURED_FILES}개).",
+      file=sys.stderr,
+    )
+    print("  잘린 baseline 은 '기준이 낮다' 가 아니라 '기준이 없다' 이다(fail-closed).\n", file=sys.stderr)
+    return 1
 
-    print(f"✅ 커버리지 baseline 산출물 — {len(baseline)}파일 · 미커버 {sum(baseline.values())}줄 · 형식 정합.")
-    print("   ⚠️ 이 훅은 커버리지를 **재지 않는다** — 실제 대조는 CI 의 `Coverage Baseline Gate` 가 한다.")
-    return 0
+  print(f"✅ 커버리지 baseline 산출물 — {len(baseline)}파일 · 미커버 {sum(baseline.values())}줄 · 형식 정합.")
+  print("   ⚠️ 이 훅은 커버리지를 **재지 않는다** — 실제 대조는 CI 의 `Coverage Baseline Gate` 가 한다.")
+  return 0
 
 
 def main() -> int:
-    """게이트 진입점.
+  """게이트 진입점.
 
-    Returns:
-        위반이 없으면 0, 있으면 1.
-    """
-    argv = sys.argv[1:]
-    subcommand = argv[0] if argv and not argv[0].startswith("-") else "check"
-    report_path = Path(argv[1]) if len(argv) > 1 else DEFAULT_REPORT
+  Returns:
+      위반이 없으면 0, 있으면 1.
+  """
+  argv = sys.argv[1:]
+  subcommand = argv[0] if argv and not argv[0].startswith("-") else "check"
+  report_path = Path(argv[1]) if len(argv) > 1 else DEFAULT_REPORT
 
-    if subcommand == "verify":
-        return verify_baseline()
+  if subcommand == "verify":
+    return verify_baseline()
 
-    current = load_report(report_path)
+  current = load_report(report_path)
 
-    if len(current) < MIN_MEASURED_FILES:
-        print(
-            f"\n[거부] 측정된 파일이 {len(current)}개뿐이다 (기대 최소 {MIN_MEASURED_FILES}개).",
-            file=sys.stderr,
-        )
-        print("  테스트가 통째로 안 돌았거나 경로 규약이 바뀌었다.", file=sys.stderr)
-        print("  적은 대상은 '미커버가 안 늘었다' 가 아니라 '아무것도 못 봤다' 이다(fail-closed).\n", file=sys.stderr)
-        return 1
-
-    if subcommand == "sync":
-        BASELINE_PATH.write_text(
-            json.dumps(current, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        total_missing = sum(current.values())
-        print(f"✅ baseline 갱신 — 파일 {len(current)}개 · 미커버 합계 {total_missing}줄 -> {BASELINE_PATH.name}")
-        print(f"   MIN_MEASURED_FILES 는 지금 {MIN_MEASURED_FILES} 다. 파일 수가 크게 늘었으면 같이 올린다.")
-        return 0
-
-    if not BASELINE_PATH.is_file():
-        print(f"\n[거부] baseline 이 없다 — {BASELINE_PATH.name}", file=sys.stderr)
-        print("  `... check_coverage_baseline sync` 로 만든 뒤 커밋한다(fail-closed).\n", file=sys.stderr)
-        return 1
-
-    baseline: dict[str, int] = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
-    worsened, vanished, appeared = compare(current, baseline)
-
-    if worsened or vanished:
-        print("\n[거부] 커버리지가 뒷걸음쳤다\n", file=sys.stderr)
-        for line in worsened:
-            print(f"  ▼ {line}", file=sys.stderr)
-        for path in vanished:
-            print(f"  ✂ {path}: baseline 에 있는데 **측정에서 빠졌다**", file=sys.stderr)
-        print(
-            "\n  덮여 있던 줄이 안 덮이게 됐다면 테스트를 함께 옮기거나 고친다."
-            "\n  의도한 변화라면 `... check_coverage_baseline sync` 로 baseline 을 내리고"
-            "\n  **이유를 커밋 메시지에** 적는다.\n",
-            file=sys.stderr,
-        )
-        return 1
-
-    # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다. 통과할 때도 **센 것**을 남긴다.
-    total_missing = sum(current.values())
-    improved = sum(1 for p in current if p in baseline and current[p] < baseline[p])
+  if len(current) < MIN_MEASURED_FILES:
     print(
-        f"✅ 커버리지 baseline — 측정 {len(current)}파일 · 미커버 {total_missing}줄 · "
-        f"악화 0 · 사라진 파일 0 · 개선 {improved}파일."
+      f"\n[거부] 측정된 파일이 {len(current)}개뿐이다 (기대 최소 {MIN_MEASURED_FILES}개).",
+      file=sys.stderr,
     )
-    if appeared:
-        # 🟡 보고. 차단하지 않는 이유는 모듈 docstring 의 «못 하는 것» 참조.
-        print(f"   🟡 baseline 에 없는 새 파일 {len(appeared)}개 (통째 미검증이어도 막지 않는다):")
-        for path in appeared[:8]:
-            print(f"      - {path} (미커버 {current[path]}줄)")
-        if len(appeared) > 8:
-            print(f"      … 외 {len(appeared) - 8}개")
+    print("  테스트가 통째로 안 돌았거나 경로 규약이 바뀌었다.", file=sys.stderr)
+    print("  적은 대상은 '미커버가 안 늘었다' 가 아니라 '아무것도 못 봤다' 이다(fail-closed).\n", file=sys.stderr)
+    return 1
+
+  if subcommand == "sync":
+    BASELINE_PATH.write_text(
+      json.dumps(current, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+      encoding="utf-8",
+    )
+    total_missing = sum(current.values())
+    print(f"✅ baseline 갱신 — 파일 {len(current)}개 · 미커버 합계 {total_missing}줄 -> {BASELINE_PATH.name}")
+    print(f"   MIN_MEASURED_FILES 는 지금 {MIN_MEASURED_FILES} 다. 파일 수가 크게 늘었으면 같이 올린다.")
     return 0
+
+  if not BASELINE_PATH.is_file():
+    print(f"\n[거부] baseline 이 없다 — {BASELINE_PATH.name}", file=sys.stderr)
+    print("  `... check_coverage_baseline sync` 로 만든 뒤 커밋한다(fail-closed).\n", file=sys.stderr)
+    return 1
+
+  baseline: dict[str, int] = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+  worsened, vanished, appeared = compare(current, baseline)
+
+  if worsened or vanished:
+    print("\n[거부] 커버리지가 뒷걸음쳤다\n", file=sys.stderr)
+    for line in worsened:
+      print(f"  ▼ {line}", file=sys.stderr)
+    for path in vanished:
+      print(f"  ✂ {path}: baseline 에 있는데 **측정에서 빠졌다**", file=sys.stderr)
+    print(
+      "\n  덮여 있던 줄이 안 덮이게 됐다면 테스트를 함께 옮기거나 고친다."
+      "\n  의도한 변화라면 `... check_coverage_baseline sync` 로 baseline 을 내리고"
+      "\n  **이유를 커밋 메시지에** 적는다.\n",
+      file=sys.stderr,
+    )
+    return 1
+
+  # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다. 통과할 때도 **센 것**을 남긴다.
+  total_missing = sum(current.values())
+  improved = sum(1 for p in current if p in baseline and current[p] < baseline[p])
+  print(
+    f"✅ 커버리지 baseline — 측정 {len(current)}파일 · 미커버 {total_missing}줄 · "
+    f"악화 0 · 사라진 파일 0 · 개선 {improved}파일."
+  )
+  if appeared:
+    # 🟡 보고. 차단하지 않는 이유는 모듈 docstring 의 «못 하는 것» 참조.
+    print(f"   🟡 baseline 에 없는 새 파일 {len(appeared)}개 (통째 미검증이어도 막지 않는다):")
+    for path in appeared[:8]:
+      print(f"      - {path} (미커버 {current[path]}줄)")
+    if len(appeared) > 8:
+      print(f"      … 외 {len(appeared) - 8}개")
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

@@ -42,9 +42,9 @@ import sys
 # Windows 콘솔 기본 코드페이지(cp949)에서 한글 출력이 깨지거나 죽지 않도록 고정한다.
 # 🔴 stdout 과 stderr 는 **서로를 보호하지 않는다** — 한쪽만 고정하면 다른 쪽이 크래시한다(대장 D36).
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import PRIVATE
@@ -71,108 +71,107 @@ ANCHOR = re.compile(r"\bQA-\d+\b")
 # 흐름: 소스 파일 순회 -> 줄 단위 QA-## 추출 -> {ID: [경로:줄, ...]}
 # 같은 ID 가 여러 곳에 있으면 전부 모은다 — 하나만 세면 영향 범위를 놓친다.
 def find_anchors(root: Path) -> dict[str, list[str]]:
-    """Collect ``QA-##`` anchors from source files under ``root``.
+  """Collect ``QA-##`` anchors from source files under ``root``.
 
-    Args:
-        root: Directory to scan.
+  Args:
+      root: Directory to scan.
 
-    Returns:
-        Mapping of anchor ID to ``path:line`` locations, sorted by ID.
-    """
-    found: dict[str, list[str]] = {}
-    for path in sorted(root.rglob("*")):
-        if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
-            continue
-        if SKIP_DIRS & set(path.parts):
-            continue
-        text = path.read_text(encoding="utf-8", errors="replace")
-        # 경로는 `/` 로 정규화한다 — Windows 에서 만든 출력이 CI·문서와 달라지면
-        # 같은 위치를 두 가지로 부르게 된다(대장 D11, 교차플랫폼 축).
-        location = path.as_posix()
-        for lineno, line in enumerate(text.splitlines(), start=1):
-            for anchor_id in ANCHOR.findall(line):
-                found.setdefault(anchor_id, []).append(f"{location}:{lineno}")
-    return dict(sorted(found.items()))
+  Returns:
+      Mapping of anchor ID to ``path:line`` locations, sorted by ID.
+  """
+  found: dict[str, list[str]] = {}
+  for path in sorted(root.rglob("*")):
+    if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
+      continue
+    if SKIP_DIRS & set(path.parts):
+      continue
+    text = path.read_text(encoding="utf-8", errors="replace")
+    # 경로는 `/` 로 정규화한다 — Windows 에서 만든 출력이 CI·문서와 달라지면
+    # 같은 위치를 두 가지로 부르게 된다(대장 D11, 교차플랫폼 축).
+    location = path.as_posix()
+    for lineno, line in enumerate(text.splitlines(), start=1):
+      for anchor_id in ANCHOR.findall(line):
+        found.setdefault(anchor_id, []).append(f"{location}:{lineno}")
+  return dict(sorted(found.items()))
 
 
 # ── 큐에서 알려진 ID 읽기 ─────────────────────────────────────────────
 # 흐름: 큐 마크다운 읽기 -> QA-## 전부 추출 -> 집합
 # 파일이 없으면 빈 집합을 준다. "전부 통과" 가 아니라 **판단을 호출자에게 넘기는** 것이다.
 def read_known_ids(queue: Path) -> set[str]:
-    """Read every ``QA-##`` id registered in the follow-up queue.
+  """Read every ``QA-##`` id registered in the follow-up queue.
 
-    Args:
-        queue: Path to the queue markdown document.
+  Args:
+      queue: Path to the queue markdown document.
 
-    Returns:
-        Set of known ids; empty when the queue is unavailable.
-    """
-    if not queue.is_file():
-        return set()
-    return set(ANCHOR.findall(queue.read_text(encoding="utf-8", errors="replace")))
+  Returns:
+      Set of known ids; empty when the queue is unavailable.
+  """
+  if not queue.is_file():
+    return set()
+  return set(ANCHOR.findall(queue.read_text(encoding="utf-8", errors="replace")))
 
 
 # ── 대조 ──────────────────────────────────────────────────────────────
 # 흐름: 수집한 앵커에서 알려진 ID 를 뺀다 -> 남은 것이 끊어진 연결
 def find_unknown_anchors(anchors: dict[str, list[str]], known: set[str]) -> dict[str, list[str]]:
-    """Find anchors pointing at ids the queue does not know.
+  """Find anchors pointing at ids the queue does not know.
 
-    Args:
-        anchors: Anchor id to locations, as returned by :func:`find_anchors`.
-        known: Ids registered in the queue.
+  Args:
+      anchors: Anchor id to locations, as returned by :func:`find_anchors`.
+      known: Ids registered in the queue.
 
-    Returns:
-        Subset of ``anchors`` whose ids are not in ``known``.
-    """
-    return {anchor_id: places for anchor_id, places in anchors.items() if anchor_id not in known}
+  Returns:
+      Subset of ``anchors`` whose ids are not in ``known``.
+  """
+  return {anchor_id: places for anchor_id, places in anchors.items() if anchor_id not in known}
 
 
 def main() -> int:
-    """pre-push 훅 진입점.
+  """pre-push 훅 진입점.
 
-    Returns:
-        끊어진 앵커가 없으면 0, 있으면 1 (push 거부).
-    """
-    # fail-closed: 큐를 못 읽으면 "앵커가 깨끗하다"가 아니라 "검사하지 못했다"이다.
-    # 이 훅은 pre-push 로컬 전용이라 docs-private 이 없을 이유가 없다 — 없으면 이상 상황.
-    if not QUEUE_PATH.exists():
-        print(f"\n[거부] 후속 큐가 없다 — {QUEUE_PATH}", file=sys.stderr)
-        print("  검사 대상이 없는 것과 문제가 없는 것은 다르다(fail-closed).\n", file=sys.stderr)
-        return 1
-
-    known = read_known_ids(QUEUE_PATH)
-    if not known:
-        print(f"\n[거부] 후속 큐에서 QA 아이디를 한 건도 못 읽었다 — {QUEUE_PATH}", file=sys.stderr)
-        print("  파서가 깨졌거나 큐 형식이 바뀌었다. 검사가 무력화된 상태다(fail-closed).\n", file=sys.stderr)
-        return 1
-
-    anchors = find_anchors(Path())
-    unknown = find_unknown_anchors(anchors, known)
-    if not unknown:
-        # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다 — 이 저장소가 반복해서
-        # 당한 실패 방식이라, 통과할 때도 **무엇을 셌는지** 한 줄로 남긴다.
-        if len(anchors) < MIN_ANCHORS or len(known) < MIN_QUEUE:
-            print(
-                f"❌ 대상이 줄었다 — 코드 앵커 {len(anchors)}종(기대 ≥{MIN_ANCHORS}) · "
-                f"큐 등재 {len(known)}건(기대 ≥{MIN_QUEUE}). glob·경로가 좁아졌거나 큐 파싱이 깨졌다.",
-                file=sys.stderr,
-            )
-            return 1
-        print(f"✅ QA 앵커 정합 — 코드 앵커 {len(anchors)}종 · 큐 등재 {len(known)}건 · 끊어진 연결 0.")
-        return 0
-
-    print("\n[거부] 코드가 큐에 없는 QA 앵커를 가리킨다\n", file=sys.stderr)
-    for anchor_id, places in unknown.items():
-        print(f"  {anchor_id}", file=sys.stderr)
-        for place in places:
-            print(f"    {place}", file=sys.stderr)
-    print(
-        f"\n  오타이거나, 큐에서 철회된 항목을 코드가 아직 가리키고 있다."
-        f"\n  {QUEUE_PATH} 에 등재하거나 앵커를 고친다.\n",
-        file=sys.stderr,
-    )
+  Returns:
+      끊어진 앵커가 없으면 0, 있으면 1 (push 거부).
+  """
+  # fail-closed: 큐를 못 읽으면 "앵커가 깨끗하다"가 아니라 "검사하지 못했다"이다.
+  # 이 훅은 pre-push 로컬 전용이라 docs-private 이 없을 이유가 없다 — 없으면 이상 상황.
+  if not QUEUE_PATH.exists():
+    print(f"\n[거부] 후속 큐가 없다 — {QUEUE_PATH}", file=sys.stderr)
+    print("  검사 대상이 없는 것과 문제가 없는 것은 다르다(fail-closed).\n", file=sys.stderr)
     return 1
+
+  known = read_known_ids(QUEUE_PATH)
+  if not known:
+    print(f"\n[거부] 후속 큐에서 QA 아이디를 한 건도 못 읽었다 — {QUEUE_PATH}", file=sys.stderr)
+    print("  파서가 깨졌거나 큐 형식이 바뀌었다. 검사가 무력화된 상태다(fail-closed).\n", file=sys.stderr)
+    return 1
+
+  anchors = find_anchors(Path())
+  unknown = find_unknown_anchors(anchors, known)
+  if not unknown:
+    # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다 — 이 저장소가 반복해서
+    # 당한 실패 방식이라, 통과할 때도 **무엇을 셌는지** 한 줄로 남긴다.
+    if len(anchors) < MIN_ANCHORS or len(known) < MIN_QUEUE:
+      print(
+        f"❌ 대상이 줄었다 — 코드 앵커 {len(anchors)}종(기대 ≥{MIN_ANCHORS}) · "
+        f"큐 등재 {len(known)}건(기대 ≥{MIN_QUEUE}). glob·경로가 좁아졌거나 큐 파싱이 깨졌다.",
+        file=sys.stderr,
+      )
+      return 1
+    print(f"✅ QA 앵커 정합 — 코드 앵커 {len(anchors)}종 · 큐 등재 {len(known)}건 · 끊어진 연결 0.")
+    return 0
+
+  print("\n[거부] 코드가 큐에 없는 QA 앵커를 가리킨다\n", file=sys.stderr)
+  for anchor_id, places in unknown.items():
+    print(f"  {anchor_id}", file=sys.stderr)
+    for place in places:
+      print(f"    {place}", file=sys.stderr)
+  print(
+    f"\n  오타이거나, 큐에서 철회된 항목을 코드가 아직 가리키고 있다.\n  {QUEUE_PATH} 에 등재하거나 앵커를 고친다.\n",
+    file=sys.stderr,
+  )
+  return 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

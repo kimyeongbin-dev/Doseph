@@ -24,24 +24,24 @@ from redis.retry import Retry
 
 # Consumer 측 keepalive — app 측과 동일 정책이지만 별도 정의(서비스 분리 원칙).
 _KEEPALIVE_KWARGS = {
-    "socket_keepalive": True,
-    "health_check_interval": 30,
-    "retry_on_timeout": True,
-    "retry_on_error": [redis.ConnectionError, redis.TimeoutError],
-    "retry": Retry(ExponentialBackoff(cap=10, base=1), retries=5),
+  "socket_keepalive": True,
+  "health_check_interval": 30,
+  "retry_on_timeout": True,
+  "retry_on_error": [redis.ConnectionError, redis.TimeoutError],
+  "retry": Retry(ExponentialBackoff(cap=10, base=1), retries=5),
 }
 
 
 def make_sync_redis(url: str, **overrides) -> redis.Redis:
-    """Consumer 용 sync Redis client.
+  """Consumer 용 sync Redis client.
 
-    Args:
-        url: redis://host:port/db 형태의 연결 URL.
-        **overrides: ``decode_responses=True``, ``socket_timeout=5`` (헬스체크용) 등.
+  Args:
+      url: redis://host:port/db 형태의 연결 URL.
+      **overrides: ``decode_responses=True``, ``socket_timeout=5`` (헬스체크용) 등.
 
-    Returns:
-        Hardened ``redis.Redis`` instance — ``rq.SimpleWorker`` 의 ``connection``
-        인자에 직접 주입.
-    """
-    kwargs = {**_KEEPALIVE_KWARGS, **overrides}
-    return redis.from_url(url, **kwargs)
+  Returns:
+      Hardened ``redis.Redis`` instance — ``rq.SimpleWorker`` 의 ``connection``
+      인자에 직접 주입.
+  """
+  kwargs = {**_KEEPALIVE_KWARGS, **overrides}
+  return redis.from_url(url, **kwargs)

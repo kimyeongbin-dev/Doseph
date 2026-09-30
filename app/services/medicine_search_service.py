@@ -17,28 +17,28 @@ _MIN_QUERY_LENGTH = 2
 
 
 class MedicineSearchService:
-    """약품명 자동완성 (read-only) 서비스."""
+  """약품명 자동완성 (read-only) 서비스."""
 
-    def __init__(self) -> None:
-        self.repository = MedicineInfoRepository()
+  def __init__(self) -> None:
+    self.repository = MedicineInfoRepository()
 
-    # ── 자동완성 검색 ────────────────────────────────────────────────
-    # 흐름: query trim -> 최소 길이 검증 -> repository fuzzy 검색 -> dict 반환
-    async def suggest_by_name(self, query: str, limit: int = 8) -> list[dict]:
-        """약품명 자동완성 결과 반환.
+  # ── 자동완성 검색 ────────────────────────────────────────────────
+  # 흐름: query trim -> 최소 길이 검증 -> repository fuzzy 검색 -> dict 반환
+  async def suggest_by_name(self, query: str, limit: int = 8) -> list[dict]:
+    """약품명 자동완성 결과 반환.
 
-        Args:
-            query: 사용자 입력. 공백 양쪽 trim 한 뒤 ``_MIN_QUERY_LENGTH`` 미만이면
-                빈 list 반환 (불필요한 DB hit + 노이즈 차단).
-            limit: 결과 개수 상한. router 단에서 1~20 사이로 강제.
+    Args:
+        query: 사용자 입력. 공백 양쪽 trim 한 뒤 ``_MIN_QUERY_LENGTH`` 미만이면
+            빈 list 반환 (불필요한 DB hit + 노이즈 차단).
+        limit: 결과 개수 상한. router 단에서 1~20 사이로 강제.
 
-        Returns:
-            list[dict]: ``[{id, medicine_name, score}, ...]`` — prefix 일치 우선,
-                trigram score desc, 동점 시 name asc.
-        """
-        normalized = (query or "").strip()
-        if len(normalized) < _MIN_QUERY_LENGTH:
-            return []
-        rows = await self.repository.autocomplete_by_name(query=normalized, limit=limit)
-        logger.debug("medicine autocomplete: q=%r -> %d hit", normalized, len(rows))
-        return rows
+    Returns:
+        list[dict]: ``[{id, medicine_name, score}, ...]`` — prefix 일치 우선,
+            trigram score desc, 동점 시 name asc.
+    """
+    normalized = (query or "").strip()
+    if len(normalized) < _MIN_QUERY_LENGTH:
+      return []
+    rows = await self.repository.autocomplete_by_name(query=normalized, limit=limit)
+    logger.debug("medicine autocomplete: q=%r -> %d hit", normalized, len(rows))
+    return rows

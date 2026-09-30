@@ -10,32 +10,32 @@ import pytest
 
 
 class TestCorsParity:
-    """cross-origin credentialed 요청 경로 가드."""
+  """cross-origin credentialed 요청 경로 가드."""
 
-    @pytest.mark.asyncio
-    async def test_preflight_allows_localhost_3000_with_credentials(self, client: AsyncClient) -> None:
-        """허용 오리진(:3000) preflight → ACAO echo + ACAC true."""
-        response = await client.options(
-            "/api/v1/auth/refresh",
-            headers={
-                "Origin": "http://localhost:3000",
-                "Access-Control-Request-Method": "POST",
-            },
-        )
+  @pytest.mark.asyncio
+  async def test_preflight_allows_localhost_3000_with_credentials(self, client: AsyncClient) -> None:
+    """허용 오리진(:3000) preflight → ACAO echo + ACAC true."""
+    response = await client.options(
+      "/api/v1/auth/refresh",
+      headers={
+        "Origin": "http://localhost:3000",
+        "Access-Control-Request-Method": "POST",
+      },
+    )
 
-        assert response.status_code in (200, 204)
-        assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
-        assert response.headers.get("access-control-allow-credentials") == "true"
+    assert response.status_code in (200, 204)
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+    assert response.headers.get("access-control-allow-credentials") == "true"
 
-    @pytest.mark.asyncio
-    async def test_preflight_disallowed_origin_not_echoed(self, client: AsyncClient) -> None:
-        """허용 안 된 오리진은 ACAO 로 echo 되지 않아야 한다(자격증명 유출 방지)."""
-        response = await client.options(
-            "/api/v1/auth/refresh",
-            headers={
-                "Origin": "http://evil.example.com",
-                "Access-Control-Request-Method": "POST",
-            },
-        )
+  @pytest.mark.asyncio
+  async def test_preflight_disallowed_origin_not_echoed(self, client: AsyncClient) -> None:
+    """허용 안 된 오리진은 ACAO 로 echo 되지 않아야 한다(자격증명 유출 방지)."""
+    response = await client.options(
+      "/api/v1/auth/refresh",
+      headers={
+        "Origin": "http://evil.example.com",
+        "Access-Control-Request-Method": "POST",
+      },
+    )
 
-        assert response.headers.get("access-control-allow-origin") != "http://evil.example.com"
+    assert response.headers.get("access-control-allow-origin") != "http://evil.example.com"

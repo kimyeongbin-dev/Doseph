@@ -34,25 +34,25 @@ logger = logging.getLogger(__name__)
 # ── pass 1: 복용 종료일이 지난 복약 비활성화 ──────────────────────────
 # 흐름: end_date < today 인 활성 행 조회 -> is_active=False 로 저장
 async def _deactivate_ended_medications(today: date) -> int:
-    """Deactivate medications whose ``end_date`` has passed.
+  """Deactivate medications whose ``end_date`` has passed.
 
-    Args:
-        today: Reference date (KST).
+  Args:
+      today: Reference date (KST).
 
-    Returns:
-        Number of deactivated medications.
-    """
-    expired_active = await Medication.filter(
-        is_active=True,
-        end_date__lt=today,
-        end_date__isnull=False,
-    ).all()
+  Returns:
+      Number of deactivated medications.
+  """
+  expired_active = await Medication.filter(
+    is_active=True,
+    end_date__lt=today,
+    end_date__isnull=False,
+  ).all()
 
-    for medication in expired_active:
-        medication.is_active = False
-        await medication.save()
+  for medication in expired_active:
+    medication.is_active = False
+    await medication.save()
 
-    return len(expired_active)
+  return len(expired_active)
 
 
 # ── pass 2: 유예기간이 끝난 복약 물리 삭제 ────────────────────────────
@@ -60,49 +60,49 @@ async def _deactivate_ended_medications(today: date) -> int:
 #       -> 자식(intake_logs)은 FK CASCADE 가 함께 정리
 # 유예 중인 행은 "만료됐지만 아직 지우지 않은" 상태로 그대로 남는다.
 async def _delete_expired_medications(today: date) -> tuple[int, date]:
-    """Delete medications whose grace period after expiry has ended.
+  """Delete medications whose grace period after expiry has ended.
 
-    Args:
-        today: Reference date (KST).
+  Args:
+      today: Reference date (KST).
 
-    Returns:
-        Deleted row count and the cutoff date used.
-    """
-    cutoff = today - timedelta(days=config.MEDICATION_PURGE_GRACE_DAYS)
-    deleted = await Medication.filter(
-        expiration_date__lt=cutoff,
-        expiration_date__isnull=False,
-    ).delete()
-    return deleted, cutoff
+  Returns:
+      Deleted row count and the cutoff date used.
+  """
+  cutoff = today - timedelta(days=config.MEDICATION_PURGE_GRACE_DAYS)
+  deleted = await Medication.filter(
+    expiration_date__lt=cutoff,
+    expiration_date__isnull=False,
+  ).delete()
+  return deleted, cutoff
 
 
 # ── 만료 복약 정리 배치 ───────────────────────────────────────────────
 # 흐름: end_date 지난 것 비활성화 -> expiration_date 지난 것 물리 삭제
 # 매일 00:10 KST 실행. 삭제된 행의 자식은 FK CASCADE 가 함께 정리한다.
 async def expire_medications(today: date | None = None) -> None:
-    """Deactivate and delete expired medications.
+  """Deactivate and delete expired medications.
 
-    Pass 1: Medications whose end_date is in the past are deactivated.
-    Pass 2: Medications whose expiration_date is in the past are deleted.
+  Pass 1: Medications whose end_date is in the past are deactivated.
+  Pass 2: Medications whose expiration_date is in the past are deleted.
 
-    Args:
-        today: Reference date. Defaults to today in KST. 주입 가능하게 둔 것은
-            테스트가 자정 경계에 흔들리지 않게 하기 위함이다.
-    """
-    if today is None:
-        today = datetime.now(tz=config.TIMEZONE).date()
+  Args:
+      today: Reference date. Defaults to today in KST. 주입 가능하게 둔 것은
+          테스트가 자정 경계에 흔들리지 않게 하기 위함이다.
+  """
+  if today is None:
+    today = datetime.now(tz=config.TIMEZONE).date()
 
-    deactivated_count = await _deactivate_ended_medications(today)
-    deleted_count, cutoff = await _delete_expired_medications(today)
+  deactivated_count = await _deactivate_ended_medications(today)
+  deleted_count, cutoff = await _delete_expired_medications(today)
 
-    # 삭제 영수증(tombstone) — 무엇이 몇 건 사라졌는지만 남긴다.
-    # ⚠️ 약품명·프로필 등 개인정보는 넣지 않는다(로깅 규칙 §9-4). 개인정보를 넣으면
-    #    그건 영수증이 아니라 백업이고, "지웠다"는 말이 거짓이 된다.
-    logger.info(
-        "expire_medications completed: date=%s deactivated=%d deleted=%d reason=batch_expiry grace_days=%d cutoff=%s",
-        today,
-        deactivated_count,
-        deleted_count,
-        config.MEDICATION_PURGE_GRACE_DAYS,
-        cutoff,
-    )
+  # 삭제 영수증(tombstone) — 무엇이 몇 건 사라졌는지만 남긴다.
+  # ⚠️ 약품명·프로필 등 개인정보는 넣지 않는다(로깅 규칙 §9-4). 개인정보를 넣으면
+  #    그건 영수증이 아니라 백업이고, "지웠다"는 말이 거짓이 된다.
+  logger.info(
+    "expire_medications completed: date=%s deactivated=%d deleted=%d reason=batch_expiry grace_days=%d cutoff=%s",
+    today,
+    deactivated_count,
+    deleted_count,
+    config.MEDICATION_PURGE_GRACE_DAYS,
+    cutoff,
+  )

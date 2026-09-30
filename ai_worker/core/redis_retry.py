@@ -33,82 +33,82 @@ logger = logging.getLogger(__name__)
 # 재시도 대상 예외 — sync 와 async 의 redis exception 클래스가 같음
 # (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError)
 _RETRYABLE_EXCEPTIONS: tuple[type[BaseException], ...] = (
-    redis.ConnectionError,
-    redis.TimeoutError,
+  redis.ConnectionError,
+  redis.TimeoutError,
 )
 
 
 def redis_retry(
-    max_attempts: int = 3,
-    base_delay: float = 1.0,
+  max_attempts: int = 3,
+  base_delay: float = 1.0,
 ) -> Callable:
-    """Retry decorator for Redis IO (ai-worker 전용).
+  """Retry decorator for Redis IO (ai-worker 전용).
 
-    Args:
-        max_attempts: 최대 시도 횟수 (첫 호출 포함). 기본 3회.
-        base_delay: 지수 백오프 기준 초 단위 (1, 2, 4, ...). 기본 1초.
+  Args:
+      max_attempts: 최대 시도 횟수 (첫 호출 포함). 기본 3회.
+      base_delay: 지수 백오프 기준 초 단위 (1, 2, 4, ...). 기본 1초.
 
-    Returns:
-        Decorator. sync/async 함수 모두 적용 가능.
+  Returns:
+      Decorator. sync/async 함수 모두 적용 가능.
 
-    Examples:
-        >>> @redis_retry()
-        ... def store_value(key: str, value: str) -> None:
-        ...     redis_conn.set(key, value)
-    """
+  Examples:
+      >>> @redis_retry()
+      ... def store_value(key: str, value: str) -> None:
+      ...   redis_conn.set(key, value)
+  """
 
-    def decorator(func: Callable) -> Callable:
-        """Inner decorator — picks sync or async wrapper based on ``func``."""
-        if asyncio.iscoroutinefunction(func):
+  def decorator(func: Callable) -> Callable:
+    """Inner decorator — picks sync or async wrapper based on ``func``."""
+    if asyncio.iscoroutinefunction(func):
 
-            @functools.wraps(func)
-            async def async_wrapper(*args, **kwargs):
-                """Async retry wrapper — exponential backoff on Redis IO error."""
-                last_exc: BaseException | None = None
-                for attempt in range(1, max_attempts + 1):
-                    try:
-                        return await func(*args, **kwargs)
-                    except _RETRYABLE_EXCEPTIONS as exc:
-                        last_exc = exc
-                        if attempt == max_attempts:
-                            break
-                        delay = base_delay * (2 ** (attempt - 1))
-                        logger.warning(
-                            "Redis IO 실패 (attempt %d/%d): %s — %.1fs 후 재시도",
-                            attempt,
-                            max_attempts,
-                            exc,
-                            delay,
-                        )
-                        await asyncio.sleep(delay)
-                logger.error("Redis IO 최종 실패 (%d회 시도 후): %s", max_attempts, last_exc)
-                raise last_exc
+      @functools.wraps(func)
+      async def async_wrapper(*args, **kwargs):
+        """Async retry wrapper — exponential backoff on Redis IO error."""
+        last_exc: BaseException | None = None
+        for attempt in range(1, max_attempts + 1):
+          try:
+            return await func(*args, **kwargs)
+          except _RETRYABLE_EXCEPTIONS as exc:
+            last_exc = exc
+            if attempt == max_attempts:
+              break
+            delay = base_delay * (2 ** (attempt - 1))
+            logger.warning(
+              "Redis IO 실패 (attempt %d/%d): %s — %.1fs 후 재시도",
+              attempt,
+              max_attempts,
+              exc,
+              delay,
+            )
+            await asyncio.sleep(delay)
+        logger.error("Redis IO 최종 실패 (%d회 시도 후): %s", max_attempts, last_exc)
+        raise last_exc
 
-            return async_wrapper
+      return async_wrapper
 
-        @functools.wraps(func)
-        def sync_wrapper(*args, **kwargs):
-            """Sync retry wrapper — exponential backoff on Redis IO error."""
-            last_exc: BaseException | None = None
-            for attempt in range(1, max_attempts + 1):
-                try:
-                    return func(*args, **kwargs)
-                except _RETRYABLE_EXCEPTIONS as exc:
-                    last_exc = exc
-                    if attempt == max_attempts:
-                        break
-                    delay = base_delay * (2 ** (attempt - 1))
-                    logger.warning(
-                        "Redis IO 실패 (attempt %d/%d): %s — %.1fs 후 재시도",
-                        attempt,
-                        max_attempts,
-                        exc,
-                        delay,
-                    )
-                    time.sleep(delay)
-            logger.error("Redis IO 최종 실패 (%d회 시도 후): %s", max_attempts, last_exc)
-            raise last_exc
+    @functools.wraps(func)
+    def sync_wrapper(*args, **kwargs):
+      """Sync retry wrapper — exponential backoff on Redis IO error."""
+      last_exc: BaseException | None = None
+      for attempt in range(1, max_attempts + 1):
+        try:
+          return func(*args, **kwargs)
+        except _RETRYABLE_EXCEPTIONS as exc:
+          last_exc = exc
+          if attempt == max_attempts:
+            break
+          delay = base_delay * (2 ** (attempt - 1))
+          logger.warning(
+            "Redis IO 실패 (attempt %d/%d): %s — %.1fs 후 재시도",
+            attempt,
+            max_attempts,
+            exc,
+            delay,
+          )
+          time.sleep(delay)
+      logger.error("Redis IO 최종 실패 (%d회 시도 후): %s", max_attempts, last_exc)
+      raise last_exc
 
-        return sync_wrapper
+    return sync_wrapper
 
-    return decorator
+  return decorator

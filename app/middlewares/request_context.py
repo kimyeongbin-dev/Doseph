@@ -20,28 +20,28 @@ _HEADER = b"x-request-id"
 #       -> 하위 앱 실행(엔드포인트/로그가 동일 컨텍스트에서 값 참조)
 #       -> 응답 start 에 X-Request-ID 헤더 주입 -> 종료 시 contextvar reset
 class RequestContextMiddleware:
-    """요청마다 request_id 를 contextvar 에 설정하고 응답 헤더로 반환."""
+  """요청마다 request_id 를 contextvar 에 설정하고 응답 헤더로 반환."""
 
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
+  def __init__(self, app: ASGIApp) -> None:
+    self.app = app
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        """Bind a request id to the context for the lifetime of one HTTP scope."""
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
+  async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+    """Bind a request id to the context for the lifetime of one HTTP scope."""
+    if scope["type"] != "http":
+      await self.app(scope, receive, send)
+      return
 
-        incoming = dict(scope["headers"]).get(_HEADER)
-        request_id = incoming.decode("latin-1") if incoming else uuid4().hex
-        token = request_id_var.set(request_id)
+    incoming = dict(scope["headers"]).get(_HEADER)
+    request_id = incoming.decode("latin-1") if incoming else uuid4().hex
+    token = request_id_var.set(request_id)
 
-        async def send_wrapper(message: Message) -> None:
-            if message["type"] == "http.response.start":
-                headers = message.setdefault("headers", [])
-                headers.append((_HEADER, request_id.encode("latin-1")))
-            await send(message)
+    async def send_wrapper(message: Message) -> None:
+      if message["type"] == "http.response.start":
+        headers = message.setdefault("headers", [])
+        headers.append((_HEADER, request_id.encode("latin-1")))
+      await send(message)
 
-        try:
-            await self.app(scope, receive, send_wrapper)
-        finally:
-            request_id_var.reset(token)
+    try:
+      await self.app(scope, receive, send_wrapper)
+    finally:
+      request_id_var.reset(token)

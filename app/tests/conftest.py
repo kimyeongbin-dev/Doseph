@@ -16,13 +16,13 @@ TEST_BASE_URL = "http://test"
 
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient]:
-    """Async test client fixture.
+  """Async test client fixture.
 
-    Yields:
-        AsyncClient: HTTP client for testing API endpoints.
-    """
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url=TEST_BASE_URL,
-    ) as ac:
-        yield ac
+  Yields:
+      AsyncClient: HTTP client for testing API endpoints.
+  """
+  async with AsyncClient(
+    transport=ASGITransport(app=app),
+    base_url=TEST_BASE_URL,
+  ) as ac:
+    yield ac

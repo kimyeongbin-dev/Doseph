@@ -40,61 +40,61 @@ EXACT_FP16_VALUES = (1.0, 0.5, 0.25)
 
 
 def _vector_literal(values: list[float]) -> str:
-    """Build a pgvector literal like ``[1,0,0,...]``.
+  """Build a pgvector literal like ``[1,0,0,...]``.
 
-    Args:
-        values: Component values; padded with zeros to ``EMBEDDING_DIM``.
+  Args:
+      values: Component values; padded with zeros to ``EMBEDDING_DIM``.
 
-    Returns:
-        Literal string accepted by a halfvec cast.
-    """
-    padded = values + [0.0] * (EMBEDDING_DIM - len(values))
-    return "[" + ",".join(str(v) for v in padded) + "]"
+  Returns:
+      Literal string accepted by a halfvec cast.
+  """
+  padded = values + [0.0] * (EMBEDDING_DIM - len(values))
+  return "[" + ",".join(str(v) for v in padded) + "]"
 
 
 async def _fetch(query: str, params: list[Any] | None = None) -> list[dict[str, Any]]:
-    """Run a query on the current Tortoise connection."""
-    _, rows = await connections.get("default").execute_query(query, params or [])
-    return list(rows)
+  """Run a query on the current Tortoise connection."""
+  _, rows = await connections.get("default").execute_query(query, params or [])
+  return list(rows)
 
 
 async def _make_medicine_info(name: str = "벡터테스트약") -> int:
-    """Create the parent row a medicine_chunk requires (NOT NULL FK)."""
-    rows = await _fetch("insert into medicine_info (medicine_name) values ($1) returning id", [name])
-    return int(rows[0]["id"])
+  """Create the parent row a medicine_chunk requires (NOT NULL FK)."""
+  rows = await _fetch("insert into medicine_info (medicine_name) values ($1) returning id", [name])
+  return int(rows[0]["id"])
 
 
 async def _insert_chunk(medicine_info_id: int, embedding: list[float], content: str, chunk_index: int = 0) -> None:
-    """Insert one medicine_chunk with an embedding.
+  """Insert one medicine_chunk with an embedding.
 
-    ⚠️ `(medicine_info_id, section, chunk_index)` 에 복합 유니크가 걸려 있다.
-       같은 약·같은 섹션에 여러 chunk 를 넣으려면 `chunk_index` 를 달리해야 한다
-       (실제로 이 제약 때문에 정렬 테스트가 처음에 IntegrityError 로 빨개졌다 —
-        제약이 살아 있다는 증거이기도 하다).
-    """
-    await _fetch(
-        "insert into medicine_chunk (medicine_info_id, section, chunk_index, content, model_version, embedding) "
-        "values ($1, 'EFFECT', $2, $3, 'qa04', $4::halfvec)",
-        [medicine_info_id, chunk_index, content, _vector_literal(embedding)],
-    )
+  ⚠️ `(medicine_info_id, section, chunk_index)` 에 복합 유니크가 걸려 있다.
+     같은 약·같은 섹션에 여러 chunk 를 넣으려면 `chunk_index` 를 달리해야 한다
+     (실제로 이 제약 때문에 정렬 테스트가 처음에 IntegrityError 로 빨개졌다 —
+      제약이 살아 있다는 증거이기도 하다).
+  """
+  await _fetch(
+    "insert into medicine_chunk (medicine_info_id, section, chunk_index, content, model_version, embedding) "
+    "values ($1, 'EFFECT', $2, $3, 'qa04', $4::halfvec)",
+    [medicine_info_id, chunk_index, content, _vector_literal(embedding)],
+  )
 
 
 # ── (1) halfvec 왕복 — 저장한 값이 그대로 돌아오는가 ─────────────────────────
 # 흐름: 부모 행 생성 -> halfvec 삽입 -> 조회 -> 앞쪽 성분 비교
 # 이게 깨지면 임베딩이 조용히 변형된다는 뜻이라 RAG 전체가 무의미해진다.
 async def test_halfvec_roundtrip_preserves_values(db: None) -> None:
-    """A stored halfvec must come back with the same component values."""
-    info_id = await _make_medicine_info()
-    await _insert_chunk(info_id, list(EXACT_FP16_VALUES), "왕복 테스트")
+  """A stored halfvec must come back with the same component values."""
+  info_id = await _make_medicine_info()
+  await _insert_chunk(info_id, list(EXACT_FP16_VALUES), "왕복 테스트")
 
-    rows = await _fetch("select embedding::text as vec from medicine_chunk where model_version = 'qa04'")
+  rows = await _fetch("select embedding::text as vec from medicine_chunk where model_version = 'qa04'")
 
-    assert rows, "삽입한 chunk 를 찾을 수 없다"
-    components = rows[0]["vec"].strip("[]").split(",")
-    head = [float(c) for c in components[: len(EXACT_FP16_VALUES)]]
+  assert rows, "삽입한 chunk 를 찾을 수 없다"
+  components = rows[0]["vec"].strip("[]").split(",")
+  head = [float(c) for c in components[: len(EXACT_FP16_VALUES)]]
 
-    assert len(components) == EMBEDDING_DIM, f"차원이 달라졌다: {len(components)} != {EMBEDDING_DIM}"
-    assert head == list(EXACT_FP16_VALUES), f"halfvec 왕복에서 값이 변형됐다: {head} != {list(EXACT_FP16_VALUES)}"
+  assert len(components) == EMBEDDING_DIM, f"차원이 달라졌다: {len(components)} != {EMBEDDING_DIM}"
+  assert head == list(EXACT_FP16_VALUES), f"halfvec 왕복에서 값이 변형됐다: {head} != {list(EXACT_FP16_VALUES)}"
 
 
 # ── (2) ⭐ HNSW 인덱스를 만들 수 있는가 — RAG 배포 선결 조건 ─────────────────
@@ -106,19 +106,19 @@ async def test_halfvec_roundtrip_preserves_values(db: None) -> None:
 #   · 코사인 연산자 클래스가 있는가
 # 이 중 하나라도 깨지면 "HNSW 를 붙이면 된다"는 계획 자체가 무너진다.
 async def test_hnsw_index_can_be_created_on_halfvec_embedding(db: None) -> None:
-    """HNSW must be creatable on the 3072-dim halfvec column."""
-    await _fetch("create index idx_qa04_probe_hnsw on medicine_chunk using hnsw (embedding halfvec_cosine_ops)")
+  """HNSW must be creatable on the 3072-dim halfvec column."""
+  await _fetch("create index idx_qa04_probe_hnsw on medicine_chunk using hnsw (embedding halfvec_cosine_ops)")
 
-    rows = await _fetch(
-        "select indexdef from pg_indexes where schemaname = 'public' and indexname = $1",
-        ["idx_qa04_probe_hnsw"],
-    )
+  rows = await _fetch(
+    "select indexdef from pg_indexes where schemaname = 'public' and indexname = $1",
+    ["idx_qa04_probe_hnsw"],
+  )
 
-    assert rows, "3072차원 halfvec 에 HNSW 인덱스를 만들지 못했다 — RAG 배포 선결 조건이 깨졌다"
-    definition = rows[0]["indexdef"]
-    assert "hnsw" in definition.lower(), f"HNSW 가 아닌 인덱스가 생성됐다: {definition}"
-    assert "halfvec_cosine_ops" in definition, f"코사인 연산자 클래스가 반영되지 않았다: {definition}"
-    # 인덱스는 이 테스트의 트랜잭션과 함께 롤백된다(CONCURRENTLY 가 아니라 가능).
+  assert rows, "3072차원 halfvec 에 HNSW 인덱스를 만들지 못했다 — RAG 배포 선결 조건이 깨졌다"
+  definition = rows[0]["indexdef"]
+  assert "hnsw" in definition.lower(), f"HNSW 가 아닌 인덱스가 생성됐다: {definition}"
+  assert "halfvec_cosine_ops" in definition, f"코사인 연산자 클래스가 반영되지 않았다: {definition}"
+  # 인덱스는 이 테스트의 트랜잭션과 함께 롤백된다(CONCURRENTLY 가 아니라 가능).
 
 
 # ── (3) 코사인 거리 정렬 — 가까운 것이 먼저 오는가 ───────────────────────────
@@ -126,19 +126,19 @@ async def test_hnsw_index_can_be_created_on_halfvec_embedding(db: None) -> None:
 # 옛 이름은 `test_similarity_search_performance` 였으나 시간 단언은 CI 에서 비결정적이라
 # 폐기하고, RAG 가 실제로 의존하는 **정확성**으로 바꿨다.
 async def test_cosine_distance_orders_nearest_first(db: None) -> None:
-    """Ordering by cosine distance must return the closest chunk first."""
-    info_id = await _make_medicine_info("정렬테스트약")
-    query_vec = [1.0, 0.0, 0.0]
+  """Ordering by cosine distance must return the closest chunk first."""
+  info_id = await _make_medicine_info("정렬테스트약")
+  query_vec = [1.0, 0.0, 0.0]
 
-    await _insert_chunk(info_id, [1.0, 0.0, 0.0], "동일", chunk_index=0)
-    await _insert_chunk(info_id, [1.0, 0.5, 0.0], "유사", chunk_index=1)
-    await _insert_chunk(info_id, [0.0, 1.0, 0.0], "직교", chunk_index=2)
+  await _insert_chunk(info_id, [1.0, 0.0, 0.0], "동일", chunk_index=0)
+  await _insert_chunk(info_id, [1.0, 0.5, 0.0], "유사", chunk_index=1)
+  await _insert_chunk(info_id, [0.0, 1.0, 0.0], "직교", chunk_index=2)
 
-    rows = await _fetch(
-        "select content from medicine_chunk where model_version = 'qa04' order by embedding <=> $1::halfvec",
-        [_vector_literal(query_vec)],
-    )
+  rows = await _fetch(
+    "select content from medicine_chunk where model_version = 'qa04' order by embedding <=> $1::halfvec",
+    [_vector_literal(query_vec)],
+  )
 
-    assert [r["content"] for r in rows] == ["동일", "유사", "직교"], (
-        f"코사인 거리 정렬이 가까운 순이 아니다: {[r['content'] for r in rows]}"
-    )
+  assert [r["content"] for r in rows] == ["동일", "유사", "직교"], (
+    f"코사인 거리 정렬이 가까운 순이 아니다: {[r['content'] for r in rows]}"
+  )

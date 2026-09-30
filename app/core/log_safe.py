@@ -30,84 +30,84 @@ _RRN_SCRUB = re.compile(r"\b(\d{6})-?\d{7}\b")
 # ── 명시적 마스킹 함수 (1차 방어) ──────────────────────────────────────
 # 흐름: 호출자가 로깅 직전 값을 마스킹 -> 마스킹된 문자열만 로그 메시지에 사용
 def mask_token(value: str) -> str:
-    """토큰/시크릿 값을 통째로 마스킹(원문 흔적 제거).
+  """토큰/시크릿 값을 통째로 마스킹(원문 흔적 제거).
 
-    Args:
-        value: 원본 토큰/시크릿.
+  Args:
+      value: 원본 토큰/시크릿.
 
-    Returns:
-        빈 값이면 그대로, 아니면 ``***``.
-    """
-    return _MASK if value else value
+  Returns:
+      빈 값이면 그대로, 아니면 ``***``.
+  """
+  return _MASK if value else value
 
 
 def mask_authorization(value: str) -> str:
-    """Authorization 헤더 값에서 스킴만 남기고 자격증명을 마스킹.
+  """Authorization 헤더 값에서 스킴만 남기고 자격증명을 마스킹.
 
-    Args:
-        value: 예) ``Bearer eyJ...``.
+  Args:
+      value: 예) ``Bearer eyJ...``.
 
-    Returns:
-        예) ``Bearer ***`` (스킴 없으면 ``***``).
-    """
-    parts = value.split(None, 1)
-    if len(parts) == 2:
-        return f"{parts[0]} {_MASK}"
-    return _MASK
+  Returns:
+      예) ``Bearer ***`` (스킴 없으면 ``***``).
+  """
+  parts = value.split(None, 1)
+  if len(parts) == 2:
+    return f"{parts[0]} {_MASK}"
+  return _MASK
 
 
 def mask_phone(value: str) -> str:
-    """문자열 속 전화번호의 가운데 자리를 마스킹.
+  """문자열 속 전화번호의 가운데 자리를 마스킹.
 
-    Args:
-        value: 전화번호를 포함할 수 있는 문자열.
+  Args:
+      value: 전화번호를 포함할 수 있는 문자열.
 
-    Returns:
-        가운데 그룹이 ``****`` 로 치환된 문자열.
-    """
-    return _PHONE_RE.sub(lambda m: f"{m.group(1)}-****-{m.group(3)}", value)
+  Returns:
+      가운데 그룹이 ``****`` 로 치환된 문자열.
+  """
+  return _PHONE_RE.sub(lambda m: f"{m.group(1)}-****-{m.group(3)}", value)
 
 
 def mask_rrn(value: str) -> str:
-    """문자열 속 주민등록번호 뒷자리(7자리)를 마스킹.
+  """문자열 속 주민등록번호 뒷자리(7자리)를 마스킹.
 
-    Args:
-        value: 주민등록번호를 포함할 수 있는 문자열.
+  Args:
+      value: 주민등록번호를 포함할 수 있는 문자열.
 
-    Returns:
-        뒷자리가 ``*******`` 로 치환된 문자열.
-    """
-    return _RRN_RE.sub(lambda m: f"{m.group(1)}-{'*' * 7}", value)
+  Returns:
+      뒷자리가 ``*******`` 로 치환된 문자열.
+  """
+  return _RRN_RE.sub(lambda m: f"{m.group(1)}-{'*' * 7}", value)
 
 
 def mask_email(value: str) -> str:
-    """문자열 속 이메일을 로컬파트 첫 글자 + 도메인만 남기고 마스킹.
+  """문자열 속 이메일을 로컬파트 첫 글자 + 도메인만 남기고 마스킹.
 
-    Args:
-        value: 이메일을 포함할 수 있는 문자열.
+  Args:
+      value: 이메일을 포함할 수 있는 문자열.
 
-    Returns:
-        예) ``a***@doseph.com``.
-    """
-    return _EMAIL_RE.sub(lambda m: f"{m.group(1)}***{m.group(2)}", value)
+  Returns:
+      예) ``a***@doseph.com``.
+  """
+  return _EMAIL_RE.sub(lambda m: f"{m.group(1)}***{m.group(2)}", value)
 
 
 # ── 스크럽 필터 (2차 안전망, 핸들러 부착) ──────────────────────────────
 # 흐름: 최종 메시지 확보 -> JWT/Bearer/주민번호 고신뢰 패턴만 스크럽
 #       -> record 재기록(모든 핸들러 공통). TruncateFilter 뒤에 부착.
 class ScrubFilter(logging.Filter):
-    """최종 로그 메시지에서 고신뢰 민감패턴을 스크럽하는 안전망 필터.
+  """최종 로그 메시지에서 고신뢰 민감패턴을 스크럽하는 안전망 필터.
 
-    명시적 마스킹(1차)을 누락해도 JWT·Bearer 토큰·주민등록번호는 로그로 새지
-    않게 막는다. 오탐(정상 데이터 훼손)을 피하려 **패턴을 좁게** 유지한다.
-    """
+  명시적 마스킹(1차)을 누락해도 JWT·Bearer 토큰·주민등록번호는 로그로 새지
+  않게 막는다. 오탐(정상 데이터 훼손)을 피하려 **패턴을 좁게** 유지한다.
+  """
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        """Mask JWT and Bearer tokens in the record before it is emitted."""
-        message = record.getMessage()
-        scrubbed = _JWT_SCRUB.sub(_MASK, message)
-        scrubbed = _BEARER_SCRUB.sub(lambda m: f"{m.group(1)} {_MASK}", scrubbed)
-        scrubbed = _RRN_SCRUB.sub(lambda m: f"{m.group(1)}-{'*' * 7}", scrubbed)
-        record.msg = scrubbed
-        record.args = None
-        return True
+  def filter(self, record: logging.LogRecord) -> bool:
+    """Mask JWT and Bearer tokens in the record before it is emitted."""
+    message = record.getMessage()
+    scrubbed = _JWT_SCRUB.sub(_MASK, message)
+    scrubbed = _BEARER_SCRUB.sub(lambda m: f"{m.group(1)} {_MASK}", scrubbed)
+    scrubbed = _RRN_SCRUB.sub(lambda m: f"{m.group(1)}-{'*' * 7}", scrubbed)
+    record.msg = scrubbed
+    record.args = None
+    return True

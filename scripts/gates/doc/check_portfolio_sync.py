@@ -74,101 +74,101 @@ EXCLUDE = {"README.md"}
 # 흐름: portfolio-sync 블록 파싱 -> sync/baseline/sources 추출
 #       -> source 실재·mtime 을 baseline 과 비교
 def inspect(path: Path) -> tuple[list[str], list[str]]:
-    """Return (errors, warnings) for one portfolio document."""
-    text = path.read_text(encoding="utf-8")
-    name = path.name
-    found = BLOCK.search(text)
-    if not found:
-        return ([f"{name}: `portfolio-sync` 블록이 없다 (portfolio/README.md 규약)"], [])
+  """Return (errors, warnings) for one portfolio document."""
+  text = path.read_text(encoding="utf-8")
+  name = path.name
+  found = BLOCK.search(text)
+  if not found:
+    return ([f"{name}: `portfolio-sync` 블록이 없다 (portfolio/README.md 규약)"], [])
 
-    body = found.group(1)
-    fields = dict(FIELD.findall(body))
-    sources = SOURCE.findall(body)
+  body = found.group(1)
+  fields = dict(FIELD.findall(body))
+  sources = SOURCE.findall(body)
 
-    errors: list[str] = []
-    warnings: list[str] = []
+  errors: list[str] = []
+  warnings: list[str] = []
 
-    raw_baseline = fields.get("baseline", "")
-    try:
-        baseline = date.fromisoformat(raw_baseline)
-    except ValueError:
-        return ([f"{name}: baseline 이 `YYYY-MM-DD` 가 아니다 ({raw_baseline!r})"], [])
+  raw_baseline = fields.get("baseline", "")
+  try:
+    baseline = date.fromisoformat(raw_baseline)
+  except ValueError:
+    return ([f"{name}: baseline 이 `YYYY-MM-DD` 가 아니다 ({raw_baseline!r})"], [])
 
-    if not sources:
-        errors.append(f"{name}: `sources` 가 비어 있다 — 무엇을 근거로 쓴 문서인지 적어야 추적된다")
+  if not sources:
+    errors.append(f"{name}: `sources` 가 비어 있다 — 무엇을 근거로 쓴 문서인지 적어야 추적된다")
 
-    stale: list[str] = []
-    for source in sources:
-        target = REPO_ROOT / source
-        if not target.exists():
-            errors.append(f"{name}: sources 가 없는 경로를 가리킨다 → {source}")
-            continue
-        # aware datetime -> 로컬 날짜. baseline 이 로컬 기준 날짜라 맞춰야 하루가 어긋나지 않는다.
-        changed = datetime.fromtimestamp(target.stat().st_mtime, tz=UTC).astimezone().date()
-        if changed > baseline:
-            stale.append(f"{source} ({changed})")
+  stale: list[str] = []
+  for source in sources:
+    target = REPO_ROOT / source
+    if not target.exists():
+      errors.append(f"{name}: sources 가 없는 경로를 가리킨다 → {source}")
+      continue
+    # aware datetime -> 로컬 날짜. baseline 이 로컬 기준 날짜라 맞춰야 하루가 어긋나지 않는다.
+    changed = datetime.fromtimestamp(target.stat().st_mtime, tz=UTC).astimezone().date()
+    if changed > baseline:
+      stale.append(f"{source} ({changed})")
 
-    if stale:
-        warnings.append(
-            f"{name}: 근거가 baseline({baseline}) 보다 새롭다 — 동기화 필요\n"
-            + "".join(f"        · {s}\n" for s in stale).rstrip(),
-        )
+  if stale:
+    warnings.append(
+      f"{name}: 근거가 baseline({baseline}) 보다 새롭다 — 동기화 필요\n"
+      + "".join(f"        · {s}\n" for s in stale).rstrip(),
+    )
 
-    # fail-closed: 필드가 없으면 "draft 가 아니다"가 아니라 "판정하지 못했다"이다.
-    # 값이 오타여도 마찬가지 — 조용히 통과하면 게이트가 자기 침묵을 초록으로 보고한다.
-    sync = fields.get("sync")
-    if sync is None:
-        errors.append(f"{name}: `sync` 필드가 없다 — 없으면 draft 검사가 조용히 건너뛰어진다(fail-closed)")
-    elif sync not in SYNC_VALUES:
-        errors.append(f"{name}: `sync` 값이 {sorted(SYNC_VALUES)} 중 하나가 아니다 ({sync!r})")
-    elif sync == "draft":
-        note = fields.get("note", "")
-        warnings.append(f"{name}: **draft** — 아직 완료된 문서가 아니다" + (f"\n        · {note}" if note else ""))
+  # fail-closed: 필드가 없으면 "draft 가 아니다"가 아니라 "판정하지 못했다"이다.
+  # 값이 오타여도 마찬가지 — 조용히 통과하면 게이트가 자기 침묵을 초록으로 보고한다.
+  sync = fields.get("sync")
+  if sync is None:
+    errors.append(f"{name}: `sync` 필드가 없다 — 없으면 draft 검사가 조용히 건너뛰어진다(fail-closed)")
+  elif sync not in SYNC_VALUES:
+    errors.append(f"{name}: `sync` 값이 {sorted(SYNC_VALUES)} 중 하나가 아니다 ({sync!r})")
+  elif sync == "draft":
+    note = fields.get("note", "")
+    warnings.append(f"{name}: **draft** — 아직 완료된 문서가 아니다" + (f"\n        · {note}" if note else ""))
 
-    return (errors, warnings)
+  return (errors, warnings)
 
 
 # ── 게이트 본문 ─────────────────────────────────────────────────────────
 # 흐름: portfolio/*.md 순회 -> 문서별 판정 -> 오류는 차단, 경고는 보고
 def main() -> int:
-    """포트폴리오 문서의 sync 블록을 훑어 근거 실재와 신선도를 본다."""
-    # fail-closed: 폴더가 없거나 대상 0건이면 "동기화됐다"가 아니라 "검사하지 못했다"이다.
-    if not PORTFOLIO_DIR.exists():
-        print(f"❌ 포트폴리오 폴더가 없다 — {PORTFOLIO_DIR}")
-        print("   경로 규약이 바뀌었다. 검사가 무력화된 상태다(fail-closed).")
-        return 1
+  """포트폴리오 문서의 sync 블록을 훑어 근거 실재와 신선도를 본다."""
+  # fail-closed: 폴더가 없거나 대상 0건이면 "동기화됐다"가 아니라 "검사하지 못했다"이다.
+  if not PORTFOLIO_DIR.exists():
+    print(f"❌ 포트폴리오 폴더가 없다 — {PORTFOLIO_DIR}")
+    print("   경로 규약이 바뀌었다. 검사가 무력화된 상태다(fail-closed).")
+    return 1
 
-    docs = [p for p in sorted(PORTFOLIO_DIR.glob("*.md")) if p.name not in EXCLUDE]
-    if not docs:
-        print(f"❌ 추적 대상 포트폴리오 문서가 0건이다 — {PORTFOLIO_DIR}")
-        print("   전부 옮겨졌거나 glob 이 어긋났다. 검사 대상 0건은 통과가 아니다(fail-closed).")
-        return 1
+  docs = [p for p in sorted(PORTFOLIO_DIR.glob("*.md")) if p.name not in EXCLUDE]
+  if not docs:
+    print(f"❌ 추적 대상 포트폴리오 문서가 0건이다 — {PORTFOLIO_DIR}")
+    print("   전부 옮겨졌거나 glob 이 어긋났다. 검사 대상 0건은 통과가 아니다(fail-closed).")
+    return 1
 
-    all_errors: list[str] = []
-    all_warnings: list[str] = []
-    for doc in docs:
-        errors, warnings = inspect(doc)
-        all_errors += errors
-        all_warnings += warnings
+  all_errors: list[str] = []
+  all_warnings: list[str] = []
+  for doc in docs:
+    errors, warnings = inspect(doc)
+    all_errors += errors
+    all_warnings += warnings
 
-    if all_warnings:
-        print(f"🟡 포트폴리오 동기화 보고 {len(all_warnings)}건 (차단 아님):")
-        for item in all_warnings:
-            print(f"   - {item}")
-        print()
+  if all_warnings:
+    print(f"🟡 포트폴리오 동기화 보고 {len(all_warnings)}건 (차단 아님):")
+    for item in all_warnings:
+      print(f"   - {item}")
+    print()
 
-    if all_errors:
-        print(f"❌ 포트폴리오 규약 위반 {len(all_errors)}건:")
-        for item in all_errors:
-            print(f"   - {item}")
-        return 1
+  if all_errors:
+    print(f"❌ 포트폴리오 규약 위반 {len(all_errors)}건:")
+    for item in all_errors:
+      print(f"   - {item}")
+    return 1
 
-    if len(docs) < MIN_PORTFOLIO:
-        print(f"❌ 포트폴리오 문서가 {len(docs)}건이다 (기대 ≥{MIN_PORTFOLIO}) — 경로·glob 이 좁아졌다(fail-closed).")
-        return 1
-    print(f"✅ 포트폴리오 문서 {len(docs)}건 — 규약 준수 · 없는 근거 0.")
-    return 0
+  if len(docs) < MIN_PORTFOLIO:
+    print(f"❌ 포트폴리오 문서가 {len(docs)}건이다 (기대 ≥{MIN_PORTFOLIO}) — 경로·glob 이 좁아졌다(fail-closed).")
+    return 1
+  print(f"✅ 포트폴리오 문서 {len(docs)}건 — 규약 준수 · 없는 근거 0.")
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

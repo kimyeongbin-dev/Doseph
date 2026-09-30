@@ -22,26 +22,26 @@ from app.services.lifestyle_guide_service import LifestyleGuideService
 
 
 def _make_profile(account_id=None):
-    """Build a minimal mock Profile."""
-    p = MagicMock()
-    p.id = uuid4()
-    p.account_id = account_id or uuid4()
-    return p
+  """Build a minimal mock Profile."""
+  p = MagicMock()
+  p.id = uuid4()
+  p.account_id = account_id or uuid4()
+  return p
 
 
 def _make_guide(profile_id=None):
-    """Build a minimal mock LifestyleGuide."""
-    g = MagicMock()
-    g.id = uuid4()
-    g.profile_id = profile_id or uuid4()
-    return g
+  """Build a minimal mock LifestyleGuide."""
+  g = MagicMock()
+  g.id = uuid4()
+  g.profile_id = profile_id or uuid4()
+  return g
 
 
 def _make_challenge():
-    """Build a minimal mock Challenge."""
-    c = MagicMock()
-    c.id = uuid4()
-    return c
+  """Build a minimal mock Challenge."""
+  c = MagicMock()
+  c.id = uuid4()
+  return c
 
 
 # ── Fixture ────────────────────────────────────────────────────────────────
@@ -49,14 +49,14 @@ def _make_challenge():
 
 @pytest.fixture
 def service() -> LifestyleGuideService:
-    """LifestyleGuideService with all external dependencies mocked."""
-    svc = LifestyleGuideService.__new__(LifestyleGuideService)
-    svc.medication_repo = AsyncMock()
-    svc.guide_repo = AsyncMock()
-    svc.challenge_repo = AsyncMock()
-    svc.llm_client = AsyncMock()
-    svc.profile_repo = AsyncMock()
-    return svc
+  """LifestyleGuideService with all external dependencies mocked."""
+  svc = LifestyleGuideService.__new__(LifestyleGuideService)
+  svc.medication_repo = AsyncMock()
+  svc.guide_repo = AsyncMock()
+  svc.challenge_repo = AsyncMock()
+  svc.llm_client = AsyncMock()
+  svc.profile_repo = AsyncMock()
+  return svc
 
 
 # ── enqueue_guide_with_owner_check ────────────────────────────────────────
@@ -70,225 +70,225 @@ def service() -> LifestyleGuideService:
 
 
 async def test_enqueue_guide_with_owner_check_delegates_when_owned(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """소유자면 enqueue_guide_generation 에 그대로 위임하고 결과를 돌려준다."""
-    account_id = uuid4()
-    profile = _make_profile(account_id=account_id)
-    group_id = uuid4()
-    expected = _make_guide(profile_id=profile.id)
+  """소유자면 enqueue_guide_generation 에 그대로 위임하고 결과를 돌려준다."""
+  account_id = uuid4()
+  profile = _make_profile(account_id=account_id)
+  group_id = uuid4()
+  expected = _make_guide(profile_id=profile.id)
 
-    service.profile_repo.get_by_id = AsyncMock(return_value=profile)
-    service.enqueue_guide_generation = AsyncMock(return_value=expected)
+  service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+  service.enqueue_guide_generation = AsyncMock(return_value=expected)
 
-    result = await service.enqueue_guide_with_owner_check(profile.id, group_id, account_id)
+  result = await service.enqueue_guide_with_owner_check(profile.id, group_id, account_id)
 
-    assert result is expected
-    service.enqueue_guide_generation.assert_awaited_once_with(profile.id, group_id)
+  assert result is expected
+  service.enqueue_guide_generation.assert_awaited_once_with(profile.id, group_id)
 
 
 async def test_enqueue_guide_with_owner_check_profile_not_found(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """프로필이 존재하지 않으면 404 — 위임까지 가지 않는다."""
-    service.profile_repo.get_by_id = AsyncMock(return_value=None)
-    service.enqueue_guide_generation = AsyncMock()
+  """프로필이 존재하지 않으면 404 — 위임까지 가지 않는다."""
+  service.profile_repo.get_by_id = AsyncMock(return_value=None)
+  service.enqueue_guide_generation = AsyncMock()
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.enqueue_guide_with_owner_check(uuid4(), uuid4(), uuid4())
+  with pytest.raises(HTTPException) as exc_info:
+    await service.enqueue_guide_with_owner_check(uuid4(), uuid4(), uuid4())
 
-    assert exc_info.value.status_code == 404
-    service.enqueue_guide_generation.assert_not_awaited()
+  assert exc_info.value.status_code == 404
+  service.enqueue_guide_generation.assert_not_awaited()
 
 
 async def test_enqueue_guide_with_owner_check_forbidden(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """남의 프로필이면 403 — 게이트가 실제로 막는지 위임 미발생으로도 확인한다."""
-    profile = _make_profile(account_id=uuid4())  # different account
-    service.profile_repo.get_by_id = AsyncMock(return_value=profile)
-    service.enqueue_guide_generation = AsyncMock()
+  """남의 프로필이면 403 — 게이트가 실제로 막는지 위임 미발생으로도 확인한다."""
+  profile = _make_profile(account_id=uuid4())  # different account
+  service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+  service.enqueue_guide_generation = AsyncMock()
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.enqueue_guide_with_owner_check(profile.id, uuid4(), uuid4())
+  with pytest.raises(HTTPException) as exc_info:
+    await service.enqueue_guide_with_owner_check(profile.id, uuid4(), uuid4())
 
-    assert exc_info.value.status_code == 403
-    service.enqueue_guide_generation.assert_not_awaited()
+  assert exc_info.value.status_code == 403
+  service.enqueue_guide_generation.assert_not_awaited()
 
 
 # ── get_guide_with_owner_check ─────────────────────────────────────────────
 
 
 async def test_get_guide_with_owner_check_success(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """가이드와 소유권 확인 후 가이드를 반환해야 한다."""
-    account_id = uuid4()
-    profile = _make_profile(account_id=account_id)
-    guide = _make_guide(profile_id=profile.id)
+  """가이드와 소유권 확인 후 가이드를 반환해야 한다."""
+  account_id = uuid4()
+  profile = _make_profile(account_id=account_id)
+  guide = _make_guide(profile_id=profile.id)
 
-    service.guide_repo.get_by_id = AsyncMock(return_value=guide)
-    service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+  service.guide_repo.get_by_id = AsyncMock(return_value=guide)
+  service.profile_repo.get_by_id = AsyncMock(return_value=profile)
 
-    result = await service.get_guide_with_owner_check(guide.id, account_id)
+  result = await service.get_guide_with_owner_check(guide.id, account_id)
 
-    assert result is guide
+  assert result is guide
 
 
 async def test_get_guide_with_owner_check_guide_not_found(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """가이드가 없으면 HTTP 404를 발생시켜야 한다."""
-    service.guide_repo.get_by_id = AsyncMock(return_value=None)
+  """가이드가 없으면 HTTP 404를 발생시켜야 한다."""
+  service.guide_repo.get_by_id = AsyncMock(return_value=None)
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.get_guide_with_owner_check(uuid4(), uuid4())
+  with pytest.raises(HTTPException) as exc_info:
+    await service.get_guide_with_owner_check(uuid4(), uuid4())
 
-    assert exc_info.value.status_code == 404
+  assert exc_info.value.status_code == 404
 
 
 async def test_get_guide_with_owner_check_forbidden(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """다른 계정의 가이드이면 HTTP 403을 발생시켜야 한다."""
-    profile = _make_profile(account_id=uuid4())  # different account
-    guide = _make_guide(profile_id=profile.id)
+  """다른 계정의 가이드이면 HTTP 403을 발생시켜야 한다."""
+  profile = _make_profile(account_id=uuid4())  # different account
+  guide = _make_guide(profile_id=profile.id)
 
-    service.guide_repo.get_by_id = AsyncMock(return_value=guide)
-    service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+  service.guide_repo.get_by_id = AsyncMock(return_value=guide)
+  service.profile_repo.get_by_id = AsyncMock(return_value=profile)
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.get_guide_with_owner_check(guide.id, uuid4())
+  with pytest.raises(HTTPException) as exc_info:
+    await service.get_guide_with_owner_check(guide.id, uuid4())
 
-    assert exc_info.value.status_code == 403
+  assert exc_info.value.status_code == 403
 
 
 # ── get_latest_guide_with_owner_check ─────────────────────────────────────
 
 
 async def test_get_latest_guide_with_owner_check_success(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """소유권 확인 후 최신 가이드를 반환해야 한다."""
-    account_id = uuid4()
-    profile = _make_profile(account_id=account_id)
-    guide = _make_guide(profile_id=profile.id)
+  """소유권 확인 후 최신 가이드를 반환해야 한다."""
+  account_id = uuid4()
+  profile = _make_profile(account_id=account_id)
+  guide = _make_guide(profile_id=profile.id)
 
-    service.profile_repo.get_by_id = AsyncMock(return_value=profile)
-    service.guide_repo.get_latest_by_profile = AsyncMock(return_value=guide)
+  service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+  service.guide_repo.get_latest_by_profile = AsyncMock(return_value=guide)
 
-    result = await service.get_latest_guide_with_owner_check(profile.id, account_id)
+  result = await service.get_latest_guide_with_owner_check(profile.id, account_id)
 
-    assert result is guide
+  assert result is guide
 
 
 async def test_get_latest_guide_with_owner_check_no_guide(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """가이드가 없으면 HTTP 404를 발생시켜야 한다."""
-    account_id = uuid4()
-    profile = _make_profile(account_id=account_id)
+  """가이드가 없으면 HTTP 404를 발생시켜야 한다."""
+  account_id = uuid4()
+  profile = _make_profile(account_id=account_id)
 
-    service.profile_repo.get_by_id = AsyncMock(return_value=profile)
-    service.guide_repo.get_latest_by_profile = AsyncMock(return_value=None)
+  service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+  service.guide_repo.get_latest_by_profile = AsyncMock(return_value=None)
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.get_latest_guide_with_owner_check(profile.id, account_id)
+  with pytest.raises(HTTPException) as exc_info:
+    await service.get_latest_guide_with_owner_check(profile.id, account_id)
 
-    assert exc_info.value.status_code == 404
+  assert exc_info.value.status_code == 404
 
 
 async def test_get_latest_guide_with_owner_check_forbidden(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """다른 계정의 프로필이면 HTTP 403을 발생시켜야 한다."""
-    profile = _make_profile(account_id=uuid4())
-    service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+  """다른 계정의 프로필이면 HTTP 403을 발생시켜야 한다."""
+  profile = _make_profile(account_id=uuid4())
+  service.profile_repo.get_by_id = AsyncMock(return_value=profile)
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.get_latest_guide_with_owner_check(profile.id, uuid4())
+  with pytest.raises(HTTPException) as exc_info:
+    await service.get_latest_guide_with_owner_check(profile.id, uuid4())
 
-    assert exc_info.value.status_code == 403
+  assert exc_info.value.status_code == 403
 
 
 # ── list_guides_with_owner_check ──────────────────────────────────────────
 
 
 async def test_list_guides_with_owner_check_success(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """소유권 확인 후 가이드 목록을 반환해야 한다."""
-    account_id = uuid4()
-    profile = _make_profile(account_id=account_id)
-    guides = [_make_guide(profile_id=profile.id), _make_guide(profile_id=profile.id)]
+  """소유권 확인 후 가이드 목록을 반환해야 한다."""
+  account_id = uuid4()
+  profile = _make_profile(account_id=account_id)
+  guides = [_make_guide(profile_id=profile.id), _make_guide(profile_id=profile.id)]
 
-    service.profile_repo.get_by_id = AsyncMock(return_value=profile)
-    service.guide_repo.get_all_by_profile = AsyncMock(return_value=guides)
+  service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+  service.guide_repo.get_all_by_profile = AsyncMock(return_value=guides)
 
-    result = await service.list_guides_with_owner_check(profile.id, account_id)
+  result = await service.list_guides_with_owner_check(profile.id, account_id)
 
-    assert result == guides
-    assert len(result) == 2
+  assert result == guides
+  assert len(result) == 2
 
 
 async def test_list_guides_with_owner_check_forbidden(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """다른 계정의 프로필이면 HTTP 403을 발생시켜야 한다."""
-    profile = _make_profile(account_id=uuid4())
-    service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+  """다른 계정의 프로필이면 HTTP 403을 발생시켜야 한다."""
+  profile = _make_profile(account_id=uuid4())
+  service.profile_repo.get_by_id = AsyncMock(return_value=profile)
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.list_guides_with_owner_check(profile.id, uuid4())
+  with pytest.raises(HTTPException) as exc_info:
+    await service.list_guides_with_owner_check(profile.id, uuid4())
 
-    assert exc_info.value.status_code == 403
+  assert exc_info.value.status_code == 403
 
 
 # ── get_guide_challenges_with_owner_check ─────────────────────────────────
 
 
 async def test_get_guide_challenges_with_owner_check_success(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """소유권 확인 후 가이드에 연결된 챌린지 목록을 반환해야 한다."""
-    account_id = uuid4()
-    profile = _make_profile(account_id=account_id)
-    guide = _make_guide(profile_id=profile.id)
-    challenges = [_make_challenge(), _make_challenge()]
+  """소유권 확인 후 가이드에 연결된 챌린지 목록을 반환해야 한다."""
+  account_id = uuid4()
+  profile = _make_profile(account_id=account_id)
+  guide = _make_guide(profile_id=profile.id)
+  challenges = [_make_challenge(), _make_challenge()]
 
-    service.guide_repo.get_by_id = AsyncMock(return_value=guide)
-    service.profile_repo.get_by_id = AsyncMock(return_value=profile)
-    service.challenge_repo.get_by_guide_id = AsyncMock(return_value=challenges)
+  service.guide_repo.get_by_id = AsyncMock(return_value=guide)
+  service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+  service.challenge_repo.get_by_guide_id = AsyncMock(return_value=challenges)
 
-    result = await service.get_guide_challenges_with_owner_check(guide.id, account_id)
+  result = await service.get_guide_challenges_with_owner_check(guide.id, account_id)
 
-    assert result == challenges
-    service.challenge_repo.get_by_guide_id.assert_called_once_with(guide.id)
+  assert result == challenges
+  service.challenge_repo.get_by_guide_id.assert_called_once_with(guide.id)
 
 
 async def test_get_guide_challenges_with_owner_check_guide_not_found(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """가이드가 없으면 HTTP 404를 발생시켜야 한다."""
-    service.guide_repo.get_by_id = AsyncMock(return_value=None)
+  """가이드가 없으면 HTTP 404를 발생시켜야 한다."""
+  service.guide_repo.get_by_id = AsyncMock(return_value=None)
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.get_guide_challenges_with_owner_check(uuid4(), uuid4())
+  with pytest.raises(HTTPException) as exc_info:
+    await service.get_guide_challenges_with_owner_check(uuid4(), uuid4())
 
-    assert exc_info.value.status_code == 404
+  assert exc_info.value.status_code == 404
 
 
 async def test_get_guide_challenges_with_owner_check_forbidden(
-    service: LifestyleGuideService,
+  service: LifestyleGuideService,
 ) -> None:
-    """다른 계정의 가이드이면 HTTP 403을 발생시켜야 한다."""
-    profile = _make_profile(account_id=uuid4())
-    guide = _make_guide(profile_id=profile.id)
+  """다른 계정의 가이드이면 HTTP 403을 발생시켜야 한다."""
+  profile = _make_profile(account_id=uuid4())
+  guide = _make_guide(profile_id=profile.id)
 
-    service.guide_repo.get_by_id = AsyncMock(return_value=guide)
-    service.profile_repo.get_by_id = AsyncMock(return_value=profile)
+  service.guide_repo.get_by_id = AsyncMock(return_value=guide)
+  service.profile_repo.get_by_id = AsyncMock(return_value=profile)
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.get_guide_challenges_with_owner_check(guide.id, uuid4())
+  with pytest.raises(HTTPException) as exc_info:
+    await service.get_guide_challenges_with_owner_check(guide.id, uuid4())
 
-    assert exc_info.value.status_code == 403
+  assert exc_info.value.status_code == 403

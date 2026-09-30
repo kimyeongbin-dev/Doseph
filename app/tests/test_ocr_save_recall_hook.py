@@ -21,69 +21,69 @@ _HELPER = "app.services.ocr_service.check_and_alert_on_medication_save"
 
 
 def _extracted_medicine() -> Any:
-    em = MagicMock()
-    em.medicine_name = "마데카솔케어연고"
-    em.department = "내과"
-    em.category = "외용제"
-    em.dose_per_intake = "적당량"
-    em.intake_instruction = None
-    em.daily_intake_count = 1
-    em.total_intake_days = 5
-    em.dispensed_date = None
-    return em
+  em = MagicMock()
+  em.medicine_name = "마데카솔케어연고"
+  em.department = "내과"
+  em.category = "외용제"
+  em.dose_per_intake = "적당량"
+  em.intake_instruction = None
+  em.daily_intake_count = 1
+  em.total_intake_days = 5
+  em.dispensed_date = None
+  return em
 
 
 @pytest.mark.asyncio
 async def test_save_one_medication_invokes_helper() -> None:
-    """OCR 경로의 medication 등록도 헬퍼를 1회 호출해야 한다."""
-    from app.services.ocr_service import OCRService
+  """OCR 경로의 medication 등록도 헬퍼를 1회 호출해야 한다."""
+  from app.services.ocr_service import OCRService
 
-    fake_medication = MagicMock()
-    fake_medication.id = "med-id"
-    fake_medication.profile_id = "p-1"
-    fake_medication.medicine_name = "마데카솔케어연고"
+  fake_medication = MagicMock()
+  fake_medication.id = "med-id"
+  fake_medication.profile_id = "p-1"
+  fake_medication.medicine_name = "마데카솔케어연고"
 
-    service = OCRService.__new__(OCRService)  # __init__ 우회 — Redis/Queue 의존성 회피
+  service = OCRService.__new__(OCRService)  # __init__ 우회 — Redis/Queue 의존성 회피
 
-    with (
-        patch("app.services.ocr_service.Medication.create", new=AsyncMock(return_value=fake_medication)),
-        patch(_HELPER, new=AsyncMock(return_value=None)) as helper,
-    ):
-        result = await service._save_one_medication(
-            _extracted_medicine(),
-            profile_id="p-1",
-            group_id=uuid4(),
-        )
+  with (
+    patch("app.services.ocr_service.Medication.create", new=AsyncMock(return_value=fake_medication)),
+    patch(_HELPER, new=AsyncMock(return_value=None)) as helper,
+  ):
+    result = await service._save_one_medication(
+      _extracted_medicine(),
+      profile_id="p-1",
+      group_id=uuid4(),
+    )
 
-    assert result is fake_medication
-    helper.assert_awaited_once()
-    args, kwargs = helper.await_args
-    assert (args[0] if args else kwargs["medication"]) is fake_medication
+  assert result is fake_medication
+  helper.assert_awaited_once()
+  args, kwargs = helper.await_args
+  assert (args[0] if args else kwargs["medication"]) is fake_medication
 
 
 @pytest.mark.asyncio
 async def test_helper_exception_does_not_break_save() -> None:
-    """헬퍼 raise 시에도 medication 은 정상 반환 (격리)."""
-    from app.services.ocr_service import OCRService
+  """헬퍼 raise 시에도 medication 은 정상 반환 (격리)."""
+  from app.services.ocr_service import OCRService
 
-    fake_medication = MagicMock()
-    fake_medication.id = "med-id"
-    fake_medication.profile_id = "p-1"
+  fake_medication = MagicMock()
+  fake_medication.id = "med-id"
+  fake_medication.profile_id = "p-1"
 
-    async def boom(*_args: Any, **_kwargs: Any) -> Any:
-        msg = "boom"
-        raise RuntimeError(msg)
+  async def boom(*_args: Any, **_kwargs: Any) -> Any:
+    msg = "boom"
+    raise RuntimeError(msg)
 
-    service = OCRService.__new__(OCRService)
+  service = OCRService.__new__(OCRService)
 
-    with (
-        patch("app.services.ocr_service.Medication.create", new=AsyncMock(return_value=fake_medication)),
-        patch(_HELPER, new=AsyncMock(side_effect=boom)),
-    ):
-        result = await service._save_one_medication(
-            _extracted_medicine(),
-            profile_id="p-1",
-            group_id=uuid4(),
-        )
+  with (
+    patch("app.services.ocr_service.Medication.create", new=AsyncMock(return_value=fake_medication)),
+    patch(_HELPER, new=AsyncMock(side_effect=boom)),
+  ):
+    result = await service._save_one_medication(
+      _extracted_medicine(),
+      profile_id="p-1",
+      group_id=uuid4(),
+    )
 
-    assert result is fake_medication
+  assert result is fake_medication

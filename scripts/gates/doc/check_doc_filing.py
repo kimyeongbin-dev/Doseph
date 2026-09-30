@@ -45,9 +45,9 @@ import re
 import sys
 
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import PRIVATE
@@ -66,16 +66,16 @@ SKIP_DIRS = frozenset({"__pycache__"})
 
 #: 접미사 ↔ 축 폴더는 1:1 이다 (FILING §5). 새 축을 만들면 여기에 한 줄 추가한다.
 SUFFIXES = frozenset({
-    "plan",
-    "report",
-    "record",
-    "architecture",
-    "deploy",
-    "filing",
-    "roadmap",
-    "mistake",
-    "queue",
-    "drift",
+  "plan",
+  "report",
+  "record",
+  "architecture",
+  "deploy",
+  "filing",
+  "roadmap",
+  "mistake",
+  "queue",
+  "drift",
 })
 #: 정본이 없는 축 — 날짜는 "작성일" 이고 직하에 있은 적이 없다.
 CANONLESS = frozenset({"study", "portfolio"})
@@ -102,16 +102,16 @@ WORK_BUFFERS = frozenset({"PLAN.md", "REPORT.md", "RECORD.md"})
 # 🔑 **성격은 파일이 선언하고(`kind`/`status`), 목록은 그것을 따라간다** — 반대로 하면
 #    목록이 문서더러 *"너는 죽으면 안 된다"* 고 말하게 된다.
 STATE_CANONS = frozenset({
-    "FILING.md",
-    "ROADMAP.md",
-    "DEPLOYMENT.md",
-    "DOC_TRUTH_DRIFT.md",
-    "FOLLOWUP_QUEUE.md",
-    "AGENT_실수-오류-기록.md",
-    "DTO_DESIGN_RULES.md",
-    "LOCAL_RESIDUE.md",
-    "ARCHITECTURE.md",  # 2026-09-21 루트에서 이관(B-9 S7)
-    "FOLLOWUP_INDEX.md",  # 🤖 생성물이지만 **커밋된다** — `pre-push` 가 «생성물 == 커밋된 것»을 대조한다
+  "FILING.md",
+  "ROADMAP.md",
+  "DEPLOYMENT.md",
+  "DOC_TRUTH_DRIFT.md",
+  "FOLLOWUP_QUEUE.md",
+  "AGENT_실수-오류-기록.md",
+  "DTO_DESIGN_RULES.md",
+  "LOCAL_RESIDUE.md",
+  "ARCHITECTURE.md",  # 2026-09-21 루트에서 이관(B-9 S7)
+  "FOLLOWUP_INDEX.md",  # 🤖 생성물이지만 **커밋된다** — `pre-push` 가 «생성물 == 커밋된 것»을 대조한다
 })
 
 # 🔴 **직하에 있어도 되지만 «없어도 정상»인 생성물** (2026-09-28 분리)
@@ -139,44 +139,43 @@ TOP_STATUS = frozenset({"draft", "in-progress", "current"})
 
 @dataclass(frozen=True)
 class Finding:
-    """한 건의 규약 위반."""
+  """한 건의 규약 위반."""
 
-    path: str
-    reason: str
+  path: str
+  reason: str
 
 
 def read_status(path: Path) -> str | None:
-    """``doc-meta`` 블록에서 status 를 읽는다. 없으면 None."""
-    found = META.search(path.read_text(encoding="utf-8", errors="replace")[:2000])
-    if not found:
-        return None
-    raw = STATUS.search(found.group(1))
-    return raw.group(1) if raw else None
+  """``doc-meta`` 블록에서 status 를 읽는다. 없으면 None."""
+  found = META.search(path.read_text(encoding="utf-8", errors="replace")[:2000])
+  if not found:
+    return None
+  raw = STATUS.search(found.group(1))
+  return raw.group(1) if raw else None
 
 
 # ── 직하 판정 ──────────────────────────────────────────────────────────
 # 흐름: 직하 .md 순회 -> 화이트리스트 대조 -> 날짜 유무 -> status 3중 검증
 def inspect_top(errors: list[Finding]) -> None:
-    """``docs-private/`` 직하의 파일들을 판정한다."""
-    for path in sorted(PRIVATE.glob("*.md")):
-        name = path.name
-        if name not in ALLOWED_TOP:
-            errors.append(Finding(name, "직하 화이트리스트 밖이다 — 축 폴더나 `_unfiled/` 로 간다 (FILING §5)"))
-            continue
-        if DATED.match(name):
-            errors.append(Finding(name, "직하 정본에는 날짜가 없다 — 날짜가 붙었으면 축 폴더로 간 것이다 (FILING §4)"))
-            continue
-        status = read_status(path)
-        if status is not None and status not in TOP_STATUS:
-            errors.append(
-                Finding(name, f"직하인데 status 가 `{status}` 다 — 직하는 {sorted(TOP_STATUS)} 뿐이다 (FILING §8-2)")
-            )
+  """``docs-private/`` 직하의 파일들을 판정한다."""
+  for path in sorted(PRIVATE.glob("*.md")):
+    name = path.name
+    if name not in ALLOWED_TOP:
+      errors.append(Finding(name, "직하 화이트리스트 밖이다 — 축 폴더나 `_unfiled/` 로 간다 (FILING §5)"))
+      continue
+    if DATED.match(name):
+      errors.append(Finding(name, "직하 정본에는 날짜가 없다 — 날짜가 붙었으면 축 폴더로 간 것이다 (FILING §4)"))
+      continue
+    status = read_status(path)
+    if status is not None and status not in TOP_STATUS:
+      errors.append(
+        Finding(name, f"직하인데 status 가 `{status}` 다 — 직하는 {sorted(TOP_STATUS)} 뿐이다 (FILING §8-2)")
+      )
 
-    missing = sorted(STATE_CANONS - {p.name for p in PRIVATE.glob("*.md")})
-    errors.extend(
-        Finding(name, "🔴 **상태 정본이 없다** — 작업 버퍼와 달리 없는 것 자체가 결함이다 (FILING §6)")
-        for name in missing
-    )
+  missing = sorted(STATE_CANONS - {p.name for p in PRIVATE.glob("*.md")})
+  errors.extend(
+    Finding(name, "🔴 **상태 정본이 없다** — 작업 버퍼와 달리 없는 것 자체가 결함이다 (FILING §6)") for name in missing
+  )
 
 
 # ── 직하의 **문서가 아닌 것** ───────────────────────────────────────────
@@ -189,139 +188,137 @@ def inspect_top(errors: list[Finding]) -> None:
 #    문서 분류 체계(화이트리스트)에 등록할 대상이 아니다. 강제로 등록시키면 규약이
 #    쓰레기로 채워진다. 기계가 할 일은 **보이게 만드는 것**까지다 — 옮길지 지울지는 사람이 정한다.
 def inspect_top_nondoc() -> list[Finding]:
-    """직하의 `.md` 아닌 파일 (폴더 제외). 보고용."""
-    return [
-        Finding(
-            p.name,
-            "직하에 있는데 문서가 아니다 — 데이터·임시 스크립트면 직하가 아니라 "
-            "축 폴더/작업 폴더로 옮기거나 지운다 (문서면 `.md` 로 규약을 따른다)",
-        )
-        for p in sorted(PRIVATE.iterdir())
-        if p.is_file() and p.suffix != ".md"
-    ]
+  """직하의 `.md` 아닌 파일 (폴더 제외). 보고용."""
+  return [
+    Finding(
+      p.name,
+      "직하에 있는데 문서가 아니다 — 데이터·임시 스크립트면 직하가 아니라 "
+      "축 폴더/작업 폴더로 옮기거나 지운다 (문서면 `.md` 로 규약을 따른다)",
+    )
+    for p in sorted(PRIVATE.iterdir())
+    if p.is_file() and p.suffix != ".md"
+  ]
 
 
 # ── 축 폴더 판정 ───────────────────────────────────────────────────────
 # 흐름: 축 폴더 순회 -> 파일명 모양 -> 접미사==폴더명 -> 예약어 -> status 대조
 def inspect_axes(errors: list[Finding], warnings: list[Finding]) -> tuple[int, list[str]]:
-    """축 폴더의 파일들을 판정한다.
+  """축 폴더의 파일들을 판정한다.
 
-    Args:
-        errors: 차단할 위반이 쌓이는 곳.
-        warnings: 보고만 할 것이 쌓이는 곳.
+  Args:
+      errors: 차단할 위반이 쌓이는 곳.
+      warnings: 보고만 할 것이 쌓이는 곳.
 
-    Returns:
-        (검사한 파일 수, 누적형으로 선언된 파일 이름들).
-    """
-    seen = 0
-    append_only: list[str] = []
-    for folder in sorted(p for p in PRIVATE.iterdir() if p.is_dir()):
-        axis = folder.name
-        if axis in EXEMPT_DIRS or axis in SKIP_DIRS:
-            continue
-        if axis not in ALL_SUFFIXES:
-            errors.append(Finding(f"{axis}/", f"예약된 축 폴더가 아니다 — 접미사 목록에 없다 {sorted(ALL_SUFFIXES)}"))
-            continue
+  Returns:
+      (검사한 파일 수, 누적형으로 선언된 파일 이름들).
+  """
+  seen = 0
+  append_only: list[str] = []
+  for folder in sorted(p for p in PRIVATE.iterdir() if p.is_dir()):
+    axis = folder.name
+    if axis in EXEMPT_DIRS or axis in SKIP_DIRS:
+      continue
+    if axis not in ALL_SUFFIXES:
+      errors.append(Finding(f"{axis}/", f"예약된 축 폴더가 아니다 — 접미사 목록에 없다 {sorted(ALL_SUFFIXES)}"))
+      continue
 
-        for path in sorted(folder.glob("*.md")):
-            seen += 1
-            name = path.name
-            if name == "README.md":
-                continue
-            found = DATED.match(name)
-            if not found:
-                # 누적형은 날짜가 없는 것이 **정상**이다. 단, 스스로 선언해야 한다.
-                if axis in CANONLESS and APPEND_ONLY.search(path.read_text(encoding="utf-8", errors="replace")):
-                    append_only.append(f"{axis}/{name}")
-                    continue
-                bucket = warnings if axis in CANONLESS else errors
-                bucket.append(
-                    Finding(
-                        f"{axis}/{name}",
-                        "이름이 `YYYY-MM-DD_<슬러그>-<접미사>.md` 가 아니다 (FILING §3)"
-                        + (" — 정독·분류 구간에서 일괄 개명" if axis in CANONLESS else ""),
-                    )
-                )
-                continue
+    for path in sorted(folder.glob("*.md")):
+      seen += 1
+      name = path.name
+      if name == "README.md":
+        continue
+      found = DATED.match(name)
+      if not found:
+        # 누적형은 날짜가 없는 것이 **정상**이다. 단, 스스로 선언해야 한다.
+        if axis in CANONLESS and APPEND_ONLY.search(path.read_text(encoding="utf-8", errors="replace")):
+          append_only.append(f"{axis}/{name}")
+          continue
+        bucket = warnings if axis in CANONLESS else errors
+        bucket.append(
+          Finding(
+            f"{axis}/{name}",
+            "이름이 `YYYY-MM-DD_<슬러그>-<접미사>.md` 가 아니다 (FILING §3)"
+            + (" — 정독·분류 구간에서 일괄 개명" if axis in CANONLESS else ""),
+          )
+        )
+        continue
 
-            _, slug, suffix = found.groups()
-            if suffix != axis:
-                errors.append(Finding(f"{axis}/{name}", f"접미사 `-{suffix}` 가 폴더 `{axis}/` 와 다르다 (FILING §3)"))
-            if slug.rsplit("-", 1)[-1] in ALL_SUFFIXES:
-                errors.append(
-                    Finding(f"{axis}/{name}", f"예약어 `{slug.rsplit('-', 1)[-1]}` 가 슬러그 끝에 왔다 (FILING §3)")
-                )
-            status = read_status(path)
-            if status in TOP_STATUS:
-                reason = f"축 폴더인데 status 가 `{status}` 다 — 닫으면서 상태를 안 고쳤다 (FILING §8-2)"
-                errors.append(Finding(f"{axis}/{name}", reason))
-    return seen, append_only
+      _, slug, suffix = found.groups()
+      if suffix != axis:
+        errors.append(Finding(f"{axis}/{name}", f"접미사 `-{suffix}` 가 폴더 `{axis}/` 와 다르다 (FILING §3)"))
+      if slug.rsplit("-", 1)[-1] in ALL_SUFFIXES:
+        errors.append(Finding(f"{axis}/{name}", f"예약어 `{slug.rsplit('-', 1)[-1]}` 가 슬러그 끝에 왔다 (FILING §3)"))
+      status = read_status(path)
+      if status in TOP_STATUS:
+        reason = f"축 폴더인데 status 가 `{status}` 다 — 닫으면서 상태를 안 고쳤다 (FILING §8-2)"
+        errors.append(Finding(f"{axis}/{name}", reason))
+  return seen, append_only
 
 
 def main() -> int:
-    """pre-push 훅 진입점.
+  """pre-push 훅 진입점.
 
-    Returns:
-        규약 위반이 없으면 0, 있으면 1 (push 거부).
-    """
-    if not PRIVATE.is_dir():
-        print(f"❌ {PRIVATE} 가 없다. 이 훅은 로컬 전용이라 없을 이유가 없다(fail-closed).")
-        return 1
+  Returns:
+      규약 위반이 없으면 0, 있으면 1 (push 거부).
+  """
+  if not PRIVATE.is_dir():
+    print(f"❌ {PRIVATE} 가 없다. 이 훅은 로컬 전용이라 없을 이유가 없다(fail-closed).")
+    return 1
 
-    errors: list[Finding] = []
-    warnings: list[Finding] = []
-    inspect_top(errors)
-    seen, append_only = inspect_axes(errors, warnings)
+  errors: list[Finding] = []
+  warnings: list[Finding] = []
+  inspect_top(errors)
+  seen, append_only = inspect_axes(errors, warnings)
 
-    # fail-closed: 대상을 한 건도 못 모으면 "깨끗하다"가 아니라 "못 셌다"이다.
-    if seen == 0:
-        print(f"❌ 축 폴더에서 문서를 한 건도 수집하지 못했다 — {PRIVATE}")
-        print("   경로 규약이 바뀌었거나 glob 이 어긋났다. 검사 대상 0건은 통과가 아니다(fail-closed).")
-        return 1
+  # fail-closed: 대상을 한 건도 못 모으면 "깨끗하다"가 아니라 "못 셌다"이다.
+  if seen == 0:
+    print(f"❌ 축 폴더에서 문서를 한 건도 수집하지 못했다 — {PRIVATE}")
+    print("   경로 규약이 바뀌었거나 glob 이 어긋났다. 검사 대상 0건은 통과가 아니다(fail-closed).")
+    return 1
 
-    # 🔴 `README.md` 는 그 폴더의 **분류 절차서**이지 분류 대상이 아니다.
-    #    세면 잔량이 늘 +1 이라, 다 끝나도 계측기가 0 을 못 찍는다.
-    #    PLAN(B-9) §2 의 완료 기준 명령도 `grep -v README` 로 거른다 — 둘이 같은 것을 세야 한다.
-    nondoc = inspect_top_nondoc()
-    warnings.extend(nondoc)
+  # 🔴 `README.md` 는 그 폴더의 **분류 절차서**이지 분류 대상이 아니다.
+  #    세면 잔량이 늘 +1 이라, 다 끝나도 계측기가 0 을 못 찍는다.
+  #    PLAN(B-9) §2 의 완료 기준 명령도 `grep -v README` 로 거른다 — 둘이 같은 것을 세야 한다.
+  nondoc = inspect_top_nondoc()
+  warnings.extend(nondoc)
 
-    unfiled = PRIVATE / "_unfiled"
-    pending = len([p for p in unfiled.glob("*.md") if p.name != "README.md"]) if unfiled.is_dir() else 0
-    if pending:
-        warnings.append(Finding("_unfiled/", f"미분류 **{pending}건** 남음 — 정독·분류 구간에서 처리한다"))
+  unfiled = PRIVATE / "_unfiled"
+  pending = len([p for p in unfiled.glob("*.md") if p.name != "README.md"]) if unfiled.is_dir() else 0
+  if pending:
+    warnings.append(Finding("_unfiled/", f"미분류 **{pending}건** 남음 — 정독·분류 구간에서 처리한다"))
 
-    if warnings:
-        print(f"🟡 배치 보고 {len(warnings)}건 (차단 아님):")
-        for item in warnings[:8]:
-            print(f"   - {item.path}: {item.reason}")
-        if len(warnings) > 8:
-            print(f"   … 외 {len(warnings) - 8}건")
-        print()
+  if warnings:
+    print(f"🟡 배치 보고 {len(warnings)}건 (차단 아님):")
+    for item in warnings[:8]:
+      print(f"   - {item.path}: {item.reason}")
+    if len(warnings) > 8:
+      print(f"   … 외 {len(warnings) - 8}건")
+    print()
 
-    if errors:
-        print(f"❌ 문서 배치 규약 위반 {len(errors)}건 (정본 = docs-private/FILING.md):")
-        for item in errors[:25]:
-            print(f"   - {item.path}: {item.reason}")
-        if len(errors) > 25:
-            print(f"   … 외 {len(errors) - 25}건")
-        return 1
+  if errors:
+    print(f"❌ 문서 배치 규약 위반 {len(errors)}건 (정본 = docs-private/FILING.md):")
+    for item in errors[:25]:
+      print(f"   - {item.path}: {item.reason}")
+    if len(errors) > 25:
+      print(f"   … 외 {len(errors) - 25}건")
+    return 1
 
-    if seen < MIN_AXIS_DOCS:
-        print(f"❌ 축 폴더 대상이 {seen}건이다 (기대 ≥{MIN_AXIS_DOCS}) — 경로 규약이 바뀌었거나 glob 이 좁아졌다.")
-        print("   줄어든 것도 실패다(fail-closed, 대장 D31).")
-        return 1
-    if len(append_only) < MIN_APPEND_ONLY:
-        print(f"❌ 누적형 선언을 {len(append_only)}건밖에 못 셌다 (기대 최소 {MIN_APPEND_ONLY}건).")
-        print("   `누적: true` 파싱이 깨졌거나 그 문서가 사라졌다 — 0건은 '예외가 없다' 가 아니라")
-        print("   '아무것도 못 봤다' 이고, 그러면 날짜 없는 이름이 조용히 통과한다(fail-closed).")
-        return 1
-    print(
-        f"✅ 문서 배치 — 직하 {len(ALLOWED_TOP)}종(.md) 규약 준수 · "
-        f"직하 비문서 {len(nondoc)}건 · 축 폴더 {seen}건 이름 정합 · "
-        f"누적형 {len(append_only)}건({', '.join(append_only)})."
-    )
-    return 0
+  if seen < MIN_AXIS_DOCS:
+    print(f"❌ 축 폴더 대상이 {seen}건이다 (기대 ≥{MIN_AXIS_DOCS}) — 경로 규약이 바뀌었거나 glob 이 좁아졌다.")
+    print("   줄어든 것도 실패다(fail-closed, 대장 D31).")
+    return 1
+  if len(append_only) < MIN_APPEND_ONLY:
+    print(f"❌ 누적형 선언을 {len(append_only)}건밖에 못 셌다 (기대 최소 {MIN_APPEND_ONLY}건).")
+    print("   `누적: true` 파싱이 깨졌거나 그 문서가 사라졌다 — 0건은 '예외가 없다' 가 아니라")
+    print("   '아무것도 못 봤다' 이고, 그러면 날짜 없는 이름이 조용히 통과한다(fail-closed).")
+    return 1
+  print(
+    f"✅ 문서 배치 — 직하 {len(ALLOWED_TOP)}종(.md) 규약 준수 · "
+    f"직하 비문서 {len(nondoc)}건 · 축 폴더 {seen}건 이름 정합 · "
+    f"누적형 {len(append_only)}건({', '.join(append_only)})."
+  )
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

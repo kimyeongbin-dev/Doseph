@@ -17,25 +17,25 @@ router = APIRouter(prefix="/health", tags=["Health"])
 
 @router.get("")
 async def health_check() -> dict[str, str]:
-    """Basic health check endpoint - liveness probe.
+  """Basic health check endpoint - liveness probe.
 
-    의도된 NO-AUTH endpoint — 모듈 docstring "보안 정책" 참고.
+  의도된 NO-AUTH endpoint — 모듈 docstring "보안 정책" 참고.
 
-    Returns:
-        dict[str, str]: Health status response.
-    """
-    return {"status": "healthy"}
+  Returns:
+      dict[str, str]: Health status response.
+  """
+  return {"status": "healthy"}
 
 
 @router.get("/ready")
 async def readiness_check() -> dict[str, str]:
-    """Readiness check endpoint - readiness probe.
+  """Readiness check endpoint - readiness probe.
 
-    의도된 NO-AUTH endpoint — 모듈 docstring "보안 정책" 참고.
+  의도된 NO-AUTH endpoint — 모듈 docstring "보안 정책" 참고.
 
-    TODO: Add checks for DB connection, Redis connection, etc.
+  TODO: Add checks for DB connection, Redis connection, etc.
 
-    Returns:
-        dict[str, str]: Readiness status response.
-    """
-    return {"status": "ready"}
+  Returns:
+      dict[str, str]: Readiness status response.
+  """
+  return {"status": "ready"}

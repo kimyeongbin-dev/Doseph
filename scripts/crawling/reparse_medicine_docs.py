@@ -21,97 +21,97 @@ from tortoise import Tortoise
 from app.db.databases import TORTOISE_ORM
 from app.models.medicine_info import MedicineInfo
 from app.services.medicine_doc_parser import (
-    flatten_doc_plaintext,
-    parse_nb_categories,
-    parse_ud_plaintext,
+  flatten_doc_plaintext,
+  parse_nb_categories,
+  parse_ud_plaintext,
 )
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] [%(levelname)s] [%(name)s:%(lineno)d] - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+  level=logging.INFO,
+  format="[%(asctime)s] [%(levelname)s] [%(name)s:%(lineno)d] - %(message)s",
+  datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
-    """명령줄 인자를 파싱한다."""
-    parser = argparse.ArgumentParser(
-        description="Reparse medicine_info raw XML into structured columns (no API calls).",
-    )
-    parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=500,
-        help="Rows per batch (default: 500)",
-    )
-    return parser.parse_args()
+  """명령줄 인자를 파싱한다."""
+  parser = argparse.ArgumentParser(
+    description="Reparse medicine_info raw XML into structured columns (no API calls).",
+  )
+  parser.add_argument(
+    "--batch-size",
+    type=int,
+    default=500,
+    help="Rows per batch (default: 500)",
+  )
+  return parser.parse_args()
 
 
 async def reparse_all(batch_size: int) -> tuple[int, int]:
-    """모든 medicine_info row 의 raw XML 을 재파싱해 새 컬럼을 갱신한다.
+  """모든 medicine_info row 의 raw XML 을 재파싱해 새 컬럼을 갱신한다.
 
-    Returns:
-        (processed, updated) — 처리한 row 수, 실제 컬럼 변경된 row 수.
-    """
-    total = await MedicineInfo.all().count()
-    logger.info("Reparsing %d medicine_info rows (batch=%d)", total, batch_size)
+  Returns:
+      (processed, updated) — 처리한 row 수, 실제 컬럼 변경된 row 수.
+  """
+  total = await MedicineInfo.all().count()
+  logger.info("Reparsing %d medicine_info rows (batch=%d)", total, batch_size)
 
-    processed = 0
-    updated = 0
-    offset = 0
+  processed = 0
+  updated = 0
+  offset = 0
 
-    while True:
-        rows = await MedicineInfo.all().offset(offset).limit(batch_size)
-        if not rows:
-            break
+  while True:
+    rows = await MedicineInfo.all().offset(offset).limit(batch_size)
+    if not rows:
+      break
 
-        for row in rows:
-            efficacy = flatten_doc_plaintext(row.ee_doc_data) or None
-            dosage = parse_ud_plaintext(row.ud_doc_data) or None
-            precautions, side_effects = parse_nb_categories(row.nb_doc_data)
+    for row in rows:
+      efficacy = flatten_doc_plaintext(row.ee_doc_data) or None
+      dosage = parse_ud_plaintext(row.ud_doc_data) or None
+      precautions, side_effects = parse_nb_categories(row.nb_doc_data)
 
-            patch = {
-                "efficacy": efficacy,
-                "dosage": dosage,
-                "precautions": precautions or None,
-                "side_effects": side_effects or None,
-            }
-            # 변경 없는 row 는 update 호출 자체를 skip
-            if (
-                row.efficacy == efficacy
-                and row.dosage == dosage
-                and row.precautions == (precautions or None)
-                and row.side_effects == (side_effects or None)
-            ):
-                processed += 1
-                continue
+      patch = {
+        "efficacy": efficacy,
+        "dosage": dosage,
+        "precautions": precautions or None,
+        "side_effects": side_effects or None,
+      }
+      # 변경 없는 row 는 update 호출 자체를 skip
+      if (
+        row.efficacy == efficacy
+        and row.dosage == dosage
+        and row.precautions == (precautions or None)
+        and row.side_effects == (side_effects or None)
+      ):
+        processed += 1
+        continue
 
-            await MedicineInfo.filter(id=row.id).update(**patch)
-            updated += 1
-            processed += 1
+      await MedicineInfo.filter(id=row.id).update(**patch)
+      updated += 1
+      processed += 1
 
-        offset += batch_size
-        logger.info("Progress: %d/%d processed, %d updated", processed, total, updated)
+    offset += batch_size
+    logger.info("Progress: %d/%d processed, %d updated", processed, total, updated)
 
-    return processed, updated
+  return processed, updated
 
 
 async def main_async(batch_size: int) -> None:
-    """Tortoise 를 띄우고 재파싱을 돌린 뒤 반드시 내린다."""
-    await Tortoise.init(config=TORTOISE_ORM)
-    try:
-        processed, updated = await reparse_all(batch_size)
-        logger.info("Reparse complete — processed=%d updated=%d", processed, updated)
-    finally:
-        await Tortoise.close_connections()
+  """Tortoise 를 띄우고 재파싱을 돌린 뒤 반드시 내린다."""
+  await Tortoise.init(config=TORTOISE_ORM)
+  try:
+    processed, updated = await reparse_all(batch_size)
+    logger.info("Reparse complete — processed=%d updated=%d", processed, updated)
+  finally:
+    await Tortoise.close_connections()
 
 
 def main() -> None:
-    """CLI 진입점."""
-    args = parse_args()
-    asyncio.run(main_async(args.batch_size))
+  """CLI 진입점."""
+  args = parse_args()
+  asyncio.run(main_async(args.batch_size))
 
 
 if __name__ == "__main__":
-    main()
+  main()

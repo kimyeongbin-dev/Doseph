@@ -39,77 +39,77 @@ TABLED = """## 트랙 C — 기타 후속 큐
 
 # ── 음성 대조 — 표제형은 지금까지처럼 동작해야 한다 ──────────────────
 def test_heading_section_still_works() -> None:
-    """표제로 찾는 기존 동작은 그대로다."""
-    found = section_text(HEADED, "B-14")
-    assert found is not None
-    assert "내용 B-14." in found
-    assert "내용 B-15." not in found, "다음 표제에서 멈춰야 한다"
+  """표제로 찾는 기존 동작은 그대로다."""
+  found = section_text(HEADED, "B-14")
+  assert found is not None
+  assert "내용 B-14." in found
+  assert "내용 B-15." not in found, "다음 표제에서 멈춰야 한다"
 
 
 def test_numbered_heading_still_works() -> None:
-    """숫자 마커는 `## 5.` · `## §5` 꼴을 찾는다."""
-    text = "## 5. 폴더 체계\n\n내용 5.\n\n## 6. 다음\n"
-    found = section_text(text, "5")
-    assert found is not None
-    assert "내용 5." in found
-    assert "내용 6." not in found
+  """숫자 마커는 `## 5.` · `## §5` 꼴을 찾는다."""
+  text = "## 5. 폴더 체계\n\n내용 5.\n\n## 6. 다음\n"
+  found = section_text(text, "5")
+  assert found is not None
+  assert "내용 5." in found
+  assert "내용 6." not in found
 
 
 def test_missing_marker_returns_none() -> None:
-    """없는 마커는 `None` — 호출자가 «선언한 절이 실재하지 않는다» 로 판정한다."""
-    assert section_text(HEADED, "B-99") is None
+  """없는 마커는 `None` — 호출자가 «선언한 절이 실재하지 않는다» 로 판정한다."""
+  assert section_text(HEADED, "B-99") is None
 
 
 # ── 결핍 주입 — 표 행을 절로 인정해야 한다 ──────────────────────────
 def test_table_row_is_a_section() -> None:
-    """🆕 표제가 없으면 **표 행**을 절로 본다 — 이것이 `문서-36` 의 해소다."""
-    found = section_text(TABLED, "C-6")
-    assert found is not None, "표 행을 절로 못 찾으면 트랙 C 를 가리킬 수 없다"
-    assert "LOCAL_RESIDUE" in found
-    assert "Dependabot" not in found, "그 행만 돌려줘야 한다"
+  """🆕 표제가 없으면 **표 행**을 절로 본다 — 이것이 `문서-36` 의 해소다."""
+  found = section_text(TABLED, "C-6")
+  assert found is not None, "표 행을 절로 못 찾으면 트랙 C 를 가리킬 수 없다"
+  assert "LOCAL_RESIDUE" in found
+  assert "Dependabot" not in found, "그 행만 돌려줘야 한다"
 
 
 def test_table_row_marker_must_be_in_the_first_cell() -> None:
-    """🔴 **앵커** — 첫 칸이 아닌 칸의 글자는 마커로 인정하지 않는다(`D47`).
+  """🔴 **앵커** — 첫 칸이 아닌 칸의 글자는 마커로 인정하지 않는다(`D47`).
 
-    `재배포` 는 `C-14` 행의 **둘째 칸**에 있다. 이걸 절로 인정하면 산문이 전부 절이 된다.
-    """
-    assert section_text(TABLED, "재배포") is None
+  `재배포` 는 `C-14` 행의 **둘째 칸**에 있다. 이걸 절로 인정하면 산문이 전부 절이 된다.
+  """
+  assert section_text(TABLED, "재배포") is None
 
 
 def test_ambiguous_table_marker_is_fail_closed() -> None:
-    """같은 마커를 첫 칸에 가진 행이 둘이면 `None` — 어느 쪽인지 모른다."""
-    doubled = TABLED + "\n| **C-6 다른 것** | 중복 행 | 낮음 |"
-    assert section_text(doubled, "C-6") is None
+  """같은 마커를 첫 칸에 가진 행이 둘이면 `None` — 어느 쪽인지 모른다."""
+  doubled = TABLED + "\n| **C-6 다른 것** | 중복 행 | 낮음 |"
+  assert section_text(doubled, "C-6") is None
 
 
 def test_heading_wins_over_table_row() -> None:
-    """표제와 표 행이 둘 다 있으면 **표제**가 이긴다 — 더 큰 단위가 절이다."""
-    mixed = HEADED + "\n\n| 항목 | 내용 |\n|---|---|\n| **B-14** | 표 행 쪽 |\n"
-    found = section_text(mixed, "B-14")
-    assert found is not None
-    assert "내용 B-14." in found
-    assert "표 행 쪽" not in found
+  """표제와 표 행이 둘 다 있으면 **표제**가 이긴다 — 더 큰 단위가 절이다."""
+  mixed = HEADED + "\n\n| 항목 | 내용 |\n|---|---|\n| **B-14** | 표 행 쪽 |\n"
+  found = section_text(mixed, "B-14")
+  assert found is not None
+  assert "내용 B-14." in found
+  assert "표 행 쪽" not in found
 
 
 def test_exact_first_cell_wins_over_substring() -> None:
-    """🔴 **정확일치를 먼저 본다** (2026-09-28).
+  """🔴 **정확일치를 먼저 본다** (2026-09-28).
 
-    실측: `ROADMAP#11` 이 `| **11** |` 과 `| **C-11 설문…** |` **둘**에 걸려 모호로 막혔다.
-    짧은 마커는 부분일치만으로는 넓다 — 꾸밈을 벗긴 첫 칸이 **같으면** 그것이 답이다.
-    """
-    numbered = """| 단계 | 내용 |
+  실측: `ROADMAP#11` 이 `| **11** |` 과 `| **C-11 설문…** |` **둘**에 걸려 모호로 막혔다.
+  짧은 마커는 부분일치만으로는 넓다 — 꾸밈을 벗긴 첫 칸이 **같으면** 그것이 답이다.
+  """
+  numbered = """| 단계 | 내용 |
 |---|---|
 | **11** | CLAUDE.md 축소 |
 | **C-11 설문 SSOT 단일화** | 진입 경로마다 선택지가 다르다 |"""
-    found = section_text(numbered, "11")
-    assert found is not None, "정확일치가 모호를 갈라야 한다"
-    assert "CLAUDE.md 축소" in found
-    assert "설문" not in found
+  found = section_text(numbered, "11")
+  assert found is not None, "정확일치가 모호를 갈라야 한다"
+  assert "CLAUDE.md 축소" in found
+  assert "설문" not in found
 
 
 def test_substring_still_works_when_no_exact_match() -> None:
-    """정확일치가 없으면 부분일치로 내려간다 — `C-6` ↔ `**C-6 잔손질**`."""
-    found = section_text(TABLED, "C-6")
-    assert found is not None
-    assert "LOCAL_RESIDUE" in found
+  """정확일치가 없으면 부분일치로 내려간다 — `C-6` ↔ `**C-6 잔손질**`."""
+  found = section_text(TABLED, "C-6")
+  assert found is not None
+  assert "LOCAL_RESIDUE" in found

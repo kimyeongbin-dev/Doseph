@@ -35,9 +35,9 @@ import sys
 # Windows 콘솔 기본 코드페이지(cp949)에서 한글 출력이 깨지거나 죽지 않도록 고정한다.
 # 🔴 stdout 과 stderr 는 **서로를 보호하지 않는다** — 한쪽만 고정하면 다른 쪽이 크래시한다(대장 D36).
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # stdout/stderr 방어가 import 보다 먼저여야 한다 — cp949 크래시 방지(대장 D36).
 from scripts.gates._root import REPO_ROOT
@@ -45,11 +45,11 @@ from scripts.gates._root import REPO_ROOT
 # 자식 프로세스 환경: 저장소 루트를 import 경로에 얹고 출력 인코딩을 UTF-8 로 고정.
 # (CI/Linux 는 이미 UTF-8 이라 무영향)
 GATE_ENV = {
-    **os.environ,
-    "PYTHONIOENCODING": "utf-8",
-    "PYTHONPATH": os.pathsep.join(
-        [str(REPO_ROOT), *([os.environ["PYTHONPATH"]] if os.environ.get("PYTHONPATH") else [])],
-    ),
+  **os.environ,
+  "PYTHONIOENCODING": "utf-8",
+  "PYTHONPATH": os.pathsep.join(
+    [str(REPO_ROOT), *([os.environ["PYTHONPATH"]] if os.environ.get("PYTHONPATH") else [])],
+  ),
 }
 
 #: 바닥값 — 계약이 조용히 사라지는 것을 막는다. *0건*만이 아니라 **줄어든 것도 실패**다(D31).
@@ -65,47 +65,45 @@ SUMMARY = re.compile(r"^Contracts:\s*(\d+)\s*kept,\s*(\d+)\s*broken", re.IGNOREC
 #       -> 도구 출력 그대로 전달 -> 요약 줄 파싱 -> 계약 수 바닥값 검사
 #       -> 위반이 있거나 계약이 줄었으면 non-zero 로 push/CI 차단
 def main() -> int:
-    """pre-push · CI 진입점.
+  """pre-push · CI 진입점.
 
-    Returns:
-        계약이 전부 KEPT 이고 계약 수가 바닥값 이상이면 0, 그 외 1(또는 도구의 종료코드).
-    """
-    # 실행파일은 uv 관리 venv 의 PATH 로 해석(부분경로 의도적) -> S607 예외
-    result = subprocess.run(
-        ["lint-imports", "--no-logo", *sys.argv[1:]],  # noqa: S607
-        cwd=REPO_ROOT,
-        env=GATE_ENV,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    # 도구의 출력은 그대로 넘긴다 — 계약 이름·위반 내역이 거기 있다(우리가 다시 세지 않는다, D43).
-    print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
+  Returns:
+      계약이 전부 KEPT 이고 계약 수가 바닥값 이상이면 0, 그 외 1(또는 도구의 종료코드).
+  """
+  # 실행파일은 uv 관리 venv 의 PATH 로 해석(부분경로 의도적) -> S607 예외
+  result = subprocess.run(
+    ["lint-imports", "--no-logo", *sys.argv[1:]],  # noqa: S607
+    cwd=REPO_ROOT,
+    env=GATE_ENV,
+    check=False,
+    capture_output=True,
+    text=True,
+    encoding="utf-8",
+    errors="replace",
+  )
+  # 도구의 출력은 그대로 넘긴다 — 계약 이름·위반 내역이 거기 있다(우리가 다시 세지 않는다, D43).
+  print(result.stdout, end="")
+  if result.stderr:
+    print(result.stderr, end="", file=sys.stderr)
 
-    if result.returncode != 0:
-        return result.returncode
+  if result.returncode != 0:
+    return result.returncode
 
-    matched = SUMMARY.search(result.stdout)
-    if not matched:
-        print("[거부] `lint-imports` 의 요약 줄(`Contracts: N kept, M broken`)을 찾지 못했다.", file=sys.stderr)
-        print("  무엇을 검사했는지 알 수 없으므로 통과시키지 않는다(fail-closed).", file=sys.stderr)
-        return 1
+  matched = SUMMARY.search(result.stdout)
+  if not matched:
+    print("[거부] `lint-imports` 의 요약 줄(`Contracts: N kept, M broken`)을 찾지 못했다.", file=sys.stderr)
+    print("  무엇을 검사했는지 알 수 없으므로 통과시키지 않는다(fail-closed).", file=sys.stderr)
+    return 1
 
-    kept = int(matched.group(1))
-    if kept < MIN_CONTRACTS:
-        print(f"[거부] 계약이 {kept}건뿐이다 (기대 최소 {MIN_CONTRACTS}건).", file=sys.stderr)
-        print(
-            "  `pyproject.toml` 의 `[[tool.importlinter.contracts]]` 가 지워졌거나 섹션명이 바뀌었다.", file=sys.stderr
-        )
-        print("  0건이어도 `lint-imports` 는 exit 0 이다 — 줄어든 것도 실패다(D31).", file=sys.stderr)
-        return 1
+  kept = int(matched.group(1))
+  if kept < MIN_CONTRACTS:
+    print(f"[거부] 계약이 {kept}건뿐이다 (기대 최소 {MIN_CONTRACTS}건).", file=sys.stderr)
+    print("  `pyproject.toml` 의 `[[tool.importlinter.contracts]]` 가 지워졌거나 섹션명이 바뀌었다.", file=sys.stderr)
+    print("  0건이어도 `lint-imports` 는 exit 0 이다 — 줄어든 것도 실패다(D31).", file=sys.stderr)
+    return 1
 
-    return 0
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

@@ -154,69 +154,69 @@ SYSTEM_PROMPT = """당신은 'Doseph' 약사 챗봇의 Query Rewriter 입니다.
 
 
 def _get_client() -> AsyncOpenAI | None:
-    """AsyncOpenAI 싱글톤. config.OPENAI_API_KEY 미설정 시 None."""
-    global _client, _initialised
-    if _initialised:
-        return _client
-    api_key = config.OPENAI_API_KEY
-    if not api_key:
-        logger.warning("OPENAI_API_KEY 미설정 — QueryRewriter 비활성")
-        _initialised = True
-        return None
-    _client = AsyncOpenAI(api_key=api_key)
-    _initialised = True
+  """AsyncOpenAI 싱글톤. config.OPENAI_API_KEY 미설정 시 None."""
+  global _client, _initialised
+  if _initialised:
     return _client
+  api_key = config.OPENAI_API_KEY
+  if not api_key:
+    logger.warning("OPENAI_API_KEY 미설정 — QueryRewriter 비활성")
+    _initialised = True
+    return None
+  _client = AsyncOpenAI(api_key=api_key)
+  _initialised = True
+  return _client
 
 
 async def rewrite_query(
-    messages: list[dict[str, str]],
-    medical_context: str | None = None,
+  messages: list[dict[str, str]],
+  medical_context: str | None = None,
 ) -> QueryRewriterOutput:
-    """Raw query + history + medical_context → QueryRewriterOutput.
+  """Raw query + history + medical_context → QueryRewriterOutput.
 
-    Args:
-        messages: 시간순 history (system role 제외, user/assistant 만).
-        medical_context: ``[사용자 의학 컨텍스트]`` + ``[용어 매핑]`` markdown
-            합성. None 이면 빈 컨텍스트로 처리.
+  Args:
+      messages: 시간순 history (system role 제외, user/assistant 만).
+      medical_context: ``[사용자 의학 컨텍스트]`` + ``[용어 매핑]`` markdown
+          합성. None 이면 빈 컨텍스트로 처리.
 
-    Returns:
-        QueryRewriterOutput. client 부재 시 fallback (intent=ambiguous +
-        명확화 메시지).
-    """
-    client = _get_client()
-    if client is None:
-        return QueryRewriterOutput(
-            intent=IntentType.AMBIGUOUS,
-            direct_answer="현재 AI 응답 설정이 준비되지 않았어요. 잠시 후 다시 시도해주세요.",
-        )
-
-    system_content = SYSTEM_PROMPT
-    if medical_context:
-        system_content = system_content + "\n\n" + medical_context
-
-    full_messages: list[dict[str, str]] = [
-        {"role": "system", "content": system_content},
-        *messages,
-    ]
-
-    completion = await client.beta.chat.completions.parse(
-        model=_MODEL,
-        messages=full_messages,  # type: ignore[arg-type]
-        response_format=QueryRewriterOutput,
+  Returns:
+      QueryRewriterOutput. client 부재 시 fallback (intent=ambiguous +
+      명확화 메시지).
+  """
+  client = _get_client()
+  if client is None:
+    return QueryRewriterOutput(
+      intent=IntentType.AMBIGUOUS,
+      direct_answer="현재 AI 응답 설정이 준비되지 않았어요. 잠시 후 다시 시도해주세요.",
     )
-    parsed = completion.choices[0].message.parsed
-    if parsed is None:
-        logger.warning("[QueryRewriter] parsed is None — fallback to ambiguous")
-        return QueryRewriterOutput(
-            intent=IntentType.AMBIGUOUS,
-            direct_answer="질문을 정확히 이해하지 못했어요. 다시 한번 말씀해주세요.",
-        )
 
-    logger.info(
-        "[QueryRewriter] intent=%s direct_answer=%s rewritten_query=%r metadata=%s",
-        parsed.intent.value,
-        "yes" if parsed.direct_answer else "no",
-        parsed.rewritten_query,
-        parsed.metadata.model_dump() if parsed.metadata else None,
+  system_content = SYSTEM_PROMPT
+  if medical_context:
+    system_content = system_content + "\n\n" + medical_context
+
+  full_messages: list[dict[str, str]] = [
+    {"role": "system", "content": system_content},
+    *messages,
+  ]
+
+  completion = await client.beta.chat.completions.parse(
+    model=_MODEL,
+    messages=full_messages,  # type: ignore[arg-type]
+    response_format=QueryRewriterOutput,
+  )
+  parsed = completion.choices[0].message.parsed
+  if parsed is None:
+    logger.warning("[QueryRewriter] parsed is None — fallback to ambiguous")
+    return QueryRewriterOutput(
+      intent=IntentType.AMBIGUOUS,
+      direct_answer="질문을 정확히 이해하지 못했어요. 다시 한번 말씀해주세요.",
     )
-    return parsed
+
+  logger.info(
+    "[QueryRewriter] intent=%s direct_answer=%s rewritten_query=%r metadata=%s",
+    parsed.intent.value,
+    "yes" if parsed.direct_answer else "no",
+    parsed.rewritten_query,
+    parsed.metadata.model_dump() if parsed.metadata else None,
+  )
+  return parsed

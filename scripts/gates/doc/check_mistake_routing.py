@@ -44,9 +44,9 @@ from scripts.gates.doc.mistake_ledger import DEFAULT_LEDGER, MarkerError, parse_
 
 # 한글·이모지를 인쇄하므로 Windows cp949 콘솔에서 죽지 않게 먼저 방어한다(대장 D36).
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # 🔑 깊이를 세지 않는다 — `parents[3]` 은 폴더를 한 단계 나누는 순간 깨진다(`scripts/gates/README.md`).
 LEDGER = DEFAULT_LEDGER
@@ -71,135 +71,133 @@ COUNT_RE = re.compile(r"\((\d+)건\)")
 # ── ① CLAUDE.md 의 라우팅 표에서 «선언된 축» 을 거둔다 ────────────────
 # 흐름: 마커 구간 잘라내기 -> 표 행의 첫 백틱 값 수집
 def collect_declared_axes(text: str) -> tuple[set[str], str | None]:
-    """라우팅 표에 선언된 축 이름을 모은다.
+  """라우팅 표에 선언된 축 이름을 모은다.
 
-    Args:
-        text: `CLAUDE.md` 전문.
+  Args:
+      text: `CLAUDE.md` 전문.
 
-    Returns:
-        (선언된 축 집합, 문제 메시지 또는 None).
-    """
-    if ROUTE_START not in text or ROUTE_END not in text:
-        return set(), (
-            f"`CLAUDE.md` 에 라우팅 표 마커가 없다 ({ROUTE_START} … {ROUTE_END}) — "
-            "표가 없으면 **대장에 닿는 주소가 층②에 없다**"
-        )
-    block = text.split(ROUTE_START, 1)[1].split(ROUTE_END, 1)[0]
-    axes = {m.group(1).strip() for line in block.splitlines() if (m := ROUTE_ROW_RE.match(line))}
-    return axes, None
+  Returns:
+      (선언된 축 집합, 문제 메시지 또는 None).
+  """
+  if ROUTE_START not in text or ROUTE_END not in text:
+    return set(), (
+      f"`CLAUDE.md` 에 라우팅 표 마커가 없다 ({ROUTE_START} … {ROUTE_END}) — "
+      "표가 없으면 **대장에 닿는 주소가 층②에 없다**"
+    )
+  block = text.split(ROUTE_START, 1)[1].split(ROUTE_END, 1)[0]
+  axes = {m.group(1).strip() for line in block.splitlines() if (m := ROUTE_ROW_RE.match(line))}
+  return axes, None
 
 
 # ── ①' 표가 «몇 건» 이라고 말하는가 ───────────────────────────────────
 # 흐름: 마커 구간 -> 각 행의 축 이름 + `(N건)` -> 실측과 대조할 선언값
 # 🔴 왜 있나: D67 — 건수를 두 곳에 적고 한쪽만 고쳤다. 대조하는 기계가 없으면 반드시 썩는다.
 def collect_declared_counts(text: str) -> dict[str, int]:
-    """라우팅 표가 축마다 선언한 건수를 모은다.
+  """라우팅 표가 축마다 선언한 건수를 모은다.
 
-    Args:
-        text: `CLAUDE.md` 전문.
+  Args:
+      text: `CLAUDE.md` 전문.
 
-    Returns:
-        {축 이름: 선언 건수}. 건수를 안 적은 행은 빠진다.
-    """
-    if ROUTE_START not in text or ROUTE_END not in text:
-        return {}
-    block = text.split(ROUTE_START, 1)[1].split(ROUTE_END, 1)[0]
-    declared: dict[str, int] = {}
-    for line in block.splitlines():
-        row = ROUTE_ROW_RE.match(line)
-        count = COUNT_RE.search(line) if row else None
-        if row and count:
-            declared[row.group(1).strip()] = int(count.group(1))
-    return declared
+  Returns:
+      {축 이름: 선언 건수}. 건수를 안 적은 행은 빠진다.
+  """
+  if ROUTE_START not in text or ROUTE_END not in text:
+    return {}
+  block = text.split(ROUTE_START, 1)[1].split(ROUTE_END, 1)[0]
+  declared: dict[str, int] = {}
+  for line in block.splitlines():
+    row = ROUTE_ROW_RE.match(line)
+    count = COUNT_RE.search(line) if row else None
+    if row and count:
+      declared[row.group(1).strip()] = int(count.group(1))
+  return declared
 
 
 def main(argv: list[str] | None = None) -> int:
-    """대장 태그와 라우팅 표를 양방향으로 대조한다.
+  """대장 태그와 라우팅 표를 양방향으로 대조한다.
 
-    Args:
-        argv: 대장 경로를 1개 받는다. 생략하면 정본.
-            🔑 **경로를 받는 이유**: 하드코딩하면 결핍 주입이 **정본을 훼손하는 길밖에** 없다.
-            대장은 git 밖이라 되돌릴 안전망이 없다(`FILING.md` §12-1).
+  Args:
+      argv: 대장 경로를 1개 받는다. 생략하면 정본.
+          🔑 **경로를 받는 이유**: 하드코딩하면 결핍 주입이 **정본을 훼손하는 길밖에** 없다.
+          대장은 git 밖이라 되돌릴 안전망이 없다(`FILING.md` §12-1).
 
-    Returns:
-        종료코드 — 0 이면 통과.
-    """
-    problems: list[str] = []
-    target = Path(argv[0]) if argv else LEDGER
+  Returns:
+      종료코드 — 0 이면 통과.
+  """
+  problems: list[str] = []
+  target = Path(argv[0]) if argv else LEDGER
 
-    if not target.exists():
-        print(f"❌ 대장이 없다: {target}")
-        return 1
+  if not target.exists():
+    print(f"❌ 대장이 없다: {target}")
+    return 1
 
-    # 🔑 공용 파서를 쓴다 — 여기서 직접 정규식을 짜면 **덜 엄밀한 두 번째 구현**이 된다(D31).
-    #    라우팅은 **라우팅 모집단**(마커 안팎 전부)을 센다. 안전 패턴도 셸 작업 때 읽혀야 한다.
-    try:
-        ledger = parse_ledger(target)
-    except MarkerError as exc:
-        print(f"❌ {exc}")
-        return 1
+  # 🔑 공용 파서를 쓴다 — 여기서 직접 정규식을 짜면 **덜 엄밀한 두 번째 구현**이 된다(D31).
+  #    라우팅은 **라우팅 모집단**(마커 안팎 전부)을 센다. 안전 패턴도 셸 작업 때 읽혀야 한다.
+  try:
+    ledger = parse_ledger(target)
+  except MarkerError as exc:
+    print(f"❌ {exc}")
+    return 1
 
-    tagged = {entry.id: entry.axis for entry in ledger.entries if entry.axis is not None}
-    untagged = [entry.id for entry in ledger.entries if entry.axis is None]
-    total = len(ledger.entries)
+  tagged = {entry.id: entry.axis for entry in ledger.entries if entry.axis is not None}
+  untagged = [entry.id for entry in ledger.entries if entry.axis is None]
+  total = len(ledger.entries)
 
-    # 바닥값 — *0건은 «없다» 가 아니라 «못 셌다»* 다. 줄어든 것도 실패로 본다(D31).
-    if total < MIN_ITEMS:
+  # 바닥값 — *0건은 «없다» 가 아니라 «못 셌다»* 다. 줄어든 것도 실패로 본다(D31).
+  if total < MIN_ITEMS:
+    problems.append(
+      f"대장 항목이 **{total}건**으로 바닥값 {MIN_ITEMS} 아래다 — "
+      "패턴이나 경로가 어긋났다(항목이 실제로 줄었다면 바닥값을 **의식적으로** 내린다)"
+    )
+
+  if untagged:
+    head = " · ".join(untagged[:12]) + (" …" if len(untagged) > 12 else "")
+    problems.append(f"**축 태그가 없는 항목 {len(untagged)}건** — 어느 작업에서도 안 읽힌다: {head}")
+
+  declared, marker_problem = collect_declared_axes(CLAUDE_MD.read_text(encoding="utf-8", errors="replace"))
+  if marker_problem:
+    problems.append(marker_problem)
+
+  used = set(tagged.values())
+  if not marker_problem:
+    if len(declared) < MIN_AXES:
+      problems.append(f"라우팅 표의 축이 **{len(declared)}개**로 바닥값 {MIN_AXES} 아래다")
+    # 🔴 양방향이 핵심이다. 한쪽만 보면 «읽어도 아무것도 없는 주소» 를 못 잡는다.
+    orphan_tags = sorted(used - declared)
+    empty_axes = sorted(declared - used)
+    if orphan_tags:
+      problems.append(f"**표에 없는 축을 쓰는 항목**이 있다 — 그 태그로는 주소를 못 찾는다: {' · '.join(orphan_tags)}")
+    if empty_axes:
+      problems.append(
+        f"🔴 **표에만 있고 항목이 0건인 축**: {' · '.join(empty_axes)} — "
+        "*읽어도 아무것도 안 나오는 주소*다(절차만 통과하는 헛된 초록)"
+      )
+
+    # 🔴 D67 재발 방지 — 표가 말하는 건수와 실측을 대조한다.
+    #    숫자를 두 곳에 적으면 반드시 한쪽이 썩는다. 대조하는 기계가 있으면 조용히 못 썩는다.
+    measured = {axis: sum(1 for v in tagged.values() if v == axis) for axis in used}
+    for axis, declared_count in collect_declared_counts(
+      CLAUDE_MD.read_text(encoding="utf-8", errors="replace")
+    ).items():
+      actual = measured.get(axis)
+      if actual is not None and actual != declared_count:
         problems.append(
-            f"대장 항목이 **{total}건**으로 바닥값 {MIN_ITEMS} 아래다 — "
-            "패턴이나 경로가 어긋났다(항목이 실제로 줄었다면 바닥값을 **의식적으로** 내린다)"
+          f"라우팅 표의 축 `{axis}` 건수가 **{declared_count}** 인데 실측은 **{actual}** 이다 "
+          "— 표와 대장이 갈렸다(대장 D67)"
         )
 
-    if untagged:
-        head = " · ".join(untagged[:12]) + (" …" if len(untagged) > 12 else "")
-        problems.append(f"**축 태그가 없는 항목 {len(untagged)}건** — 어느 작업에서도 안 읽힌다: {head}")
+  if problems:
+    print("❌ 실수 대장 라우팅 검사 실패")
+    for line in problems:
+      print(f"   - {line}")
+    return 1
 
-    declared, marker_problem = collect_declared_axes(CLAUDE_MD.read_text(encoding="utf-8", errors="replace"))
-    if marker_problem:
-        problems.append(marker_problem)
-
-    used = set(tagged.values())
-    if not marker_problem:
-        if len(declared) < MIN_AXES:
-            problems.append(f"라우팅 표의 축이 **{len(declared)}개**로 바닥값 {MIN_AXES} 아래다")
-        # 🔴 양방향이 핵심이다. 한쪽만 보면 «읽어도 아무것도 없는 주소» 를 못 잡는다.
-        orphan_tags = sorted(used - declared)
-        empty_axes = sorted(declared - used)
-        if orphan_tags:
-            problems.append(
-                f"**표에 없는 축을 쓰는 항목**이 있다 — 그 태그로는 주소를 못 찾는다: {' · '.join(orphan_tags)}"
-            )
-        if empty_axes:
-            problems.append(
-                f"🔴 **표에만 있고 항목이 0건인 축**: {' · '.join(empty_axes)} — "
-                "*읽어도 아무것도 안 나오는 주소*다(절차만 통과하는 헛된 초록)"
-            )
-
-        # 🔴 D67 재발 방지 — 표가 말하는 건수와 실측을 대조한다.
-        #    숫자를 두 곳에 적으면 반드시 한쪽이 썩는다. 대조하는 기계가 있으면 조용히 못 썩는다.
-        measured = {axis: sum(1 for v in tagged.values() if v == axis) for axis in used}
-        for axis, declared_count in collect_declared_counts(
-            CLAUDE_MD.read_text(encoding="utf-8", errors="replace")
-        ).items():
-            actual = measured.get(axis)
-            if actual is not None and actual != declared_count:
-                problems.append(
-                    f"라우팅 표의 축 `{axis}` 건수가 **{declared_count}** 인데 실측은 **{actual}** 이다 "
-                    "— 표와 대장이 갈렸다(대장 D67)"
-                )
-
-    if problems:
-        print("❌ 실수 대장 라우팅 검사 실패")
-        for line in problems:
-            print(f"   - {line}")
-        return 1
-
-    per_axis = {a: sum(1 for v in tagged.values() if v == a) for a in sorted(used)}
-    shown = " · ".join(f"{a}:{n}" for a, n in per_axis.items())
-    print(f"✅ 실수 대장 라우팅 — 항목 {total}건 전부 태그됨(바닥값 {MIN_ITEMS}) · 축 {len(used)}개 양방향 정합.")
-    print(f"   {shown}")
-    return 0
+  per_axis = {a: sum(1 for v in tagged.values() if v == a) for a in sorted(used)}
+  shown = " · ".join(f"{a}:{n}" for a, n in per_axis.items())
+  print(f"✅ 실수 대장 라우팅 — 항목 {total}건 전부 태그됨(바닥값 {MIN_ITEMS}) · 축 {len(used)}개 양방향 정합.")
+  print(f"   {shown}")
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+  sys.exit(main(sys.argv[1:]))

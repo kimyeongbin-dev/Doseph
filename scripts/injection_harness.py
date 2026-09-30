@@ -56,9 +56,9 @@ import subprocess
 import sys
 
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # 🔑 깊이를 세지 않는다 — 폴더를 한 단계 나누는 순간 깨진다(`scripts/gates/README.md`).
 from scripts.gates._root import REPO_ROOT
@@ -69,52 +69,52 @@ from scripts.gates._root import REPO_ROOT
 # 🔴 stderr 를 버리지 않는 것이 이 함수의 존재 이유다. 버리면 «도구가 에러났다» 와
 #    «위반이 0건이다» 가 같은 모양(빈 출력)이 된다 — 실제로 그렇게 8번 중 2번 틀렸다.
 def run(cmd: list[str], *, allow_fail: bool = True) -> subprocess.CompletedProcess[str]:
-    """명령을 돌리고 **stderr 를 버리지 않는다**.
+  """명령을 돌리고 **stderr 를 버리지 않는다**.
 
-    Args:
-        cmd: 실행할 명령.
-        allow_fail: False 면 비정상 종료 시 stderr 를 인쇄하고 예외를 올린다.
+  Args:
+      cmd: 실행할 명령.
+      allow_fail: False 면 비정상 종료 시 stderr 를 인쇄하고 예외를 올린다.
 
-    Returns:
-        완료된 프로세스(stdout·stderr·returncode 전부 보존).
+  Returns:
+      완료된 프로세스(stdout·stderr·returncode 전부 보존).
 
-    Raises:
-        RuntimeError: `allow_fail` 이 False 인데 명령이 실패했을 때.
-    """
-    proc = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO_ROOT, check=False)
-    if not allow_fail and proc.returncode != 0:
-        msg = f"명령 실패(rc={proc.returncode}): {' '.join(cmd)}\n--- stderr ---\n{proc.stderr}"
-        raise RuntimeError(msg)
-    return proc
+  Raises:
+      RuntimeError: `allow_fail` 이 False 인데 명령이 실패했을 때.
+  """
+  proc = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO_ROOT, check=False)
+  if not allow_fail and proc.returncode != 0:
+    msg = f"명령 실패(rc={proc.returncode}): {' '.join(cmd)}\n--- stderr ---\n{proc.stderr}"
+    raise RuntimeError(msg)
+  return proc
 
 
 # ── ruff 위반 수 — 「못 셌다」와 「0건」을 가른다 ──────────────────────
 # 흐름: --statistics 실행 -> 도구 자체 오류면 None -> 아니면 정수
 # 🔴 실패를 0 으로 바꾸지 않는다. 0 은 «위반이 없다» 는 답이고 None 은 «답을 못 얻었다» 다.
 def ruff_count(rule: str, paths: list[str] | None = None, *, no_cache: bool = True) -> int | None:
-    """한 ruff 규칙의 위반 수를 센다.
+  """한 ruff 규칙의 위반 수를 센다.
 
-    Args:
-        rule: 규칙 코드(예: ``D103``).
-        paths: 검사 경로. 생략하면 저장소 전체.
-        no_cache: 주입 측정은 True(캐시가 갓 쓴 표식을 놓칠 수 있다). 게이트는 False 로 빠르게.
+  Args:
+      rule: 규칙 코드(예: ``D103``).
+      paths: 검사 경로. 생략하면 저장소 전체.
+      no_cache: 주입 측정은 True(캐시가 갓 쓴 표식을 놓칠 수 있다). 게이트는 False 로 빠르게.
 
-    Returns:
-        위반 수. **측정 자체에 실패하면 `None`** — 0 이 아니다.
-    """
-    cmd = ["uv", "run", "ruff", "check", "--no-fix", "--select", rule, "--statistics"]
-    if no_cache:
-        cmd.insert(4, "--no-cache")
-    proc = run([*cmd, *(paths or [])])
-    # ruff 는 위반이 있으면 rc=1 이다. 그러나 «인자가 틀렸다» 도 rc!=0 이므로 구분해야 한다.
-    if proc.returncode not in (0, 1):
-        print(f"⚠️ ruff 측정 실패(rc={proc.returncode}) — {proc.stderr.strip()[:200]}")
-        return None
-    for line in proc.stdout.splitlines():
-        parts = line.split()
-        if len(parts) >= 2 and parts[0].isdigit() and parts[1] == rule:
-            return int(parts[0])
-    return 0
+  Returns:
+      위반 수. **측정 자체에 실패하면 `None`** — 0 이 아니다.
+  """
+  cmd = ["uv", "run", "ruff", "check", "--no-fix", "--select", rule, "--statistics"]
+  if no_cache:
+    cmd.insert(4, "--no-cache")
+  proc = run([*cmd, *(paths or [])])
+  # ruff 는 위반이 있으면 rc=1 이다. 그러나 «인자가 틀렸다» 도 rc!=0 이므로 구분해야 한다.
+  if proc.returncode not in (0, 1):
+    print(f"⚠️ ruff 측정 실패(rc={proc.returncode}) — {proc.stderr.strip()[:200]}")
+    return None
+  for line in proc.stdout.splitlines():
+    parts = line.split()
+    if len(parts) >= 2 and parts[0].isdigit() and parts[1] == rule:
+      return int(parts[0])
+  return 0
 
 
 # ── ⓪ 하네스 살아있음 — 이 모듈의 핵심 ───────────────────────────────
@@ -122,31 +122,31 @@ def ruff_count(rule: str, paths: list[str] | None = None, *, no_cache: bool = Tr
 # 🔴 이 단계가 통과해야 ②의 침묵을 «규칙이 안 잡는다» 로 읽을 수 있다.
 #    통과 못 하면 그 자리는 **검사 구역 밖**이다(면제 경로 · 비공개 모듈 · 제외 glob).
 def assert_harness_live(probe: Path, canary_source: str, rule: str) -> None:
-    """**주입하기 전에** 그 자리가 검사 대상인지 증명한다.
+  """**주입하기 전에** 그 자리가 검사 대상인지 증명한다.
 
-    Args:
-        probe: 표식 파일 경로. 🔑 **실제 위반이 관측된 디렉터리**에 두어야 한다.
-        canary_source: 그 `rule` 을 **확실히 한 번** 위반하는 소스.
-        rule: 검사할 규칙 코드.
+  Args:
+      probe: 표식 파일 경로. 🔑 **실제 위반이 관측된 디렉터리**에 두어야 한다.
+      canary_source: 그 `rule` 을 **확실히 한 번** 위반하는 소스.
+      rule: 검사할 규칙 코드.
 
-    Raises:
-        AssertionError: 표식이 이미 있거나, 카나리아가 안 잡힐 때(= 검사 구역 밖).
-    """
-    assert not probe.exists(), f"🔴 이름 충돌 — {probe} 를 덮을 뻔했다"
-    probe.write_text(canary_source, encoding="utf-8")
-    try:
-        seen = ruff_count(rule)
-    finally:
-        probe.unlink()
-    assert seen is not None, f"🔴 하네스 측정 자체가 실패했다 — {rule}"
-    assert seen >= 1, (
-        f"🔴 하네스가 죽어 있다 — {probe} 에 {rule} 위반을 넣었는데 **0건**이다.\n"
-        f"   그 자리는 검사 구역 밖이다. 확인할 것:\n"
-        f"   ① per-file-ignores 가 그 경로에서 {rule} 을 면제하는가\n"
-        f"   ② 파일명이 밑줄로 시작하는가(비공개 모듈 — D1xx 가 안 본다)\n"
-        f"   ③ exclude glob·.gitignore 에 걸리는가\n"
-        f"   🔑 표본은 **실제 위반이 관측된 디렉터리**에 둔다."
-    )
+  Raises:
+      AssertionError: 표식이 이미 있거나, 카나리아가 안 잡힐 때(= 검사 구역 밖).
+  """
+  assert not probe.exists(), f"🔴 이름 충돌 — {probe} 를 덮을 뻔했다"
+  probe.write_text(canary_source, encoding="utf-8")
+  try:
+    seen = ruff_count(rule)
+  finally:
+    probe.unlink()
+  assert seen is not None, f"🔴 하네스 측정 자체가 실패했다 — {rule}"
+  assert seen >= 1, (
+    f"🔴 하네스가 죽어 있다 — {probe} 에 {rule} 위반을 넣었는데 **0건**이다.\n"
+    f"   그 자리는 검사 구역 밖이다. 확인할 것:\n"
+    f"   ① per-file-ignores 가 그 경로에서 {rule} 을 면제하는가\n"
+    f"   ② 파일명이 밑줄로 시작하는가(비공개 모듈 — D1xx 가 안 본다)\n"
+    f"   ③ exclude glob·.gitignore 에 걸리는가\n"
+    f"   🔑 표본은 **실제 위반이 관측된 디렉터리**에 둔다."
+  )
 
 
 # ── 문서 게이트용 러너 ────────────────────────────────────────────────
@@ -154,57 +154,57 @@ def assert_harness_live(probe: Path, canary_source: str, rule: str) -> None:
 # 🔴 `assert_harness_live` 는 `ruff_count()` 위에 있어 **ruff 전용**이다(대장 **D68**).
 #    문서 게이트에는 다른 러너가 필요하다 — 이름만 보고 쓰면 안 된다.
 def run_doc_gate(module: str, sample: Path) -> int:
-    """문서 게이트를 **표본 경로**로 돌린다.
+  """문서 게이트를 **표본 경로**로 돌린다.
 
-    Args:
-        module: `scripts.gates.doc.check_…` 모듈 경로.
-        sample: 검사할 표본 파일.
+  Args:
+      module: `scripts.gates.doc.check_…` 모듈 경로.
+      sample: 검사할 표본 파일.
 
-    Returns:
-        종료코드. 0 이면 통과.
-    """
-    return run([sys.executable, "-m", module, str(sample)]).returncode
+  Returns:
+      종료코드. 0 이면 통과.
+  """
+  return run([sys.executable, "-m", module, str(sample)]).returncode
 
 
 # ── ⓪ 하네스가 살아 있나 ──────────────────────────────────────────────
 # 흐름: **손대지 않은 사본**이 Green 인지 먼저 본다 -> 아니면 주입 결과가 무의미하다
 def assert_doc_harness_live(module: str, pristine: Path) -> None:
-    """**주입하기 전에** 러너가 그 게이트에 실제로 닿는지 증명한다.
+  """**주입하기 전에** 러너가 그 게이트에 실제로 닿는지 증명한다.
 
-    Args:
-        module: 게이트 모듈 경로.
-        pristine: 손대지 않은 표본 사본.
+  Args:
+      module: 게이트 모듈 경로.
+      pristine: 손대지 않은 표본 사본.
 
-    Raises:
-        AssertionError: 원본 사본이 Red 일 때 — 주입 결과가 전부 무의미해진다.
-    """
-    code = run_doc_gate(module, pristine)
-    assert code == 0, (
-        f"🔴 하네스가 죽어 있다 — 손대지 않은 사본에 {module} 이 rc={code} 를 냈다. "
-        "① 경로 인자를 안 받는 게이트인가 ② 사본이 깨졌나 ③ 게이트가 정본을 보고 있나. "
-        "🔑 이 상태에서 «주입했더니 Red» 는 아무것도 증명하지 않는다."
-    )
+  Raises:
+      AssertionError: 원본 사본이 Red 일 때 — 주입 결과가 전부 무의미해진다.
+  """
+  code = run_doc_gate(module, pristine)
+  assert code == 0, (
+    f"🔴 하네스가 죽어 있다 — 손대지 않은 사본에 {module} 이 rc={code} 를 냈다. "
+    "① 경로 인자를 안 받는 게이트인가 ② 사본이 깨졌나 ③ 게이트가 정본을 보고 있나. "
+    "🔑 이 상태에서 «주입했더니 Red» 는 아무것도 증명하지 않는다."
+  )
 
 
 # ── 주입 — 단언을 건다 ───────────────────────────────────────────────
 # 흐름: 원본에 그 문자열이 **있었는지** -> 치환 -> 전후가 **달라졌는지**
 # 🔴 단언이 없으면 «기대 = Red» 인 케이스가 **아무것도 안 해도** 통과한다(대장 **D46**).
 def inject(text: str, old: str, new: str) -> str:
-    """표본에 결핍을 주입한다. 주입 자체에 단언을 건다.
+  """표본에 결핍을 주입한다. 주입 자체에 단언을 건다.
 
-    Args:
-        text: 원본 전문.
-        old: 바꿀 문자열. **정확히 1회** 나와야 한다.
-        new: 바꿔 넣을 문자열.
+  Args:
+      text: 원본 전문.
+      old: 바꿀 문자열. **정확히 1회** 나와야 한다.
+      new: 바꿔 넣을 문자열.
 
-    Returns:
-        주입된 전문.
+  Returns:
+      주입된 전문.
 
-    Raises:
-        AssertionError: 원본에 없었거나 여러 번 있었거나 전후가 같을 때.
-    """
-    seen = text.count(old)
-    assert seen == 1, f"🔴 주입 대상이 {seen}건이다(1건이어야 한다): {old[:60]!r}"
-    injected = text.replace(old, new, 1)
-    assert injected != text, f"🔴 치환이 안 먹었다 — 전후가 같다: {old[:60]!r}"
-    return injected
+  Raises:
+      AssertionError: 원본에 없었거나 여러 번 있었거나 전후가 같을 때.
+  """
+  seen = text.count(old)
+  assert seen == 1, f"🔴 주입 대상이 {seen}건이다(1건이어야 한다): {old[:60]!r}"
+  injected = text.replace(old, new, 1)
+  assert injected != text, f"🔴 치환이 안 먹었다 — 전후가 같다: {old[:60]!r}"
+  return injected

@@ -11,11 +11,11 @@ answer user recall questions:
 """
 
 from app.services.tools.recalls.checker import (
-    check_manufacturer_recalls,
-    check_user_medications_recall,
+  check_manufacturer_recalls,
+  check_user_medications_recall,
 )
 
 __all__ = [
-    "check_manufacturer_recalls",
-    "check_user_medications_recall",
+  "check_manufacturer_recalls",
+  "check_user_medications_recall",
 ]

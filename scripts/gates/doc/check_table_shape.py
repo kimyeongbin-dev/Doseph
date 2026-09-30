@@ -65,9 +65,9 @@ from scripts.gates._root import PRIVATE
 from scripts.gates.doc.check_doc_filing import STATE_CANONS
 
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 #: 🔑 바닥값 — 표 머리를 **0개** 세면 «표가 없다» 가 아니라 **파서가 죽은 것**이다.
 #:    그 상태에서는 어떤 어긋남도 0건이라 **조용히 초록**이 난다.
@@ -108,213 +108,211 @@ _PLACEHOLDER = "\x00"
 
 
 def cell_count(line: str) -> int | None:
-    """표 행의 칸 수. 표 행이 아니면 ``None``.
+  """표 행의 칸 수. 표 행이 아니면 ``None``.
 
-    🔬 **끝 파이프는 요구하지 않는다**(2026-09-29 실측, `QA-59`). GFM 에서 양끝 파이프는
-    **선택**이라 ``| a | b`` 도 ``| a | b |`` 와 **똑같이 렌더된다**(``markdown-it`` 으로
-    재니 둘 다 ``td`` 6개). 끝 파이프를 요구하던 앞 판은 그런 행을 «표 행이 아님» 으로 보고
-    **거기서 표를 끊었고**, 뒤따르는 멀쩡한 행들을 **고아로 오보**했다(실측 2건).
+  🔬 **끝 파이프는 요구하지 않는다**(2026-09-29 실측, `QA-59`). GFM 에서 양끝 파이프는
+  **선택**이라 ``| a | b`` 도 ``| a | b |`` 와 **똑같이 렌더된다**(``markdown-it`` 으로
+  재니 둘 다 ``td`` 6개). 끝 파이프를 요구하던 앞 판은 그런 행을 «표 행이 아님» 으로 보고
+  **거기서 표를 끊었고**, 뒤따르는 멀쩡한 행들을 **고아로 오보**했다(실측 2건).
 
-    🔑 **앞 파이프는 여전히 요구한다.** GFM 은 그것도 선택이지만, 풀면 산문 ``a | b`` 가
-    표 행으로 읽힌다 — **오탐은 사람이 게이트를 끄게 만든다.**
+  🔑 **앞 파이프는 여전히 요구한다.** GFM 은 그것도 선택이지만, 풀면 산문 ``a | b`` 가
+  표 행으로 읽힌다 — **오탐은 사람이 게이트를 끄게 만든다.**
 
-    Args:
-        line: 원본 한 줄.
+  Args:
+      line: 원본 한 줄.
 
-    Returns:
-        칸 수, 또는 표 행이 아니면 ``None``.
-    """
-    body = line.strip()
-    if len(body) < 2 or not body.startswith("|"):
-        return None
-    masked = body.replace(ESCAPED_PIPE, _PLACEHOLDER)
-    return len(masked.strip("|").split("|"))
+  Returns:
+      칸 수, 또는 표 행이 아니면 ``None``.
+  """
+  body = line.strip()
+  if len(body) < 2 or not body.startswith("|"):
+    return None
+  masked = body.replace(ESCAPED_PIPE, _PLACEHOLDER)
+  return len(masked.strip("|").split("|"))
 
 
 @dataclass
 class Report:
-    """한 파일의 검사 결과."""
+  """한 파일의 검사 결과."""
 
-    tables: int = 0
-    mismatched: list[str] = field(default_factory=list)
-    orphans: list[str] = field(default_factory=list)
-    dangling: list[str] = field(default_factory=list)
+  tables: int = 0
+  mismatched: list[str] = field(default_factory=list)
+  orphans: list[str] = field(default_factory=list)
+  dangling: list[str] = field(default_factory=list)
 
 
 def audit(path: Path) -> Report:
-    """한 파일의 표를 훑어 칸 어긋남과 고아 행을 모은다.
+  """한 파일의 표를 훑어 칸 어긋남과 고아 행을 모은다.
+
+  Args:
+      path: 검사할 마크다운 파일.
+
+  Returns:
+      그 파일의 :class:`Report`.
+  """
+  report = Report()
+  lines = path.read_text(encoding="utf-8").split("\n")
+
+  def flag(text: str, at: int) -> None:
+    """끝 파이프가 빠진 표 행을 모은다.
 
     Args:
-        path: 검사할 마크다운 파일.
-
-    Returns:
-        그 파일의 :class:`Report`.
+        text: 그 줄.
+        at: 0-기반 줄 번호.
     """
-    report = Report()
-    lines = path.read_text(encoding="utf-8").split("\n")
+    if not text.strip().endswith("|"):
+      report.dangling.append(f"{path.name}:{at + 1}  {text.strip()[:60]}")
 
-    def flag(text: str, at: int) -> None:
-        """끝 파이프가 빠진 표 행을 모은다.
+  in_fence = False
+  index = 0
+  while index < len(lines):
+    line = lines[index]
+    if FENCE.match(line):
+      in_fence = not in_fence
+      index += 1
+      continue
+    if in_fence:
+      index += 1
+      continue
 
-        Args:
-            text: 그 줄.
-            at: 0-기반 줄 번호.
-        """
-        if not text.strip().endswith("|"):
-            report.dangling.append(f"{path.name}:{at + 1}  {text.strip()[:60]}")
+    head = cell_count(line)
+    if head is None:
+      index += 1
+      continue
 
-    in_fence = False
-    index = 0
+    # 표 행이다. 다음 줄이 구분선이어야 **표의 머리**다.
+    following = lines[index + 1] if index + 1 < len(lines) else ""
+    if not SEPARATOR.match(following.strip()):
+      # 🔴 머리가 없는 표 행 = 표 밖으로 떨어져 나간 행.
+      report.orphans.append(f"{path.name}:{index + 1}  {line.strip()[:60]}")
+      index += 1
+      continue
+
+    report.tables += 1
+    flag(line, index)
+    flag(following, index + 1)
+    separator_cells = cell_count(following)
+    if separator_cells != head:
+      report.mismatched.append(f"{path.name}:{index + 2}  구분선 {separator_cells}칸 vs 머리 {head}칸")
+    index += 2
     while index < len(lines):
-        line = lines[index]
-        if FENCE.match(line):
-            in_fence = not in_fence
-            index += 1
-            continue
-        if in_fence:
-            index += 1
-            continue
-
-        head = cell_count(line)
-        if head is None:
-            index += 1
-            continue
-
-        # 표 행이다. 다음 줄이 구분선이어야 **표의 머리**다.
-        following = lines[index + 1] if index + 1 < len(lines) else ""
-        if not SEPARATOR.match(following.strip()):
-            # 🔴 머리가 없는 표 행 = 표 밖으로 떨어져 나간 행.
-            report.orphans.append(f"{path.name}:{index + 1}  {line.strip()[:60]}")
-            index += 1
-            continue
-
-        report.tables += 1
-        flag(line, index)
-        flag(following, index + 1)
-        separator_cells = cell_count(following)
-        if separator_cells != head:
-            report.mismatched.append(f"{path.name}:{index + 2}  구분선 {separator_cells}칸 vs 머리 {head}칸")
-        index += 2
-        while index < len(lines):
-            body = cell_count(lines[index])
-            if body is None or FENCE.match(lines[index]):
-                break
-            flag(lines[index], index)
-            if body != head:
-                report.mismatched.append(
-                    f"{path.name}:{index + 1}  칸 {body} vs 머리 {head}  | {lines[index].strip()[:55]}"
-                )
-            index += 1
-    return report
+      body = cell_count(lines[index])
+      if body is None or FENCE.match(lines[index]):
+        break
+      flag(lines[index], index)
+      if body != head:
+        report.mismatched.append(f"{path.name}:{index + 1}  칸 {body} vs 머리 {head}  | {lines[index].strip()[:55]}")
+      index += 1
+  return report
 
 
 def counts_toward_floor(path: Path) -> bool:
-    """바닥값에 세는 대상인가 — **상태 정본만**.
+  """바닥값에 세는 대상인가 — **상태 정본만**.
 
-    🔑 작업 버퍼(`PLAN`·`REPORT`·`RECORD`)와 커밋하지 않는 생성물은 **검사는 받지만
-    세지는 않는다.** 있다가 없어지는 것이 정상이라, 세면 기준선이 흔들린다(`QA-58`).
+  🔑 작업 버퍼(`PLAN`·`REPORT`·`RECORD`)와 커밋하지 않는 생성물은 **검사는 받지만
+  세지는 않는다.** 있다가 없어지는 것이 정상이라, 세면 기준선이 흔들린다(`QA-58`).
 
-    Args:
-        path: 검사 대상 파일.
+  Args:
+      path: 검사 대상 파일.
 
-    Returns:
-        상태 정본이면 ``True``.
-    """
-    return path.name in STATE_CANONS
+  Returns:
+      상태 정본이면 ``True``.
+  """
+  return path.name in STATE_CANONS
 
 
 def targets(argv: list[str] | None = None) -> list[Path]:
-    """검사 대상. 인자가 없으면 ``docs-private/`` **직하** 마크다운.
+  """검사 대상. 인자가 없으면 ``docs-private/`` **직하** 마크다운.
 
-    Args:
-        argv: 표본 경로들(결핍 주입 하네스가 쓴다). 비어 있으면 기본 대상.
+  Args:
+      argv: 표본 경로들(결핍 주입 하네스가 쓴다). 비어 있으면 기본 대상.
 
-    Returns:
-        파일 경로 목록 (이름순).
-    """
-    if argv:
-        return sorted(Path(a) for a in argv)
-    return sorted(p for p in PRIVATE.glob("*.md") if p.is_file())
+  Returns:
+      파일 경로 목록 (이름순).
+  """
+  if argv:
+    return sorted(Path(a) for a in argv)
+  return sorted(p for p in PRIVATE.glob("*.md") if p.is_file())
 
 
 def main(argv: list[str] | None = None) -> int:
-    """게이트 진입점.
+  """게이트 진입점.
 
-    Args:
-        argv: 표본 경로들. 없으면 정본을 본다.
+  Args:
+      argv: 표본 경로들. 없으면 정본을 본다.
 
-    Returns:
-        위반이 있으면 1, 없으면 0.
-    """
-    sample_mode = bool(argv)
-    files = targets(argv)
-    if not files:
-        print("❌ 표 모양 검사 — 대상이 0건이다 (fail-closed: 경로가 바뀌었을 수 있다)")
-        return 1
+  Returns:
+      위반이 있으면 1, 없으면 0.
+  """
+  sample_mode = bool(argv)
+  files = targets(argv)
+  if not files:
+    print("❌ 표 모양 검사 — 대상이 0건이다 (fail-closed: 경로가 바뀌었을 수 있다)")
+    return 1
 
-    tables = 0
-    canon_tables = 0
-    canon_files = 0
-    mismatched: list[str] = []
-    orphans: list[str] = []
-    dangling: list[str] = []
-    for path in files:
-        report = audit(path)
-        tables += report.tables
-        if counts_toward_floor(path):
-            canon_tables += report.tables
-            canon_files += 1
-        mismatched.extend(report.mismatched)
-        orphans.extend(report.orphans)
-        dangling.extend(report.dangling)
+  tables = 0
+  canon_tables = 0
+  canon_files = 0
+  mismatched: list[str] = []
+  orphans: list[str] = []
+  dangling: list[str] = []
+  for path in files:
+    report = audit(path)
+    tables += report.tables
+    if counts_toward_floor(path):
+      canon_tables += report.tables
+      canon_files += 1
+    mismatched.extend(report.mismatched)
+    orphans.extend(report.orphans)
+    dangling.extend(report.dangling)
 
-    # 🔑 표본 모드에서도 바닥값을 **0 으로 낮추지 않는다** — 0 이면 파서가 죽은 것이다.
-    #    🔴 정본 모드에서는 **정본만** 센다(`QA-58`) — 작업 버퍼는 있다가 없어지는 것이 정상이라
-    #    세면 기준선이 진행 중인 작업을 따라다닌다.
-    floor = 1 if sample_mode else MIN_TABLES
-    counted = tables if sample_mode else canon_tables
-    problems: list[str] = []
-    if counted < floor:
-        problems.append(
-            f"표 머리가 **{counted}개**로 바닥값 {floor} 아래다 — "
-            "파서가 죽으면 어긋남이 0건으로 보인다(0은 «깨끗» 이 아니라 «못 셌다»)"
-        )
-    if not sample_mode and canon_files < MIN_CANON_FILES:
-        missing = sorted(STATE_CANONS - {p.name for p in files})
-        problems.append(
-            f"상태 정본이 **{canon_files}건**으로 바닥값 {MIN_CANON_FILES} 아래다 — "
-            f"모집단이 줄면 표 머리도 같이 줄어 «파서가 죽은 것» 과 구별되지 않는다: {', '.join(missing)}"
-        )
-    if mismatched:
-        problems.append(f"**칸 수 어긋남 {len(mismatched)}건** — 렌더될 때 표가 깨진다")
-    if orphans:
-        problems.append(f"**표 밖으로 떨어진 행 {len(orphans)}건** — 표 행 사이에 빈 줄이 들어갔거나 구분선이 없다")
-    if dangling:
-        problems.append(
-            f"**끝 파이프가 빠진 표 행 {len(dangling)}건** — 렌더는 멀쩡하다. "
-            "행을 파이프로 잘라 마지막 칸을 대입하는 편집이 그 파이프를 데이터째 날린 것이다"
-        )
-
-    if problems:
-        print("❌ 표 모양 검사 실패")
-        for line in problems:
-            print(f"   - {line}")
-        for line in mismatched[:12]:
-            print(f"     · {line}")
-        for line in orphans[:12]:
-            print(f"     · {line}")
-        for line in dangling[:12]:
-            print(f"     · {line}")
-        print("   🔑 빌더도 게이트도 줄 단위라 통과한다 — 깨지는 것은 읽는 화면뿐이다.")
-        return 1
-
-    print(
-        f"✅ 표 모양 — 검사 {len(files)}건(정본 {canon_files}) · "
-        f"표 머리 {tables}개(정본 {canon_tables} · 바닥값 {floor}) · "
-        "칸 어긋남 0 · 고아 행 0 · 끝 파이프 결손 0."
+  # 🔑 표본 모드에서도 바닥값을 **0 으로 낮추지 않는다** — 0 이면 파서가 죽은 것이다.
+  #    🔴 정본 모드에서는 **정본만** 센다(`QA-58`) — 작업 버퍼는 있다가 없어지는 것이 정상이라
+  #    세면 기준선이 진행 중인 작업을 따라다닌다.
+  floor = 1 if sample_mode else MIN_TABLES
+  counted = tables if sample_mode else canon_tables
+  problems: list[str] = []
+  if counted < floor:
+    problems.append(
+      f"표 머리가 **{counted}개**로 바닥값 {floor} 아래다 — "
+      "파서가 죽으면 어긋남이 0건으로 보인다(0은 «깨끗» 이 아니라 «못 셌다»)"
     )
-    return 0
+  if not sample_mode and canon_files < MIN_CANON_FILES:
+    missing = sorted(STATE_CANONS - {p.name for p in files})
+    problems.append(
+      f"상태 정본이 **{canon_files}건**으로 바닥값 {MIN_CANON_FILES} 아래다 — "
+      f"모집단이 줄면 표 머리도 같이 줄어 «파서가 죽은 것» 과 구별되지 않는다: {', '.join(missing)}"
+    )
+  if mismatched:
+    problems.append(f"**칸 수 어긋남 {len(mismatched)}건** — 렌더될 때 표가 깨진다")
+  if orphans:
+    problems.append(f"**표 밖으로 떨어진 행 {len(orphans)}건** — 표 행 사이에 빈 줄이 들어갔거나 구분선이 없다")
+  if dangling:
+    problems.append(
+      f"**끝 파이프가 빠진 표 행 {len(dangling)}건** — 렌더는 멀쩡하다. "
+      "행을 파이프로 잘라 마지막 칸을 대입하는 편집이 그 파이프를 데이터째 날린 것이다"
+    )
+
+  if problems:
+    print("❌ 표 모양 검사 실패")
+    for line in problems:
+      print(f"   - {line}")
+    for line in mismatched[:12]:
+      print(f"     · {line}")
+    for line in orphans[:12]:
+      print(f"     · {line}")
+    for line in dangling[:12]:
+      print(f"     · {line}")
+    print("   🔑 빌더도 게이트도 줄 단위라 통과한다 — 깨지는 것은 읽는 화면뿐이다.")
+    return 1
+
+  print(
+    f"✅ 표 모양 — 검사 {len(files)}건(정본 {canon_files}) · "
+    f"표 머리 {tables}개(정본 {canon_tables} · 바닥값 {floor}) · "
+    "칸 어긋남 0 · 고아 행 0 · 끝 파이프 결손 0."
+  )
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+  sys.exit(main(sys.argv[1:]))

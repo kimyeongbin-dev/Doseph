@@ -22,32 +22,32 @@ from app.services.oauth import OAuthService
 
 @asynccontextmanager
 async def _fake_transaction():
-    """in_transaction() 의 no-op stub — DB 연결 없이 동작."""
-    yield None
+  """in_transaction() 의 no-op stub — DB 연결 없이 동작."""
+  yield None
 
 
 # ── OAuthService.delete_account 실패 경로 ─────────────────────────────────
 # 흐름: cascade 중 예외 발생 -> 트랜잭션 롤백 -> HTTPException 500 으로 변환
 class TestAccountWithdrawalFailure:
-    """회원탈퇴 cascade 도중 예외가 500 으로 변환되는지 검증."""
+  """회원탈퇴 cascade 도중 예외가 500 으로 변환되는지 검증."""
 
-    def _build_oauth_service(self, account: MagicMock) -> OAuthService:
-        service = OAuthService()
-        service.account_repo = MagicMock()
-        service.account_repo.delete = AsyncMock(return_value=None)
-        return service
+  def _build_oauth_service(self, account: MagicMock) -> OAuthService:
+    service = OAuthService()
+    service.account_repo = MagicMock()
+    service.account_repo.delete = AsyncMock(return_value=None)
+    return service
 
-    @pytest.mark.asyncio
-    async def test_delete_account_raises_500_on_failure(self) -> None:
-        """cascade 도중 예외 → HTTPException 500 으로 변환."""
-        account = MagicMock(id=uuid4())
-        service = self._build_oauth_service(account)
-        service.account_repo.delete = AsyncMock(side_effect=RuntimeError("boom"))
+  @pytest.mark.asyncio
+  async def test_delete_account_raises_500_on_failure(self) -> None:
+    """cascade 도중 예외 → HTTPException 500 으로 변환."""
+    account = MagicMock(id=uuid4())
+    service = self._build_oauth_service(account)
+    service.account_repo.delete = AsyncMock(side_effect=RuntimeError("boom"))
 
-        # QA-01 S5: 탈퇴가 FK CASCADE 위임(단일 DELETE)으로 바뀌면서 서비스가
-        # in_transaction 을 더는 쓰지 않는다 — 패치할 대상이 사라졌다.
-        with pytest.raises(HTTPException) as exc:
-            await service.delete_account(account)
+    # QA-01 S5: 탈퇴가 FK CASCADE 위임(단일 DELETE)으로 바뀌면서 서비스가
+    # in_transaction 을 더는 쓰지 않는다 — 패치할 대상이 사라졌다.
+    with pytest.raises(HTTPException) as exc:
+      await service.delete_account(account)
 
-        assert exc.value.status_code == 500
-        assert exc.value.detail["error"] == "delete_failed"
+    assert exc.value.status_code == 500
+    assert exc.value.detail["error"] == "delete_failed"

@@ -27,30 +27,30 @@ _KST = "Asia/Seoul"
 
 @asynccontextmanager
 async def scheduler_lifespan(_app: FastAPI) -> AsyncGenerator[None]:
-    """Manage APScheduler lifecycle within FastAPI lifespan.
+  """Manage APScheduler lifecycle within FastAPI lifespan.
 
-    Starts the scheduler on application startup and shuts it down on exit.
+  Starts the scheduler on application startup and shuts it down on exit.
 
-    Args:
-        _app: FastAPI application instance (unused, required by lifespan protocol).
+  Args:
+      _app: FastAPI application instance (unused, required by lifespan protocol).
 
-    Yields:
-        None
-    """
-    scheduler = AsyncIOScheduler(timezone=_KST)
-    scheduler.add_job(generate_today_intake_logs, "cron", hour=0, minute=5, id="generate_intake_logs")
-    scheduler.add_job(expire_medications, "cron", hour=0, minute=10, id="expire_medications")
-    scheduler.add_job(sync_drug_recalls, "cron", hour=3, minute=0, id="sync_drug_recalls")
-    scheduler.add_job(prune_stale_ocr_drafts, "cron", hour=3, minute=30, id="prune_stale_ocr_drafts")
-    scheduler.start()
-    logger.info(
-        "APScheduler started: generate_intake_logs@00:05, expire_medications@00:10, "
-        "sync_drug_recalls@03:00, prune_stale_ocr_drafts@03:30 KST",
-    )
+  Yields:
+      None
+  """
+  scheduler = AsyncIOScheduler(timezone=_KST)
+  scheduler.add_job(generate_today_intake_logs, "cron", hour=0, minute=5, id="generate_intake_logs")
+  scheduler.add_job(expire_medications, "cron", hour=0, minute=10, id="expire_medications")
+  scheduler.add_job(sync_drug_recalls, "cron", hour=3, minute=0, id="sync_drug_recalls")
+  scheduler.add_job(prune_stale_ocr_drafts, "cron", hour=3, minute=30, id="prune_stale_ocr_drafts")
+  scheduler.start()
+  logger.info(
+    "APScheduler started: generate_intake_logs@00:05, expire_medications@00:10, "
+    "sync_drug_recalls@03:00, prune_stale_ocr_drafts@03:30 KST",
+  )
 
-    yield
+  yield
 
-    scheduler.shutdown(wait=False)
-    # 공유 httpx 클라이언트 정리 — 커넥션·fd 누수 방지.
-    await close_http_client()
-    logger.info("APScheduler shutdown complete")
+  scheduler.shutdown(wait=False)
+  # 공유 httpx 클라이언트 정리 — 커넥션·fd 누수 방지.
+  await close_http_client()
+  logger.info("APScheduler shutdown complete")

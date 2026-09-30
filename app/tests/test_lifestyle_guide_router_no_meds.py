@@ -28,123 +28,123 @@ from app.services.lifestyle_guide_service import LifestyleGuideService
 
 
 class TestServiceNoActiveMedications:
-    """Service 단 — 활성 약물 부재 → 409 + 구조화된 detail."""
+  """Service 단 — 활성 약물 부재 → 409 + 구조화된 detail."""
 
-    def _service_with_empty_medications(self) -> tuple[LifestyleGuideService, Any, Any]:
-        """active 0건 분기까지 도달하도록 prescription_group + medication mock.
+  def _service_with_empty_medications(self) -> tuple[LifestyleGuideService, Any, Any]:
+    """active 0건 분기까지 도달하도록 prescription_group + medication mock.
 
-        Returns:
-            (service, profile_id, prescription_group_id) — 호출 측이 그대로 사용.
-        """
-        profile_id = uuid4()
-        prescription_group_id = uuid4()
+    Returns:
+        (service, profile_id, prescription_group_id) — 호출 측이 그대로 사용.
+    """
+    profile_id = uuid4()
+    prescription_group_id = uuid4()
 
-        # __init__ 우회 — RQ Queue 등 외부 의존성 instantiate 안 함.
-        service = LifestyleGuideService.__new__(LifestyleGuideService)
+    # __init__ 우회 — RQ Queue 등 외부 의존성 instantiate 안 함.
+    service = LifestyleGuideService.__new__(LifestyleGuideService)
 
-        # prescription_group_repo: 그룹 owner 가 호출 profile_id 와 일치해야 통과.
-        service.prescription_group_repo = MagicMock()
-        service.prescription_group_repo.get_by_id = AsyncMock(
-            return_value=MagicMock(id=prescription_group_id, profile_id=profile_id),
-        )
-        # medication_repo: 그룹 active 0건 → 본 분기 도달.
-        service.medication_repo = MagicMock()
-        service.medication_repo.get_active_by_prescription_group = AsyncMock(return_value=[])
+    # prescription_group_repo: 그룹 owner 가 호출 profile_id 와 일치해야 통과.
+    service.prescription_group_repo = MagicMock()
+    service.prescription_group_repo.get_by_id = AsyncMock(
+      return_value=MagicMock(id=prescription_group_id, profile_id=profile_id),
+    )
+    # medication_repo: 그룹 active 0건 → 본 분기 도달.
+    service.medication_repo = MagicMock()
+    service.medication_repo.get_active_by_prescription_group = AsyncMock(return_value=[])
 
-        return service, profile_id, prescription_group_id
+    return service, profile_id, prescription_group_id
 
-    @pytest.mark.asyncio
-    async def test_raises_409_when_no_active_medications(self) -> None:
-        """active medications 0건 → HTTPException(409)."""
-        service, profile_id, group_id = self._service_with_empty_medications()
+  @pytest.mark.asyncio
+  async def test_raises_409_when_no_active_medications(self) -> None:
+    """active medications 0건 → HTTPException(409)."""
+    service, profile_id, group_id = self._service_with_empty_medications()
 
-        with pytest.raises(HTTPException) as exc_info:
-            await service.enqueue_guide_generation(
-                profile_id=profile_id,
-                prescription_group_id=group_id,
-            )
+    with pytest.raises(HTTPException) as exc_info:
+      await service.enqueue_guide_generation(
+        profile_id=profile_id,
+        prescription_group_id=group_id,
+      )
 
-        assert exc_info.value.status_code == status.HTTP_409_CONFLICT
+    assert exc_info.value.status_code == status.HTTP_409_CONFLICT
 
-    @pytest.mark.asyncio
-    async def test_response_detail_has_required_keys(self) -> None:
-        """detail 에 code / message / redirect_to 가 포함되어야 한다 (FE 계약)."""
-        service, profile_id, group_id = self._service_with_empty_medications()
+  @pytest.mark.asyncio
+  async def test_response_detail_has_required_keys(self) -> None:
+    """detail 에 code / message / redirect_to 가 포함되어야 한다 (FE 계약)."""
+    service, profile_id, group_id = self._service_with_empty_medications()
 
-        with pytest.raises(HTTPException) as exc_info:
-            await service.enqueue_guide_generation(
-                profile_id=profile_id,
-                prescription_group_id=group_id,
-            )
+    with pytest.raises(HTTPException) as exc_info:
+      await service.enqueue_guide_generation(
+        profile_id=profile_id,
+        prescription_group_id=group_id,
+      )
 
-        detail = exc_info.value.detail
-        assert isinstance(detail, dict), f"detail must be dict, got {type(detail)}"
-        assert detail["code"] == "NO_ACTIVE_MEDICATIONS"
-        # v3: 메시지 카피와 redirect_to 가 처방전 페이지 기준으로 변경됨.
-        assert "처방전" in detail["message"]
-        assert detail["redirect_to"] == "/medication"
+    detail = exc_info.value.detail
+    assert isinstance(detail, dict), f"detail must be dict, got {type(detail)}"
+    assert detail["code"] == "NO_ACTIVE_MEDICATIONS"
+    # v3: 메시지 카피와 redirect_to 가 처방전 페이지 기준으로 변경됨.
+    assert "처방전" in detail["message"]
+    assert detail["redirect_to"] == "/medication"
 
 
 class TestEnqueueGuideHappyPath:
-    """Router 단 happy path — service 가 guide 반환 시 그대로 반환."""
+  """Router 단 happy path — service 가 guide 반환 시 그대로 반환."""
 
-    @pytest.mark.asyncio
-    async def test_returns_pending_response_on_success(self) -> None:
-        guide_id = uuid4()
-        service = MagicMock()
-        # status 는 LifestyleGuidePendingResponse 의 enum 검증을 통과해야 한다.
-        guide = MagicMock(id=guide_id, status="pending")
-        service.enqueue_guide_with_owner_check = AsyncMock(return_value=guide)
-        account = MagicMock(id=uuid4())
+  @pytest.mark.asyncio
+  async def test_returns_pending_response_on_success(self) -> None:
+    guide_id = uuid4()
+    service = MagicMock()
+    # status 는 LifestyleGuidePendingResponse 의 enum 검증을 통과해야 한다.
+    guide = MagicMock(id=guide_id, status="pending")
+    service.enqueue_guide_with_owner_check = AsyncMock(return_value=guide)
+    account = MagicMock(id=uuid4())
 
-        result: Any = await enqueue_guide(
-            profile_id=uuid4(),
-            prescription_group_id=uuid4(),
-            current_account=account,
-            service=service,
-        )
+    result: Any = await enqueue_guide(
+      profile_id=uuid4(),
+      prescription_group_id=uuid4(),
+      current_account=account,
+      service=service,
+    )
 
-        assert result.id == guide_id
-        assert result.status == "pending"
+    assert result.id == guide_id
+    assert result.status == "pending"
 
-    @pytest.mark.asyncio
-    async def test_returns_ready_status_on_dedupe_hit(self) -> None:
-        """Phase B dedupe — service 가 ready 가이드 반환 시 status='ready' 응답."""
-        guide_id = uuid4()
-        service = MagicMock()
-        guide = MagicMock(id=guide_id, status="ready")
-        service.enqueue_guide_with_owner_check = AsyncMock(return_value=guide)
-        account = MagicMock(id=uuid4())
+  @pytest.mark.asyncio
+  async def test_returns_ready_status_on_dedupe_hit(self) -> None:
+    """Phase B dedupe — service 가 ready 가이드 반환 시 status='ready' 응답."""
+    guide_id = uuid4()
+    service = MagicMock()
+    guide = MagicMock(id=guide_id, status="ready")
+    service.enqueue_guide_with_owner_check = AsyncMock(return_value=guide)
+    account = MagicMock(id=uuid4())
 
-        result: Any = await enqueue_guide(
-            profile_id=uuid4(),
-            prescription_group_id=uuid4(),
-            current_account=account,
-            service=service,
-        )
+    result: Any = await enqueue_guide(
+      profile_id=uuid4(),
+      prescription_group_id=uuid4(),
+      current_account=account,
+      service=service,
+    )
 
-        assert result.id == guide_id
-        assert result.status == "ready"
+    assert result.id == guide_id
+    assert result.status == "ready"
 
-    @pytest.mark.asyncio
-    async def test_propagates_service_http_exception(self) -> None:
-        """Service 가 던진 HTTPException 은 router 가 그대로 propagate."""
-        service = MagicMock()
-        service.enqueue_guide_with_owner_check = AsyncMock(
-            side_effect=HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"code": "NO_ACTIVE_MEDICATIONS", "message": "...", "redirect_to": "/medication"},
-            ),
-        )
-        account = MagicMock(id=uuid4())
+  @pytest.mark.asyncio
+  async def test_propagates_service_http_exception(self) -> None:
+    """Service 가 던진 HTTPException 은 router 가 그대로 propagate."""
+    service = MagicMock()
+    service.enqueue_guide_with_owner_check = AsyncMock(
+      side_effect=HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={"code": "NO_ACTIVE_MEDICATIONS", "message": "...", "redirect_to": "/medication"},
+      ),
+    )
+    account = MagicMock(id=uuid4())
 
-        with pytest.raises(HTTPException) as exc_info:
-            await enqueue_guide(
-                profile_id=uuid4(),
-                prescription_group_id=uuid4(),
-                current_account=account,
-                service=service,
-            )
+    with pytest.raises(HTTPException) as exc_info:
+      await enqueue_guide(
+        profile_id=uuid4(),
+        prescription_group_id=uuid4(),
+        current_account=account,
+        service=service,
+      )
 
-        assert exc_info.value.status_code == status.HTTP_409_CONFLICT
-        assert exc_info.value.detail["code"] == "NO_ACTIVE_MEDICATIONS"
+    assert exc_info.value.status_code == status.HTTP_409_CONFLICT
+    assert exc_info.value.detail["code"] == "NO_ACTIVE_MEDICATIONS"

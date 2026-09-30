@@ -75,18 +75,18 @@ DATED = re.compile(r"^(\d{4}-\d{2}-\d{2})_([a-z0-9-]+)-([a-z]+)\.md$")
 #:   상태정본(architecture·deploy·…) → ``current``
 #: ``dropped`` 도 갈랐다 — RFC 관행대로 ``rejected``(검토 후 기각)와 ``withdrawn``(철회).
 ALLOWED_STATUS: dict[str, frozenset[str]] = {
-    "plan": frozenset(
-        {"draft", "in-progress", "pending", "done", "rejected", "withdrawn", "superseded", "partial"},
-    ),
-    "report": frozenset({"in-progress", "done", "rejected", "withdrawn", "partial"}),
-    "record": frozenset({"in-progress", "partial", "done"}),
-    "architecture": frozenset({"current", "superseded"}),
-    "deploy": frozenset({"current", "superseded"}),
-    "filing": frozenset({"current", "superseded"}),
-    "roadmap": frozenset({"current", "superseded"}),
-    "mistake": frozenset({"current", "superseded"}),
-    "queue": frozenset({"current", "superseded"}),
-    "drift": frozenset({"current", "superseded"}),
+  "plan": frozenset(
+    {"draft", "in-progress", "pending", "done", "rejected", "withdrawn", "superseded", "partial"},
+  ),
+  "report": frozenset({"in-progress", "done", "rejected", "withdrawn", "partial"}),
+  "record": frozenset({"in-progress", "partial", "done"}),
+  "architecture": frozenset({"current", "superseded"}),
+  "deploy": frozenset({"current", "superseded"}),
+  "filing": frozenset({"current", "superseded"}),
+  "roadmap": frozenset({"current", "superseded"}),
+  "mistake": frozenset({"current", "superseded"}),
+  "queue": frozenset({"current", "superseded"}),
+  "drift": frozenset({"current", "superseded"}),
 }
 #: 직하 작업버퍼 — `closes:` 선언을 요구하는 종류(FILING §9 · 문서-32).
 BUFFER_KINDS = frozenset({"plan", "report", "record"})
@@ -112,13 +112,13 @@ CHECKED = re.compile(r"^[ 	]*- \[[xX]\]", re.MULTILINE)
 #: 닫았는지 복구할 길이 없어 지금 채우면 그게 거짓이 된다. 사유 없는 면제는 막는다.
 #: ⚠️ **이 표는 자라면 안 된다.** 새 이름이 여기 들어가려 하면 그건 면제가 아니라 규칙 위반이다.
 DONE_MARK_EXEMPT: dict[str, str] = {
-    "2026-09-08_gcp-login-mvp-plan.md": "2026-09-08 종료. 판정 5개 미체크 — 당시 실측이 남아 있지 않다.",
-    "2026-09-12_budget-autostop-plan.md": (
-        "2026-09-12 종료. 판정 4개 미체크. 킬스위치 자동배선은 org 정책으로 기각됐고 그 사실은 배너에만 남았다."
-    ),
-    "2026-09-12_schema-cleanup-dto-hardening-plan.md": "2026-09-12 종료. 판정 4개 미체크.",
-    "2026-09-15_qa04-vector-tests-plan.md": "2026-09-15 종료. 판정 5개 미체크.",
-    "2026-09-16_filing-convention-plan.md": "2026-09-16 종료. 판정 7개 미체크.",
+  "2026-09-08_gcp-login-mvp-plan.md": "2026-09-08 종료. 판정 5개 미체크 — 당시 실측이 남아 있지 않다.",
+  "2026-09-12_budget-autostop-plan.md": (
+    "2026-09-12 종료. 판정 4개 미체크. 킬스위치 자동배선은 org 정책으로 기각됐고 그 사실은 배너에만 남았다."
+  ),
+  "2026-09-12_schema-cleanup-dto-hardening-plan.md": "2026-09-12 종료. 판정 4개 미체크.",
+  "2026-09-15_qa04-vector-tests-plan.md": "2026-09-15 종료. 판정 5개 미체크.",
+  "2026-09-16_filing-convention-plan.md": "2026-09-16 종료. 판정 7개 미체크.",
 }
 
 #: 계승하지 않았음을 **명시**하는 값. 빈칸을 허용하면 *"계승 안 했다"* 와 *"적는 걸 잊었다"* 가
@@ -133,9 +133,9 @@ RESUMABLE = frozenset({"pending"})
 #: ``remainder:`` 가 가리킬 수 있는 곳. **살아서 갱신되는 자리**여야 한다 — 스냅샷을 가리키면
 #: 그 자체가 또 안 바뀌므로 추적이 한 칸 옮겨졌을 뿐이다(FILING §8-6).
 REMAINDER_TARGETS = (
-    (re.compile(r"^ROADMAP#(\S+)$"), ROADMAP),
-    (re.compile(r"^(QA-\d+)$"), "FOLLOWUP_QUEUE.md"),
-    (re.compile(r"^(문서-\d+)$"), "DOC_TRUTH_DRIFT.md"),
+  (re.compile(r"^ROADMAP#(\S+)$"), ROADMAP),
+  (re.compile(r"^(QA-\d+)$"), "FOLLOWUP_QUEUE.md"),
+  (re.compile(r"^(문서-\d+)$"), "DOC_TRUTH_DRIFT.md"),
 )
 
 #: ``ROADMAP.md`` §지금 위치의 "진행 중인 계획" 줄. 이 한 줄이 *"어디까지 왔나"* 의 단일 답이다.
@@ -153,141 +153,141 @@ AFFECT = re.compile(r"^([A-Z][A-Z_]*)(?:#(\S+))?$")
 
 @dataclass(frozen=True)
 class Finding:
-    """한 건의 위반."""
+  """한 건의 위반."""
 
-    path: str
-    reason: str
+  path: str
+  reason: str
 
 
 def parse_meta(path: Path) -> dict[str, str] | None:
-    """``doc-meta`` 블록을 읽는다. 없으면 None."""
-    found = BLOCK.search(path.read_text(encoding="utf-8", errors="replace")[:4000])
-    return dict(FIELD.findall(found.group(1))) if found else None
+  """``doc-meta`` 블록을 읽는다. 없으면 None."""
+  found = BLOCK.search(path.read_text(encoding="utf-8", errors="replace")[:4000])
+  return dict(FIELD.findall(found.group(1))) if found else None
 
 
 def section_text(text: str, marker: str) -> str | None:
-    """``§5`` / ``RAG`` 같은 표식이 가리키는 절의 본문을 잘라 낸다.
+  """``§5`` / ``RAG`` 같은 표식이 가리키는 절의 본문을 잘라 낸다.
 
-    절 번호(``5``)면 ``## 5.`` · ``## §5`` 형태를, 그 외에는 제목에 그 말이 든 절을 찾는다.
-    표제가 없으면 **표 한 행**을 절로 본다(아래). 찾지 못하면 None —
-    호출자가 *"선언한 절이 실재하지 않는다"* 로 판정한다.
-    """
-    lines = text.splitlines()
-    start = None
-    pattern = (
-        re.compile(rf"^#{{2,3}}\s*§?\s*{re.escape(marker)}[.\s]")
-        if marker.isdigit()
-        else re.compile(rf"^#{{2,3}}\s.*{re.escape(marker)}", re.IGNORECASE)
-    )
-    for i, line in enumerate(lines):
-        if pattern.match(line):
-            start = i
-            break
-    if start is None:
-        return table_row(lines, marker)
-    for j in range(start + 1, len(lines)):
-        if re.match(r"^#{2,3}\s", lines[j]):
-            return "\n".join(lines[start:j])
-    return "\n".join(lines[start:])
+  절 번호(``5``)면 ``## 5.`` · ``## §5`` 형태를, 그 외에는 제목에 그 말이 든 절을 찾는다.
+  표제가 없으면 **표 한 행**을 절로 본다(아래). 찾지 못하면 None —
+  호출자가 *"선언한 절이 실재하지 않는다"* 로 판정한다.
+  """
+  lines = text.splitlines()
+  start = None
+  pattern = (
+    re.compile(rf"^#{{2,3}}\s*§?\s*{re.escape(marker)}[.\s]")
+    if marker.isdigit()
+    else re.compile(rf"^#{{2,3}}\s.*{re.escape(marker)}", re.IGNORECASE)
+  )
+  for i, line in enumerate(lines):
+    if pattern.match(line):
+      start = i
+      break
+  if start is None:
+    return table_row(lines, marker)
+  for j in range(start + 1, len(lines)):
+    if re.match(r"^#{2,3}\s", lines[j]):
+      return "\n".join(lines[start:j])
+  return "\n".join(lines[start:])
 
 
 def table_row(lines: list[str], marker: str) -> str | None:
-    """표제가 없는 항목 — **표 한 행**을 절로 본다 (2026-09-27 신설, ``문서-36``).
+  """표제가 없는 항목 — **표 한 행**을 절로 본다 (2026-09-27 신설, ``문서-36``).
 
-    왜 필요한가
-        ``ROADMAP`` 트랙 A·B 는 ``### B-14`` 처럼 절 제목을 갖는데 **트랙 C 는
-        ``## 트랙 C`` 하나 아래 표 한 줄씩**이다. 그래서 ``affects: ROADMAP#C-6`` 이
-        *"없음"* 으로 **차단**됐다 — 실재하는 항목인데 가리킬 수가 없었다.
-        그 결과 트랙 C 항목 14개는 절 단위 신선도 검사(``FILING`` §9-1)가
-        **원리적으로 안 돌았다.**
+  왜 필요한가
+      ``ROADMAP`` 트랙 A·B 는 ``### B-14`` 처럼 절 제목을 갖는데 **트랙 C 는
+      ``## 트랙 C`` 하나 아래 표 한 줄씩**이다. 그래서 ``affects: ROADMAP#C-6`` 이
+      *"없음"* 으로 **차단**됐다 — 실재하는 항목인데 가리킬 수가 없었다.
+      그 결과 트랙 C 항목 14개는 절 단위 신선도 검사(``FILING`` §9-1)가
+      **원리적으로 안 돌았다.**
 
-    🔴 마커는 **행의 첫 칸**에만 있어야 한다
-        아무 칸이나 보면 산문이 섞여 *"있다"* 가 늘 참이 된다(대장 **D47**).
-        그리고 후보가 둘이면 **None** 이다 — 어느 행인지 모르는 채로 diff 하면
-        엉뚱한 절을 비교한다(fail-closed).
+  🔴 마커는 **행의 첫 칸**에만 있어야 한다
+      아무 칸이나 보면 산문이 섞여 *"있다"* 가 늘 참이 된다(대장 **D47**).
+      그리고 후보가 둘이면 **None** 이다 — 어느 행인지 모르는 채로 diff 하면
+      엉뚱한 절을 비교한다(fail-closed).
 
-    🔴 **정확일치를 먼저 본다** (2026-09-28)
-        부분일치만 쓰면 짧은 마커가 넓게 걸린다 — 실측: ``ROADMAP#11`` 이
-        ``| **11** |`` 과 ``| **C-11 설문…** |`` **둘**에 걸려 모호로 막혔다.
-        첫 칸에서 꾸밈(``*``·`` ` ``·공백)을 벗긴 값이 마커와 **같으면** 그것이 답이다.
-        같은 것이 없을 때만 부분일치로 내려간다(``C-6 잔손질`` 처럼 뒤에 말이 붙는 경우).
-    """
-    want = re.compile(r"^\|(?P<head>[^|]*)\|", re.IGNORECASE)
-    heads = [
-        (line, found["head"])
-        for line in lines
-        if (found := want.match(line.strip())) and not re.fullmatch(r"[\s:|-]*", found["head"])
-    ]
-    exact = [line for line, head in heads if head.strip().strip("*` ").lower() == marker.lower()]
-    hits = exact or [line for line, head in heads if marker.lower() in head.lower()]
-    return hits[0] if len(hits) == 1 else None
+  🔴 **정확일치를 먼저 본다** (2026-09-28)
+      부분일치만 쓰면 짧은 마커가 넓게 걸린다 — 실측: ``ROADMAP#11`` 이
+      ``| **11** |`` 과 ``| **C-11 설문…** |`` **둘**에 걸려 모호로 막혔다.
+      첫 칸에서 꾸밈(``*``·`` ` ``·공백)을 벗긴 값이 마커와 **같으면** 그것이 답이다.
+      같은 것이 없을 때만 부분일치로 내려간다(``C-6 잔손질`` 처럼 뒤에 말이 붙는 경우).
+  """
+  want = re.compile(r"^\|(?P<head>[^|]*)\|", re.IGNORECASE)
+  heads = [
+    (line, found["head"])
+    for line in lines
+    if (found := want.match(line.strip())) and not re.fullmatch(r"[\s:|-]*", found["head"])
+  ]
+  exact = [line for line, head in heads if head.strip().strip("*` ").lower() == marker.lower()]
+  hits = exact or [line for line, head in heads if marker.lower() in head.lower()]
+  return hits[0] if len(hits) == 1 else None
 
 
 # ── ⑤ affects 가 거짓말하는지 ──────────────────────────────────────────
 # 흐름: affects 파싱 -> 정본 찾기 -> 절 잘라내기 -> 직전 스냅샷의 같은 절과 비교
 # 스냅샷이 없으면(첫 판) 비교 대상이 없으므로 검사를 건너뛴다 — 거짓이 아니라 미지다.
 def verify_affects(meta: dict[str, str], where: str, errors: list[Finding], axis: str | None = None) -> int:
-    """``affects`` 선언을 검증하고 실제로 대조한 건수를 돌려준다.
+  """``affects`` 선언을 검증하고 실제로 대조한 건수를 돌려준다.
 
-    🔴 **«안 고쳤다» 판정은 직하(작업버퍼)에만 건다.** 닫힌 스냅샷의 ``affects`` 는
-    *그때의 판*에 대한 주장인데, 이 검사는 **언제나 가장 새 스냅샷**과 비교한다
-    (``snaps[-1]``). 그래서 판이 한 번 더 갈리면 **과거 판정이 뒤집힌다.**
+  🔴 **«안 고쳤다» 판정은 직하(작업버퍼)에만 건다.** 닫힌 스냅샷의 ``affects`` 는
+  *그때의 판*에 대한 주장인데, 이 검사는 **언제나 가장 새 스냅샷**과 비교한다
+  (``snaps[-1]``). 그래서 판이 한 번 더 갈리면 **과거 판정이 뒤집힌다.**
 
-    🔬 실측 2026-09-28: `filing/` 에 새 판 하나를 넣자 **닫힌 문서 3건**이 빨개졌다
-    (`mistake-prevention-column-plan` §7-2 · `doc-drift-ledger-sweep-record` §5·§7·§8).
-    셋 다 닫을 당시에는 참이었고 **아무것도 변하지 않았는데** 기준선만 움직였다.
+  🔬 실측 2026-09-28: `filing/` 에 새 판 하나를 넣자 **닫힌 문서 3건**이 빨개졌다
+  (`mistake-prevention-column-plan` §7-2 · `doc-drift-ledger-sweep-record` §5·§7·§8).
+  셋 다 닫을 당시에는 참이었고 **아무것도 변하지 않았는데** 기준선만 움직였다.
 
-    ⚠️ **모양·실재 검사는 닫힌 문서에도 그대로 건다** — 그건 시점과 무관한 사실이다.
-    그리고 대조 **건수는 계속 센다**: 바닥값(``MIN_AFFECTS``)의 목적은 «파서가 죽었나» 이지
-    «위반이 있나» 가 아니라서, 직하만 세면 진행 중 PLAN 이 없는 날 게이트가 눈이 먼다.
+  ⚠️ **모양·실재 검사는 닫힌 문서에도 그대로 건다** — 그건 시점과 무관한 사실이다.
+  그리고 대조 **건수는 계속 센다**: 바닥값(``MIN_AFFECTS``)의 목적은 «파서가 죽었나» 이지
+  «위반이 있나» 가 아니라서, 직하만 세면 진행 중 PLAN 이 없는 날 게이트가 눈이 먼다.
 
-    Args:
-        meta: 그 문서의 ``doc-meta``.
-        where: 보고에 쓸 문서 이름.
-        errors: 위반을 담을 목록.
-        axis: 축 폴더 이름. ``None`` 이면 직하(작업버퍼)다.
+  Args:
+      meta: 그 문서의 ``doc-meta``.
+      where: 보고에 쓸 문서 이름.
+      errors: 위반을 담을 목록.
+      axis: 축 폴더 이름. ``None`` 이면 직하(작업버퍼)다.
 
-    Returns:
-        실제로 대조한 절의 수.
-    """
-    raw = meta.get("affects", "")
-    checked = 0
-    for item in (x.strip() for x in raw.split(",") if x.strip()):
-        matched = AFFECT.match(item)
-        if not matched:
-            errors.append(Finding(where, f"`affects` 항목이 `정본#절` 모양이 아니다 — `{item}` (FILING §9)"))
-            continue
-        canon_name, marker = matched.groups()
-        canon = next((p for p in PRIVATE.glob("*.md") if p.stem.upper().startswith(canon_name)), None)
-        if canon is None:
-            errors.append(Finding(where, f"`affects` 가 없는 정본을 가리킨다 — `{canon_name}`"))
-            continue
-        body = canon.read_text(encoding="utf-8", errors="replace")
-        current = body if marker is None else section_text(body, marker)
-        if current is None:
-            errors.append(Finding(where, f"`affects` 가 없는 절을 가리킨다 — `{canon.name}` 에 `{marker}` 없음"))
-            continue
+  Returns:
+      실제로 대조한 절의 수.
+  """
+  raw = meta.get("affects", "")
+  checked = 0
+  for item in (x.strip() for x in raw.split(",") if x.strip()):
+    matched = AFFECT.match(item)
+    if not matched:
+      errors.append(Finding(where, f"`affects` 항목이 `정본#절` 모양이 아니다 — `{item}` (FILING §9)"))
+      continue
+    canon_name, marker = matched.groups()
+    canon = next((p for p in PRIVATE.glob("*.md") if p.stem.upper().startswith(canon_name)), None)
+    if canon is None:
+      errors.append(Finding(where, f"`affects` 가 없는 정본을 가리킨다 — `{canon_name}`"))
+      continue
+    body = canon.read_text(encoding="utf-8", errors="replace")
+    current = body if marker is None else section_text(body, marker)
+    if current is None:
+      errors.append(Finding(where, f"`affects` 가 없는 절을 가리킨다 — `{canon.name}` 에 `{marker}` 없음"))
+      continue
 
-        # ⚠️ 이름을 `axis` 로 두면 **매개변수 `axis` 를 가린다** — 그러면 아래 직하 판정이
-        #    항상 참이 되어 검사가 통째로 죽는다(2026-09-28 실측: 결핍 주입이 Red 를 못 냈다).
-        axis_dir = PRIVATE / canon.stem.lower()
-        snaps = sorted(axis_dir.glob("*.md")) if axis_dir.is_dir() else []
-        if not snaps:
-            continue  # 첫 판이라 비교 대상이 없다. 미지이지 거짓이 아니다.
-        snap_body = snaps[-1].read_text(encoding="utf-8", errors="replace")
-        previous = snap_body if marker is None else section_text(snap_body, marker)
-        checked += 1
-        if axis is not None:
-            continue  # 닫힌 스냅샷은 «그때의 판» 에 대한 주장이다 — 새 기준선으로 재판정하지 않는다
-        if previous is not None and previous.strip() == current.strip():
-            errors.append(
-                Finding(
-                    where,
-                    f"`affects: {item}` 라고 선언했는데 **그 절이 직전 판과 똑같다** "
-                    f"({snaps[-1].name}) — 선언만 하고 안 고쳤다 (FILING §9-1)",
-                )
-            )
-    return checked
+    # ⚠️ 이름을 `axis` 로 두면 **매개변수 `axis` 를 가린다** — 그러면 아래 직하 판정이
+    #    항상 참이 되어 검사가 통째로 죽는다(2026-09-28 실측: 결핍 주입이 Red 를 못 냈다).
+    axis_dir = PRIVATE / canon.stem.lower()
+    snaps = sorted(axis_dir.glob("*.md")) if axis_dir.is_dir() else []
+    if not snaps:
+      continue  # 첫 판이라 비교 대상이 없다. 미지이지 거짓이 아니다.
+    snap_body = snaps[-1].read_text(encoding="utf-8", errors="replace")
+    previous = snap_body if marker is None else section_text(snap_body, marker)
+    checked += 1
+    if axis is not None:
+      continue  # 닫힌 스냅샷은 «그때의 판» 에 대한 주장이다 — 새 기준선으로 재판정하지 않는다
+    if previous is not None and previous.strip() == current.strip():
+      errors.append(
+        Finding(
+          where,
+          f"`affects: {item}` 라고 선언했는데 **그 절이 직전 판과 똑같다** "
+          f"({snaps[-1].name}) — 선언만 하고 안 고쳤다 (FILING §9-1)",
+        )
+      )
+  return checked
 
 
 # ── ⑥ 계승 링크가 양방향으로 맞는가 ──────────────────────────────────
@@ -300,102 +300,102 @@ OPEN_PLAN = "PLAN.md"
 
 
 def plan_identity(path: Path, axis: str | None) -> str:
-    """다른 문서가 이 PLAN 을 가리킬 때 쓰는 이름."""
-    return OPEN_PLAN if axis is None else path.stem
+  """다른 문서가 이 PLAN 을 가리킬 때 쓰는 이름."""
+  return OPEN_PLAN if axis is None else path.stem
 
 
 def resolve_plan(ref: str) -> Path:
-    """``supersedes``/``superseded_by`` 값이 가리키는 실제 파일."""
-    if ref == OPEN_PLAN:
-        return PRIVATE / OPEN_PLAN
-    return PRIVATE / "plan" / (ref if ref.endswith(".md") else f"{ref}.md")
+  """``supersedes``/``superseded_by`` 값이 가리키는 실제 파일."""
+  if ref == OPEN_PLAN:
+    return PRIVATE / OPEN_PLAN
+  return PRIVATE / "plan" / (ref if ref.endswith(".md") else f"{ref}.md")
 
 
 def links(meta: dict[str, str], field: str) -> list[str]:
-    """쉼표로 나열된 링크 값. 괄호 주석은 값이 아니라 오류다(실제로 한 번 깨졌다)."""
-    return [x.strip() for x in meta.get(field, "").split(",") if x.strip() and x.strip() != NO_SUCCESSION]
+  """쉼표로 나열된 링크 값. 괄호 주석은 값이 아니라 오류다(실제로 한 번 깨졌다)."""
+  return [x.strip() for x in meta.get(field, "").split(",") if x.strip() and x.strip() != NO_SUCCESSION]
 
 
 def verify_supersedes(meta: dict[str, str], path: Path, axis: str | None, where: str, errors: list[Finding]) -> int:
-    """계승 링크를 **양쪽에서** 대조한다.
+  """계승 링크를 **양쪽에서** 대조한다.
 
-    ``kind: plan`` 에만 적용한다. **판 교체형 정본**(``filing/``·``deploy/`` …)은 후속이
-    **폴더 이름으로 결정된다** — ``filing/`` 의 다음 판은 언제나 직하 ``FILING.md`` 이고,
-    계보는 축 폴더를 날짜순으로 보면 된다(FILING §9-1). 도출되는 사실에 링크를 박으면
-    판이 한 번 더 바뀔 때마다 **과거 스냅샷 전부를 고쳐야 한다.**
-    역링크는 **후속이 결정론적으로 도출되지 않을 때만** 필요하다.
+  ``kind: plan`` 에만 적용한다. **판 교체형 정본**(``filing/``·``deploy/`` …)은 후속이
+  **폴더 이름으로 결정된다** — ``filing/`` 의 다음 판은 언제나 직하 ``FILING.md`` 이고,
+  계보는 축 폴더를 날짜순으로 보면 된다(FILING §9-1). 도출되는 사실에 링크를 박으면
+  판이 한 번 더 바뀔 때마다 **과거 스냅샷 전부를 고쳐야 한다.**
+  역링크는 **후속이 결정론적으로 도출되지 않을 때만** 필요하다.
 
-    Returns:
-        대조한 링크 수. 호출자가 합산해 **0건이면 실패**로 본다(눈먼 검사 방지).
-    """
-    if meta.get("kind") != "plan":
-        return 0
-    me = plan_identity(path, axis)
-    status = meta.get("status")
-    checked = 0
+  Returns:
+      대조한 링크 수. 호출자가 합산해 **0건이면 실패**로 본다(눈먼 검사 방지).
+  """
+  if meta.get("kind") != "plan":
+    return 0
+  me = plan_identity(path, axis)
+  status = meta.get("status")
+  checked = 0
 
-    # 앞 → 뒤: 내가 계승한 것들이 실제로 닫혔고 나를 도로 가리키는가
-    for item in links(meta, "supersedes"):
-        checked += 1
-        target = resolve_plan(item)
-        if not target.exists():
-            errors.append(Finding(where, f"`supersedes:` 가 없는 계획을 가리킨다 → `{item}`"))
-            continue
-        older = parse_meta(target) or {}
-        if older.get("status") != "superseded":
-            errors.append(
-                Finding(
-                    where,
-                    f"`supersedes: {item}` 인데 그쪽 `status: {older.get('status')}` 다 — "
-                    "계승당한 계획은 `superseded` 여야 한다. 안 바꾸면 미착수 재고로 남는다 (FILING §8-4)",
-                )
-            )
-        back = links(older, "superseded_by")
-        if me not in back:
-            errors.append(
-                Finding(
-                    where,
-                    f"`supersedes: {item}` 인데 그쪽 `superseded_by:` 가 나를 안 가리킨다 "
-                    f"(`{back or '없음'}` ≠ `{me}`) — 역링크가 없으면 그 문서를 연 사람이 "
-                    "후속을 찾지 못한다 (FILING §8-4)",
-                )
-            )
-
-    # 뒤 → 앞: 내가 계승당했으면 누가 가져갔는지 적혀 있고, 그게 실재하며 나를 가리키는가
-    back = links(meta, "superseded_by")
-    if status == "superseded" and not back:
-        errors.append(
-            Finding(where, "`status: superseded` 인데 `superseded_by:` 가 없다 — 후속을 찾을 길이 없다 (FILING §8-4)")
+  # 앞 → 뒤: 내가 계승한 것들이 실제로 닫혔고 나를 도로 가리키는가
+  for item in links(meta, "supersedes"):
+    checked += 1
+    target = resolve_plan(item)
+    if not target.exists():
+      errors.append(Finding(where, f"`supersedes:` 가 없는 계획을 가리킨다 → `{item}`"))
+      continue
+    older = parse_meta(target) or {}
+    if older.get("status") != "superseded":
+      errors.append(
+        Finding(
+          where,
+          f"`supersedes: {item}` 인데 그쪽 `status: {older.get('status')}` 다 — "
+          "계승당한 계획은 `superseded` 여야 한다. 안 바꾸면 미착수 재고로 남는다 (FILING §8-4)",
         )
-    if back and status != "superseded":
-        errors.append(Finding(where, f"`superseded_by:` 가 있는데 `status: {status}` 다 — `superseded` 여야 한다"))
-    for item in back:
-        checked += 1
-        target = resolve_plan(item)
-        if not target.exists():
-            hint = (
-                " — 직하 `PLAN.md` 가 닫히면 이 값을 그 스냅샷 파일명으로 바꿔야 한다 (FILING §8-4 ④)"
-                if item == OPEN_PLAN
-                else ""
-            )
-            errors.append(Finding(where, f"`superseded_by:` 가 없는 계획을 가리킨다 → `{item}`{hint}"))
-            continue
-        newer = parse_meta(target) or {}
-        if me not in links(newer, "supersedes"):
-            errors.append(
-                Finding(
-                    where,
-                    f"`superseded_by: {item}` 인데 그쪽 `supersedes:` 가 나를 안 가리킨다 — 링크가 한쪽만 있다",
-                )
-            )
-    return checked
+      )
+    back = links(older, "superseded_by")
+    if me not in back:
+      errors.append(
+        Finding(
+          where,
+          f"`supersedes: {item}` 인데 그쪽 `superseded_by:` 가 나를 안 가리킨다 "
+          f"(`{back or '없음'}` ≠ `{me}`) — 역링크가 없으면 그 문서를 연 사람이 "
+          "후속을 찾지 못한다 (FILING §8-4)",
+        )
+      )
+
+  # 뒤 → 앞: 내가 계승당했으면 누가 가져갔는지 적혀 있고, 그게 실재하며 나를 가리키는가
+  back = links(meta, "superseded_by")
+  if status == "superseded" and not back:
+    errors.append(
+      Finding(where, "`status: superseded` 인데 `superseded_by:` 가 없다 — 후속을 찾을 길이 없다 (FILING §8-4)")
+    )
+  if back and status != "superseded":
+    errors.append(Finding(where, f"`superseded_by:` 가 있는데 `status: {status}` 다 — `superseded` 여야 한다"))
+  for item in back:
+    checked += 1
+    target = resolve_plan(item)
+    if not target.exists():
+      hint = (
+        " — 직하 `PLAN.md` 가 닫히면 이 값을 그 스냅샷 파일명으로 바꿔야 한다 (FILING §8-4 ④)"
+        if item == OPEN_PLAN
+        else ""
+      )
+      errors.append(Finding(where, f"`superseded_by:` 가 없는 계획을 가리킨다 → `{item}`{hint}"))
+      continue
+    newer = parse_meta(target) or {}
+    if me not in links(newer, "supersedes"):
+      errors.append(
+        Finding(
+          where,
+          f"`superseded_by: {item}` 인데 그쪽 `supersedes:` 가 나를 안 가리킨다 — 링크가 한쪽만 있다",
+        )
+      )
+  return checked
 
 
 @cache
 def roadmap_text() -> str:
-    """보류를 살려 두는 문서. 한 번만 읽는다."""
-    target = PRIVATE / ROADMAP
-    return target.read_text(encoding="utf-8", errors="replace") if target.exists() else ""
+  """보류를 살려 두는 문서. 한 번만 읽는다."""
+  target = PRIVATE / ROADMAP
+  return target.read_text(encoding="utf-8", errors="replace") if target.exists() else ""
 
 
 # ── ⑧ 보류가 고아인가 ────────────────────────────────────────────────
@@ -404,19 +404,19 @@ def roadmap_text() -> str:
 #     날짜 상수를 두면 살아 있는 계획을 죽었다고 말한다. 보류는 **죽지 않는다** —
 #     대신 **아무도 가리키지 않게 되는 것**을 막는다. 그건 판단 없이 셀 수 있다(FILING §8-5).
 def verify_not_orphaned(meta: dict[str, str], path: Path, axis: str | None, where: str, errors: list[Finding]) -> int:
-    """재개 가능한 보류가 ``ROADMAP.md`` 에서 불리는지 본다. 검사했으면 1."""
-    if meta.get("kind") != "plan" or meta.get("status") not in RESUMABLE or axis is None:
-        return 0
-    if path.stem not in roadmap_text():
-        errors.append(
-            Finding(
-                where,
-                f"`status: {meta.get('status')}` 인데 `{ROADMAP}` 이 이 파일을 이름으로 부르지 않는다 — "
-                "아무도 가리키지 않는 보류는 재개되지 않는다(고아). 로드맵 단계에 경로를 적거나, "
-                "되살릴 생각이 없으면 `rejected`(기각) 또는 `withdrawn`(철회)으로 닫는다 (FILING §8-5)",
-            )
-        )
-    return 1
+  """재개 가능한 보류가 ``ROADMAP.md`` 에서 불리는지 본다. 검사했으면 1."""
+  if meta.get("kind") != "plan" or meta.get("status") not in RESUMABLE or axis is None:
+    return 0
+  if path.stem not in roadmap_text():
+    errors.append(
+      Finding(
+        where,
+        f"`status: {meta.get('status')}` 인데 `{ROADMAP}` 이 이 파일을 이름으로 부르지 않는다 — "
+        "아무도 가리키지 않는 보류는 재개되지 않는다(고아). 로드맵 단계에 경로를 적거나, "
+        "되살릴 생각이 없으면 `rejected`(기각) 또는 `withdrawn`(철회)으로 닫는다 (FILING §8-5)",
+      )
+    )
+  return 1
 
 
 #: ``inspect`` 가 세는 ``partial`` 대조 건수. 모듈 수준 누산기(시그니처를 더 늘리지 않는다).
@@ -426,65 +426,65 @@ done_marks_checked = [0]
 
 
 def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, int]:
-    """문서 하나를 판정하고, **(affects 절 대조 수, 계승 링크 대조 수)** 를 돌려준다."""
-    where = f"{axis}/{path.name}" if axis else path.name
-    meta = parse_meta(path)
-    if meta is None:
-        errors.append(Finding(where, "`doc-meta` 블록이 없다 (FILING §9)"))
-        return 0, 0
+  """문서 하나를 판정하고, **(affects 절 대조 수, 계승 링크 대조 수)** 를 돌려준다."""
+  where = f"{axis}/{path.name}" if axis else path.name
+  meta = parse_meta(path)
+  if meta is None:
+    errors.append(Finding(where, "`doc-meta` 블록이 없다 (FILING §9)"))
+    return 0, 0
 
-    kind, status = meta.get("kind"), meta.get("status")
-    if not kind:
-        errors.append(Finding(where, "`doc-meta` 에 `kind` 가 없다"))
-    if not status:
-        errors.append(Finding(where, "`doc-meta` 에 `status` 가 없다 — 없으면 생애주기를 판정할 수 없다"))
+  kind, status = meta.get("kind"), meta.get("status")
+  if not kind:
+    errors.append(Finding(where, "`doc-meta` 에 `kind` 가 없다"))
+  if not status:
+    errors.append(Finding(where, "`doc-meta` 에 `status` 가 없다 — 없으면 생애주기를 판정할 수 없다"))
 
-    if kind and status:
-        allowed = ALLOWED_STATUS.get(kind)
-        if allowed is None:
-            errors.append(Finding(where, f"`kind: {kind}` 는 예약 목록에 없다 {sorted(ALLOWED_STATUS)}"))
-        elif status not in allowed:
-            errors.append(Finding(where, f"`status: {status}` 는 `kind: {kind}` 에 허용되지 않는다 {sorted(allowed)}"))
+  if kind and status:
+    allowed = ALLOWED_STATUS.get(kind)
+    if allowed is None:
+      errors.append(Finding(where, f"`kind: {kind}` 는 예약 목록에 없다 {sorted(ALLOWED_STATUS)}"))
+    elif status not in allowed:
+      errors.append(Finding(where, f"`status: {status}` 는 `kind: {kind}` 에 허용되지 않는다 {sorted(allowed)}"))
 
-    if axis and kind and kind != axis:
-        errors.append(Finding(where, f"`kind: {kind}` 가 폴더 `{axis}/` 와 다르다"))
-    if axis is None and status and status not in TOP_STATUS:
-        errors.append(
-            Finding(where, f"직하인데 `status: {status}` 다 — 직하는 {sorted(TOP_STATUS)} 뿐이다"),
-        )
+  if axis and kind and kind != axis:
+    errors.append(Finding(where, f"`kind: {kind}` 가 폴더 `{axis}/` 와 다르다"))
+  if axis is None and status and status not in TOP_STATUS:
+    errors.append(
+      Finding(where, f"직하인데 `status: {status}` 다 — 직하는 {sorted(TOP_STATUS)} 뿐이다"),
+    )
 
-    # 🔴 `closes:` 선언 강제 — **직하 작업버퍼에만** (FILING §9 · 문서-32).
-    #    빈칸을 허용하면 «닫는 게 없다» 와 «적는 걸 잊었다» 가 같은 모양이 된다(§8-4 논리).
-    #    ⚠️ 소급하지 않는다 — 닫힌 스냅샷 58건에 필드를 넣으면 **mtime 이 깨진다**(§12-1).
-    #    선언 강제는 **작성자가 그 자리에 있을 때만** 값이 있다.
-    if axis is None and kind in BUFFER_KINDS and not meta.get("closes"):
-        errors.append(
-            Finding(
-                where,
-                "직하 작업버퍼인데 `closes:` 가 비었다 — 닫는 게 없으면 `none` 이라고 **적는다**(FILING §9)",
-            ),
-        )
+  # 🔴 `closes:` 선언 강제 — **직하 작업버퍼에만** (FILING §9 · 문서-32).
+  #    빈칸을 허용하면 «닫는 게 없다» 와 «적는 걸 잊었다» 가 같은 모양이 된다(§8-4 논리).
+  #    ⚠️ 소급하지 않는다 — 닫힌 스냅샷 58건에 필드를 넣으면 **mtime 이 깨진다**(§12-1).
+  #    선언 강제는 **작성자가 그 자리에 있을 때만** 값이 있다.
+  if axis is None and kind in BUFFER_KINDS and not meta.get("closes"):
+    errors.append(
+      Finding(
+        where,
+        "직하 작업버퍼인데 `closes:` 가 비었다 — 닫는 게 없으면 `none` 이라고 **적는다**(FILING §9)",
+      ),
+    )
 
-    plan_ref = meta.get("plan")
-    if plan_ref and not plan_ref.startswith("("):
-        target = PRIVATE / "plan" / (plan_ref if plan_ref.endswith(".md") else f"{plan_ref}.md")
-        if not target.exists():
-            errors.append(Finding(where, f"`plan:` 이 없는 스냅샷을 가리킨다 → `plan/{target.name}`"))
+  plan_ref = meta.get("plan")
+  if plan_ref and not plan_ref.startswith("("):
+    target = PRIVATE / "plan" / (plan_ref if plan_ref.endswith(".md") else f"{plan_ref}.md")
+    if not target.exists():
+      errors.append(Finding(where, f"`plan:` 이 없는 스냅샷을 가리킨다 → `plan/{target.name}`"))
 
-    if kind == "plan" and "supersedes" not in meta:
-        errors.append(
-            Finding(
-                where,
-                f"`kind: plan` 인데 `supersedes:` 가 없다 — 계승하지 않았으면 `{NO_SUCCESSION}` 이라고 "
-                "명시한다. 빈칸이면 '계승 안 함' 과 '적는 걸 잊음' 이 구분되지 않는다 (FILING §8-4)",
-            )
-        )
-    verify_not_orphaned(meta, path, axis, where, errors)
-    remainder_checked[0] += verify_remainder(meta, where, errors)
-    parent_checked[0] += verify_parent(meta, path, axis, where, errors)
-    done_marks_checked[0] += verify_done_marks(meta, path, where, errors)
-    links_checked = verify_supersedes(meta, path, axis, where, errors)
-    return verify_affects(meta, where, errors, axis), links_checked
+  if kind == "plan" and "supersedes" not in meta:
+    errors.append(
+      Finding(
+        where,
+        f"`kind: plan` 인데 `supersedes:` 가 없다 — 계승하지 않았으면 `{NO_SUCCESSION}` 이라고 "
+        "명시한다. 빈칸이면 '계승 안 함' 과 '적는 걸 잊음' 이 구분되지 않는다 (FILING §8-4)",
+      )
+    )
+  verify_not_orphaned(meta, path, axis, where, errors)
+  remainder_checked[0] += verify_remainder(meta, where, errors)
+  parent_checked[0] += verify_parent(meta, path, axis, where, errors)
+  done_marks_checked[0] += verify_done_marks(meta, path, where, errors)
+  links_checked = verify_supersedes(meta, path, axis, where, errors)
+  return verify_affects(meta, where, errors, axis), links_checked
 
 
 # ── ⑨ partial 이 나머지를 가리키는가 ─────────────────────────────────
@@ -507,92 +507,90 @@ def inspect(path: Path, axis: str | None, errors: list[Finding]) -> tuple[int, i
 #     *"달성 못 함 — soft_delete 13개가 이름을 유지한 채 남아 있다"* 를 적었다(→ QA-30).
 #     체크박스는 자랑하는 칸이 아니라 **"done 이지만 이건 못 했다"가 파일에 남는 유일한 자리**다.
 def verify_done_marks(meta: dict[str, str], path: Path, where: str, errors: list[Finding]) -> int:
-    """``status: done`` 인 PLAN 의 완료 판정이 채워졌는지 본다. 검사했으면 1.
+  """``status: done`` 인 PLAN 의 완료 판정이 채워졌는지 본다. 검사했으면 1.
 
-    Returns:
-        검사 대상이었으면 1, 아니면 0 (바닥값 입력).
-    """
-    if meta.get("kind") != "plan" or meta.get("status") != "done":
-        return 0
-    text = path.read_text(encoding="utf-8", errors="replace")
-    unchecked, checked = len(UNCHECKED.findall(text)), len(CHECKED.findall(text))
-    if unchecked + checked == 0:
-        return 0  # 완료 판정 절이 없는 PLAN — 검사 대상이 아니다
-    if checked:
-        return 1  # 하나라도 채웠으면 통과. 미체크는 "못 했다"를 남긴 정당한 형태다
-    reason = DONE_MARK_EXEMPT.get(path.name)
-    if reason is not None:
-        if not reason.strip():
-            errors.append(Finding(where, "`DONE_MARK_EXEMPT` 항목에 사유가 비었다 — 사유 없는 면제는 면제가 아니다"))
-        return 1
-    errors.append(
-        Finding(
-            where,
-            f"`status: done` 인데 완료 판정 {unchecked}개가 **하나도** 채워지지 않았다 — "
-            "메타는 완료라 하고 본문은 아무것도 안 했다고 한다. 한 줄씩 보고 `- [x]` 로 바꾸거나, "
-            "못 한 것은 `- [ ]` 로 두고 **왜 못 했는지 그 자리에 적는다** (대장 D51)",
-        )
-    )
+  Returns:
+      검사 대상이었으면 1, 아니면 0 (바닥값 입력).
+  """
+  if meta.get("kind") != "plan" or meta.get("status") != "done":
+    return 0
+  text = path.read_text(encoding="utf-8", errors="replace")
+  unchecked, checked = len(UNCHECKED.findall(text)), len(CHECKED.findall(text))
+  if unchecked + checked == 0:
+    return 0  # 완료 판정 절이 없는 PLAN — 검사 대상이 아니다
+  if checked:
+    return 1  # 하나라도 채웠으면 통과. 미체크는 "못 했다"를 남긴 정당한 형태다
+  reason = DONE_MARK_EXEMPT.get(path.name)
+  if reason is not None:
+    if not reason.strip():
+      errors.append(Finding(where, "`DONE_MARK_EXEMPT` 항목에 사유가 비었다 — 사유 없는 면제는 면제가 아니다"))
     return 1
+  errors.append(
+    Finding(
+      where,
+      f"`status: done` 인데 완료 판정 {unchecked}개가 **하나도** 채워지지 않았다 — "
+      "메타는 완료라 하고 본문은 아무것도 안 했다고 한다. 한 줄씩 보고 `- [x]` 로 바꾸거나, "
+      "못 한 것은 `- [ ]` 로 두고 **왜 못 했는지 그 자리에 적는다** (대장 D51)",
+    )
+  )
+  return 1
 
 
 def verify_parent(meta: dict[str, str], path: Path, axis: str | None, where: str, errors: list[Finding]) -> int:
-    """``parent:`` 가 실재하는 상위 PLAN 을 가리키는지 본다. 검사했으면 1."""
-    target = (meta.get("parent") or "").strip()
-    if not target:
-        return 0
-    if target == plan_identity(path, axis):
-        errors.append(Finding(where, "`parent:` 가 자기 자신을 가리킨다"))
-        return 1
-    if not resolve_plan(target).exists():
-        errors.append(
-            Finding(where, f"`parent:` 가 없는 상위 PLAN 을 가리킨다 → `{target}` (FILING §9-2)"),
-        )
+  """``parent:`` 가 실재하는 상위 PLAN 을 가리키는지 본다. 검사했으면 1."""
+  target = (meta.get("parent") or "").strip()
+  if not target:
+    return 0
+  if target == plan_identity(path, axis):
+    errors.append(Finding(where, "`parent:` 가 자기 자신을 가리킨다"))
     return 1
+  if not resolve_plan(target).exists():
+    errors.append(
+      Finding(where, f"`parent:` 가 없는 상위 PLAN 을 가리킨다 → `{target}` (FILING §9-2)"),
+    )
+  return 1
 
 
 def verify_remainder(meta: dict[str, str], where: str, errors: list[Finding]) -> int:
-    """``partial`` 의 ``remainder:`` 를 대조한다. 검사했으면 1."""
-    if meta.get("status") != "partial":
-        if meta.get("remainder"):
-            errors.append(
-                Finding(where, f"`remainder:` 가 있는데 `status: {meta.get('status')}` 다 — `partial` 일 때만 쓴다")
-            )
-        return 0
+  """``partial`` 의 ``remainder:`` 를 대조한다. 검사했으면 1."""
+  if meta.get("status") != "partial":
+    if meta.get("remainder"):
+      errors.append(
+        Finding(where, f"`remainder:` 가 있는데 `status: {meta.get('status')}` 다 — `partial` 일 때만 쓴다")
+      )
+    return 0
 
-    target = (meta.get("remainder") or "").strip()
-    if not target:
-        errors.append(
-            Finding(
-                where,
-                "`status: partial` 인데 `remainder:` 가 없다 — 남은 범위가 어디로 갔는지 "
-                "가리키지 않으면 **영원히 미완인 채 잊힌다** (FILING §8-6)",
-            )
-        )
-        return 1
-
-    for pattern, canon in REMAINDER_TARGETS:
-        matched = pattern.match(target)
-        if not matched:
-            continue
-        body = (PRIVATE / canon).read_text(encoding="utf-8", errors="replace") if (PRIVATE / canon).exists() else ""
-        if matched.group(1) not in body:
-            errors.append(
-                Finding(where, f"`remainder: {target}` 가 `{canon}` 에 없다 — 살아 있는 자리를 가리켜야 한다")
-            )
-        return 1
-
-    # 남은 형태 = PLAN 슬러그
-    plan = resolve_plan(target)
-    if not plan.exists():
-        errors.append(
-            Finding(
-                where,
-                f"`remainder: {target}` 를 해석하지 못했다 — "
-                "`ROADMAP#단계` · `QA-##` · `문서-N` · PLAN 슬러그 중 하나여야 한다 (FILING §8-6)",
-            )
-        )
+  target = (meta.get("remainder") or "").strip()
+  if not target:
+    errors.append(
+      Finding(
+        where,
+        "`status: partial` 인데 `remainder:` 가 없다 — 남은 범위가 어디로 갔는지 "
+        "가리키지 않으면 **영원히 미완인 채 잊힌다** (FILING §8-6)",
+      )
+    )
     return 1
+
+  for pattern, canon in REMAINDER_TARGETS:
+    matched = pattern.match(target)
+    if not matched:
+      continue
+    body = (PRIVATE / canon).read_text(encoding="utf-8", errors="replace") if (PRIVATE / canon).exists() else ""
+    if matched.group(1) not in body:
+      errors.append(Finding(where, f"`remainder: {target}` 가 `{canon}` 에 없다 — 살아 있는 자리를 가리켜야 한다"))
+    return 1
+
+  # 남은 형태 = PLAN 슬러그
+  plan = resolve_plan(target)
+  if not plan.exists():
+    errors.append(
+      Finding(
+        where,
+        f"`remainder: {target}` 를 해석하지 못했다 — "
+        "`ROADMAP#단계` · `QA-##` · `문서-N` · PLAN 슬러그 중 하나여야 한다 (FILING §8-6)",
+      )
+    )
+  return 1
 
 
 # ── ⑨ ROADMAP §지금 위치 ↔ 직하 PLAN.md ──────────────────────────────
@@ -602,120 +600,118 @@ def verify_remainder(meta: dict[str, str], where: str, errors: list[Finding]) ->
 #     — 압축·`/clear` 를 넘어 살아남는 층이라 손상 범위가 가장 넓다.
 #     실제로 2026-09-20 에 PLAN.md 가 `active` 인데 이 줄이 *"없다"* 였다.
 def verify_roadmap_position(errors: list[Finding]) -> int:
-    """§지금 위치의 "진행 중인 계획" 줄이 직하 ``PLAN.md`` 와 맞는지 본다. 검사했으면 1."""
-    text = roadmap_text()
-    if not text:
-        errors.append(Finding(ROADMAP, "정본을 읽지 못했다 — §지금 위치를 대조할 수 없다(fail-closed)"))
-        return 0
-    matched = POSITION_ROW.search(text)
-    if not matched:
-        errors.append(
-            Finding(ROADMAP, "§지금 위치에 `| **진행 중인 계획** |` 줄이 없다 — 표 모양이 바뀌면 이 검사가 눈이 먼다")
-        )
-        return 0
-
-    cell = matched.group(1)
-    says_none = bool(CLAIMS_NONE.search(cell))
-    plan = PRIVATE / OPEN_PLAN
-    if plan.exists() and says_none:
-        errors.append(
-            Finding(
-                ROADMAP,
-                f'§지금 위치가 *"진행 중인 계획 없다"* 라는데 `{OPEN_PLAN}` 이 실재한다 — '
-                "다음 세션이 거짓을 읽는다. PLAN 을 열거나 닫으면 이 줄도 **같은 동작으로** 고친다 (CLAUDE.md §1.1)",
-            )
-        )
-    elif not plan.exists() and not says_none:
-        errors.append(
-            Finding(
-                ROADMAP,
-                f"§지금 위치가 진행 중인 계획을 말하는데 `{OPEN_PLAN}` 이 없다 — "
-                "닫으면서 이 줄을 안 고쳤다. 구식 PLAN 을 현재로 읽게 만드는 것과 같은 실패",
-            )
-        )
-    elif plan.exists() and OPEN_PLAN not in cell:
-        errors.append(
-            Finding(ROADMAP, f"§지금 위치가 진행 중이라고는 하는데 `{OPEN_PLAN}` 을 **경로로 가리키지 않는다**")
-        )
-    return 1
-
-
-def main() -> int:
-    """pre-push 훅 진입점.
-
-    Returns:
-        위반이 없으면 0, 있으면 1 (push 거부).
-    """
-    if not PRIVATE.is_dir():
-        print(f"❌ {PRIVATE} 가 없다. 이 훅은 로컬 전용이라 없을 이유가 없다(fail-closed).")
-        return 1
-
-    errors: list[Finding] = []
-    seen = affects_checked = links_checked = plans_seen = 0
-
-    for path in sorted(PRIVATE.glob("*.md")):
-        seen += 1
-        got_affects, got_links = inspect(path, None, errors)
-        affects_checked += got_affects
-        links_checked += got_links
-        plans_seen += (parse_meta(path) or {}).get("kind") == "plan"
-
-    for folder in sorted(p for p in PRIVATE.iterdir() if p.is_dir()):
-        axis = folder.name
-        if axis in EXEMPT_DIRS or axis in CANONLESS:
-            continue
-        for path in sorted(folder.glob("*.md")):
-            if path.name == "README.md":
-                continue
-            seen += 1
-            got_affects, got_links = inspect(path, axis, errors)
-            affects_checked += got_affects
-            links_checked += got_links
-            plans_seen += axis == "plan"
-
-    # fail-closed: 한 건도 못 모으면 "깨끗하다"가 아니라 "못 셌다"이다.
-    if seen == 0:
-        print(f"❌ `doc-meta` 검사 대상을 한 건도 수집하지 못했다 — {PRIVATE}")
-        print("   경로 규약이 바뀌었거나 glob 이 어긋났다. 0건은 통과가 아니다(fail-closed).")
-        return 1
-
-    # ⭐ 하위 검사도 각각 fail-closed 다. 전체 대상이 많아도 **특정 검사만 눈이 멀 수 있다** —
-    #    문서는 36건인데 계승 링크를 0건 봤다면 그 검사는 아무 일도 안 한 것이다.
-    position_checked = verify_roadmap_position(errors)
-
-    for label, count, floor, why in (
-        ("affects 절 대조", affects_checked, MIN_AFFECTS, "affects 선언이 사라졌거나 비교할 스냅샷이 없다"),
-        ("계승 링크 대조", links_checked, MIN_SUCCESSION, "supersedes/superseded_by 파싱이 깨졌거나 필드명이 바뀌었다"),
-        ("PLAN 모집단", plans_seen, MIN_PLANS, "plan/ 경로가 바뀌었거나 kind 파싱이 깨졌다"),
-        (
-            "done 완료 판정",
-            done_marks_checked[0],
-            MIN_DONE_MARKS,
-            "체크박스 정규식이 깨졌거나 done 스냅샷이 사라졌다 — 0건은 '위반 없음' 이 아니라 '아무것도 못 봤음' 이다",
-        ),
-        ("§지금 위치 대조", position_checked, 1, "ROADMAP.md 가 없거나 §지금 위치 표 모양이 바뀌었다"),
-    ):
-        if count < floor:
-            print(f"❌ {label} 대상이 {count}건이다 (기대 최소 {floor}건) — {why}.")
-            print("   0건은 '위반이 없다' 가 아니라 '아무것도 못 봤다' 이다(fail-closed, 대장 D31).")
-            return 1
-
-    if errors:
-        print(f"❌ `doc-meta` 위반 {len(errors)}건 (정본 = docs-private/FILING.md §9):")
-        for item in errors[:25]:
-            print(f"   - {item.path}: {item.reason}")
-        if len(errors) > 25:
-            print(f"   … 외 {len(errors) - 25}건")
-        return 1
-
-    print(
-        f"✅ doc-meta 정합 — 문서 {seen}건 · affects 절 대조 {affects_checked}건 · "
-        f"계승 링크 대조 {links_checked}건 · PLAN {plans_seen}건(고아 0) · "
-        f"partial {remainder_checked[0]}건 · parent {parent_checked[0]}건 · "
-        f"done 판정 {done_marks_checked[0]}건(면제 {len(DONE_MARK_EXEMPT)}) · §지금 위치 ✅ · 위반 0."
+  """§지금 위치의 "진행 중인 계획" 줄이 직하 ``PLAN.md`` 와 맞는지 본다. 검사했으면 1."""
+  text = roadmap_text()
+  if not text:
+    errors.append(Finding(ROADMAP, "정본을 읽지 못했다 — §지금 위치를 대조할 수 없다(fail-closed)"))
+    return 0
+  matched = POSITION_ROW.search(text)
+  if not matched:
+    errors.append(
+      Finding(ROADMAP, "§지금 위치에 `| **진행 중인 계획** |` 줄이 없다 — 표 모양이 바뀌면 이 검사가 눈이 먼다")
     )
     return 0
 
+  cell = matched.group(1)
+  says_none = bool(CLAIMS_NONE.search(cell))
+  plan = PRIVATE / OPEN_PLAN
+  if plan.exists() and says_none:
+    errors.append(
+      Finding(
+        ROADMAP,
+        f'§지금 위치가 *"진행 중인 계획 없다"* 라는데 `{OPEN_PLAN}` 이 실재한다 — '
+        "다음 세션이 거짓을 읽는다. PLAN 을 열거나 닫으면 이 줄도 **같은 동작으로** 고친다 (CLAUDE.md §1.1)",
+      )
+    )
+  elif not plan.exists() and not says_none:
+    errors.append(
+      Finding(
+        ROADMAP,
+        f"§지금 위치가 진행 중인 계획을 말하는데 `{OPEN_PLAN}` 이 없다 — "
+        "닫으면서 이 줄을 안 고쳤다. 구식 PLAN 을 현재로 읽게 만드는 것과 같은 실패",
+      )
+    )
+  elif plan.exists() and OPEN_PLAN not in cell:
+    errors.append(Finding(ROADMAP, f"§지금 위치가 진행 중이라고는 하는데 `{OPEN_PLAN}` 을 **경로로 가리키지 않는다**"))
+  return 1
+
+
+def main() -> int:
+  """pre-push 훅 진입점.
+
+  Returns:
+      위반이 없으면 0, 있으면 1 (push 거부).
+  """
+  if not PRIVATE.is_dir():
+    print(f"❌ {PRIVATE} 가 없다. 이 훅은 로컬 전용이라 없을 이유가 없다(fail-closed).")
+    return 1
+
+  errors: list[Finding] = []
+  seen = affects_checked = links_checked = plans_seen = 0
+
+  for path in sorted(PRIVATE.glob("*.md")):
+    seen += 1
+    got_affects, got_links = inspect(path, None, errors)
+    affects_checked += got_affects
+    links_checked += got_links
+    plans_seen += (parse_meta(path) or {}).get("kind") == "plan"
+
+  for folder in sorted(p for p in PRIVATE.iterdir() if p.is_dir()):
+    axis = folder.name
+    if axis in EXEMPT_DIRS or axis in CANONLESS:
+      continue
+    for path in sorted(folder.glob("*.md")):
+      if path.name == "README.md":
+        continue
+      seen += 1
+      got_affects, got_links = inspect(path, axis, errors)
+      affects_checked += got_affects
+      links_checked += got_links
+      plans_seen += axis == "plan"
+
+  # fail-closed: 한 건도 못 모으면 "깨끗하다"가 아니라 "못 셌다"이다.
+  if seen == 0:
+    print(f"❌ `doc-meta` 검사 대상을 한 건도 수집하지 못했다 — {PRIVATE}")
+    print("   경로 규약이 바뀌었거나 glob 이 어긋났다. 0건은 통과가 아니다(fail-closed).")
+    return 1
+
+  # ⭐ 하위 검사도 각각 fail-closed 다. 전체 대상이 많아도 **특정 검사만 눈이 멀 수 있다** —
+  #    문서는 36건인데 계승 링크를 0건 봤다면 그 검사는 아무 일도 안 한 것이다.
+  position_checked = verify_roadmap_position(errors)
+
+  for label, count, floor, why in (
+    ("affects 절 대조", affects_checked, MIN_AFFECTS, "affects 선언이 사라졌거나 비교할 스냅샷이 없다"),
+    ("계승 링크 대조", links_checked, MIN_SUCCESSION, "supersedes/superseded_by 파싱이 깨졌거나 필드명이 바뀌었다"),
+    ("PLAN 모집단", plans_seen, MIN_PLANS, "plan/ 경로가 바뀌었거나 kind 파싱이 깨졌다"),
+    (
+      "done 완료 판정",
+      done_marks_checked[0],
+      MIN_DONE_MARKS,
+      "체크박스 정규식이 깨졌거나 done 스냅샷이 사라졌다 — 0건은 '위반 없음' 이 아니라 '아무것도 못 봤음' 이다",
+    ),
+    ("§지금 위치 대조", position_checked, 1, "ROADMAP.md 가 없거나 §지금 위치 표 모양이 바뀌었다"),
+  ):
+    if count < floor:
+      print(f"❌ {label} 대상이 {count}건이다 (기대 최소 {floor}건) — {why}.")
+      print("   0건은 '위반이 없다' 가 아니라 '아무것도 못 봤다' 이다(fail-closed, 대장 D31).")
+      return 1
+
+  if errors:
+    print(f"❌ `doc-meta` 위반 {len(errors)}건 (정본 = docs-private/FILING.md §9):")
+    for item in errors[:25]:
+      print(f"   - {item.path}: {item.reason}")
+    if len(errors) > 25:
+      print(f"   … 외 {len(errors) - 25}건")
+    return 1
+
+  print(
+    f"✅ doc-meta 정합 — 문서 {seen}건 · affects 절 대조 {affects_checked}건 · "
+    f"계승 링크 대조 {links_checked}건 · PLAN {plans_seen}건(고아 0) · "
+    f"partial {remainder_checked[0]}건 · parent {parent_checked[0]}건 · "
+    f"done 판정 {done_marks_checked[0]}건(면제 {len(DONE_MARK_EXEMPT)}) · §지금 위치 ✅ · 위반 0."
+  )
+  return 0
+
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

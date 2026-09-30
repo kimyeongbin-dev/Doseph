@@ -17,11 +17,11 @@ from app.core import config
 from app.core.config import Env
 from app.dependencies.security import get_current_account
 from app.dtos.oauth import (
-    AuthMeResponse,
-    OAuthConfigResponse,
-    OAuthErrorResponse,
-    OAuthLoginResponse,
-    TokenRefreshResponse,
+  AuthMeResponse,
+  OAuthConfigResponse,
+  OAuthErrorResponse,
+  OAuthLoginResponse,
+  TokenRefreshResponse,
 )
 from app.models.accounts import Account
 from app.services.oauth import OAuthService
@@ -34,116 +34,116 @@ STATE_EXPIRY_SECONDS = 300
 
 
 def _generate_state() -> str:
-    """Generate HMAC-signed state for CSRF protection.
+  """Generate HMAC-signed state for CSRF protection.
 
-    Returns:
-        str: Signed state string with timestamp and nonce.
-    """
-    timestamp = str(int(time.time()))
-    nonce = secrets.token_urlsafe(16)
-    payload = f"{timestamp}.{nonce}"
-    signature = hmac.new(
-        config.SECRET_KEY.encode(),
-        payload.encode(),
-        hashlib.sha256,
-    ).hexdigest()[:16]
-    return f"{payload}.{signature}"
+  Returns:
+      str: Signed state string with timestamp and nonce.
+  """
+  timestamp = str(int(time.time()))
+  nonce = secrets.token_urlsafe(16)
+  payload = f"{timestamp}.{nonce}"
+  signature = hmac.new(
+    config.SECRET_KEY.encode(),
+    payload.encode(),
+    hashlib.sha256,
+  ).hexdigest()[:16]
+  return f"{payload}.{signature}"
 
 
 def _verify_state(state: str) -> bool:
-    """Verify state signature and expiration.
+  """Verify state signature and expiration.
 
-    Args:
-        state: State string to verify.
+  Args:
+      state: State string to verify.
 
-    Returns:
-        bool: True if state is valid and not expired.
-    """
-    try:
-        parts = state.split(".")
-        if len(parts) != 3:
-            return False
-        timestamp, nonce, signature = parts
+  Returns:
+      bool: True if state is valid and not expired.
+  """
+  try:
+    parts = state.split(".")
+    if len(parts) != 3:
+      return False
+    timestamp, nonce, signature = parts
 
-        # Verify signature
-        payload = f"{timestamp}.{nonce}"
-        expected_signature = hmac.new(
-            config.SECRET_KEY.encode(),
-            payload.encode(),
-            hashlib.sha256,
-        ).hexdigest()[:16]
-        if not hmac.compare_digest(signature, expected_signature):
-            return False
+    # Verify signature
+    payload = f"{timestamp}.{nonce}"
+    expected_signature = hmac.new(
+      config.SECRET_KEY.encode(),
+      payload.encode(),
+      hashlib.sha256,
+    ).hexdigest()[:16]
+    if not hmac.compare_digest(signature, expected_signature):
+      return False
 
-        # Check expiration
-        return not (time.time() - int(timestamp) > STATE_EXPIRY_SECONDS)
-    except (ValueError, TypeError):
-        return False
+    # Check expiration
+    return not (time.time() - int(timestamp) > STATE_EXPIRY_SECONDS)
+  except (ValueError, TypeError):
+    return False
 
 
 def _get_client_ip(request: Request) -> str:
-    """Extract real client IP address considering proxies.
+  """Extract real client IP address considering proxies.
 
-    Args:
-        request: FastAPI request object.
+  Args:
+      request: FastAPI request object.
 
-    Returns:
-        str: Client IP address or 'unknown' if not available.
-    """
-    # Check X-Forwarded-For header (proxy/load balancer)
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        # First IP is the real client
-        return forwarded_for.split(",")[0].strip()
+  Returns:
+      str: Client IP address or 'unknown' if not available.
+  """
+  # Check X-Forwarded-For header (proxy/load balancer)
+  forwarded_for = request.headers.get("X-Forwarded-For")
+  if forwarded_for:
+    # First IP is the real client
+    return forwarded_for.split(",")[0].strip()
 
-    # Check X-Real-IP header (Nginx)
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip.strip()
+  # Check X-Real-IP header (Nginx)
+  real_ip = request.headers.get("X-Real-IP")
+  if real_ip:
+    return real_ip.strip()
 
-    # Direct connection
-    return request.client.host if request.client else "unknown"
+  # Direct connection
+  return request.client.host if request.client else "unknown"
 
 
 # ── Bearer 토큰 추출 (하이브리드 인증: 앱 클라이언트용) ──────────────────
 # 흐름: Authorization 헤더에서 "Bearer <token>" 파싱 -> 없으면 None
 def _bearer_token(request: Request) -> str | None:
-    """Extract the token from an ``Authorization: Bearer <token>`` header.
+  """Extract the token from an ``Authorization: Bearer <token>`` header.
 
-    Used for app/native clients that send the refresh token in the header
-    instead of a cookie (hybrid auth).
+  Used for app/native clients that send the refresh token in the header
+  instead of a cookie (hybrid auth).
 
-    Args:
-        request: FastAPI request object.
+  Args:
+      request: FastAPI request object.
 
-    Returns:
-        The bearer token string, or ``None`` if the header is absent/malformed.
-    """
-    header = request.headers.get("Authorization", "")
-    if header.startswith("Bearer "):
-        return header[len("Bearer ") :].strip() or None
-    return None
+  Returns:
+      The bearer token string, or ``None`` if the header is absent/malformed.
+  """
+  header = request.headers.get("Authorization", "")
+  if header.startswith("Bearer "):
+    return header[len("Bearer ") :].strip() or None
+  return None
 
 
 def get_oauth_service(
-    rate_limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
+  rate_limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
 ) -> OAuthService:
-    """OAuth service dependency factory.
+  """OAuth service dependency factory.
 
-    Args:
-        rate_limiter: Rate limiter instance.
+  Args:
+      rate_limiter: Rate limiter instance.
 
-    Returns:
-        OAuthService: OAuth service instance.
-    """
-    return OAuthService(rate_limiter=rate_limiter)
+  Returns:
+      OAuthService: OAuth service instance.
+  """
+  return OAuthService(rate_limiter=rate_limiter)
 
 
 @oauth_router.get(
-    "/kakao/config",
-    response_model=OAuthConfigResponse,
-    summary="Get Kakao OAuth configuration",
-    description="""
+  "/kakao/config",
+  response_model=OAuthConfigResponse,
+  summary="Get Kakao OAuth configuration",
+  description="""
 Returns configuration needed for frontend to redirect to Kakao login page.
 
 **Frontend Usage (Direct Redirect):**
@@ -157,53 +157,53 @@ Returns configuration needed for frontend to redirect to Kakao login page.
     """,
 )
 async def get_kakao_oauth_config() -> OAuthConfigResponse:
-    """Return Kakao OAuth client config (authorize URL + client_id) for the frontend.
+  """Return Kakao OAuth client config (authorize URL + client_id) for the frontend.
 
-    의도된 NO-AUTH endpoint — 로그인 *진입* 흐름이라 인증 필수 아님. 응답엔
-    ``client_id`` 와 ``authorize_url`` 만 포함하며, 둘 다 사용자 브라우저에
-    어차피 노출되는 값. ``client_secret`` / 내부 자원 상태는 응답에 포함하지
-    않는다. CSRF 방지용 signed ``state`` 도 함께 발급.
+  의도된 NO-AUTH endpoint — 로그인 *진입* 흐름이라 인증 필수 아님. 응답엔
+  ``client_id`` 와 ``authorize_url`` 만 포함하며, 둘 다 사용자 브라우저에
+  어차피 노출되는 값. ``client_secret`` / 내부 자원 상태는 응답에 포함하지
+  않는다. CSRF 방지용 signed ``state`` 도 함께 발급.
 
-    Returns:
-        OAuthConfigResponse: ``authorize_url`` adapts to environment
-        (local → mock server, dev/prod → real Kakao endpoint).
-    """
-    # authorize_url: 브라우저가 직접 이동할 URL
-    # - local: mock IdP (개발·E2E 용 테스트 대역, 로컬 전용 등록)
-    # - dev/prod: 실제 카카오 서버
-    if config.ENV == Env.LOCAL:
-        # 로컬은 독립 API 구조라 FE(:3000)에 API 프록시(rewrites)가 없다.
-        # 따라서 백엔드 주소(API_BASE_URL)로 직접 이동해야 한다.
-        authorize_url = f"{config.API_BASE_URL}/api/v1/mock/kakao/authorize"
-    else:
-        # dev/prod: Actual Kakao OAuth
-        authorize_url = "https://kauth.kakao.com/oauth/authorize"
+  Returns:
+      OAuthConfigResponse: ``authorize_url`` adapts to environment
+      (local → mock server, dev/prod → real Kakao endpoint).
+  """
+  # authorize_url: 브라우저가 직접 이동할 URL
+  # - local: mock IdP (개발·E2E 용 테스트 대역, 로컬 전용 등록)
+  # - dev/prod: 실제 카카오 서버
+  if config.ENV == Env.LOCAL:
+    # 로컬은 독립 API 구조라 FE(:3000)에 API 프록시(rewrites)가 없다.
+    # 따라서 백엔드 주소(API_BASE_URL)로 직접 이동해야 한다.
+    authorize_url = f"{config.API_BASE_URL}/api/v1/mock/kakao/authorize"
+  else:
+    # dev/prod: Actual Kakao OAuth
+    authorize_url = "https://kauth.kakao.com/oauth/authorize"
 
-    # KAKAO_REDIRECT_URI 는 ENV 기본값(local/dev) 또는 prod 기동 검증으로 항상 채워진다
-    # (app/core/config.py 의 apply_env_defaults / validate_production_secrets).
-    # 타입체커는 그 불변식을 알 수 없으므로 여기서 명시적으로 좁힌다(방어 계층 겸용).
-    if config.KAKAO_REDIRECT_URI is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="OAuth 설정이 완료되지 않았습니다.",
-        )
-
-    # Generate signed state (CSRF protection)
-    state = _generate_state()
-
-    return OAuthConfigResponse(
-        client_id=config.KAKAO_CLIENT_ID,
-        redirect_uri=config.KAKAO_REDIRECT_URI,
-        authorize_url=authorize_url,
-        state=state,
+  # KAKAO_REDIRECT_URI 는 ENV 기본값(local/dev) 또는 prod 기동 검증으로 항상 채워진다
+  # (app/core/config.py 의 apply_env_defaults / validate_production_secrets).
+  # 타입체커는 그 불변식을 알 수 없으므로 여기서 명시적으로 좁힌다(방어 계층 겸용).
+  if config.KAKAO_REDIRECT_URI is None:
+    raise HTTPException(
+      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+      detail="OAuth 설정이 완료되지 않았습니다.",
     )
+
+  # Generate signed state (CSRF protection)
+  state = _generate_state()
+
+  return OAuthConfigResponse(
+    client_id=config.KAKAO_CLIENT_ID,
+    redirect_uri=config.KAKAO_REDIRECT_URI,
+    authorize_url=authorize_url,
+    state=state,
+  )
 
 
 @oauth_router.get(
-    "/kakao/callback",
-    response_model=OAuthLoginResponse,
-    summary="카카오 로그인 콜백",
-    description="""
+  "/kakao/callback",
+  response_model=OAuthLoginResponse,
+  summary="카카오 로그인 콜백",
+  description="""
 카카오 인증 후 콜백을 처리하고 JWT 토큰을 발급합니다.
 
 **처리 과정:**
@@ -212,132 +212,132 @@ async def get_kakao_oauth_config() -> OAuthConfigResponse:
 3. 신규 사용자면 계정 생성, 기존 사용자면 정보 업데이트
 4. 서비스 자체 JWT 토큰 발급
     """,
-    responses={
-        200: {"description": "로그인 성공", "model": OAuthLoginResponse},
-        400: {"description": "잘못된 요청 (code 누락, 카카오 에러)", "model": OAuthErrorResponse},
-        401: {"description": "인증 실패 (잘못된 code, 토큰 교환 실패)", "model": OAuthErrorResponse},
-        403: {"description": "비활성화된 계정", "model": OAuthErrorResponse},
-        422: {"description": "유효성 검사 실패"},
-        429: {"description": "요청 횟수 초과", "model": OAuthErrorResponse},
-    },
+  responses={
+    200: {"description": "로그인 성공", "model": OAuthLoginResponse},
+    400: {"description": "잘못된 요청 (code 누락, 카카오 에러)", "model": OAuthErrorResponse},
+    401: {"description": "인증 실패 (잘못된 code, 토큰 교환 실패)", "model": OAuthErrorResponse},
+    403: {"description": "비활성화된 계정", "model": OAuthErrorResponse},
+    422: {"description": "유효성 검사 실패"},
+    429: {"description": "요청 횟수 초과", "model": OAuthErrorResponse},
+  },
 )
 async def kakao_callback(
-    request: Request,
-    oauth_service: Annotated[OAuthService, Depends(get_oauth_service)],
-    code: Annotated[str | None, Query(description="카카오 인가 코드")] = None,
-    state: Annotated[str | None, Query(description="CSRF 방지용 상태값")] = None,
-    error: Annotated[str | None, Query(description="에러 코드")] = None,
-    error_description: Annotated[str | None, Query(description="에러 설명")] = None,
+  request: Request,
+  oauth_service: Annotated[OAuthService, Depends(get_oauth_service)],
+  code: Annotated[str | None, Query(description="카카오 인가 코드")] = None,
+  state: Annotated[str | None, Query(description="CSRF 방지용 상태값")] = None,
+  error: Annotated[str | None, Query(description="에러 코드")] = None,
+  error_description: Annotated[str | None, Query(description="에러 설명")] = None,
 ) -> JSONResponse:
-    """Handle Kakao OAuth callback — exchange code for tokens and issue JWT.
+  """Handle Kakao OAuth callback — exchange code for tokens and issue JWT.
 
-    Args:
-        request: FastAPI Request (used to read client IP for audit).
-        oauth_service: Injected ``OAuthService``.
-        code: Kakao authorization code (success path).
-        state: CSRF protection state.
-        error: Kakao-side error code (failure path).
-        error_description: Human-readable Kakao error description.
+  Args:
+      request: FastAPI Request (used to read client IP for audit).
+      oauth_service: Injected ``OAuthService``.
+      code: Kakao authorization code (success path).
+      state: CSRF protection state.
+      error: Kakao-side error code (failure path).
+      error_description: Human-readable Kakao error description.
 
-    Returns:
-        JSONResponse with access/refresh tokens on success.
+  Returns:
+      JSONResponse with access/refresh tokens on success.
 
-    Raises:
-        HTTPException: 400 on Kakao error reply or missing code,
-            502 on upstream Kakao failure, 429 on rate limit.
-    """
-    # 카카오에서 에러 응답이 온 경우
-    if error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error": error,
-                "error_description": error_description or "카카오 인증 중 오류가 발생했습니다.",
-            },
-        )
-
-    # code 파라미터 필수 체크
-    if not code:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error": "invalid_request",
-                "error_description": "인가 코드(code)가 필요합니다.",
-            },
-        )
-
-    # state 검증 (CSRF 방지) - BE에서 생성한 서명된 state 검증
-    if not state or not _verify_state(state):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error": "invalid_state",
-                "error_description": "유효하지 않거나 만료된 state입니다.",
-            },
-        )
-
-    # 클라이언트 IP 추출 (Rate limiting용, 프록시 고려)
-    client_ip = _get_client_ip(request)
-
-    # 콜백 처리 (토큰 교환 + 사용자 정보 조회 + 계정 처리)
-    account, is_new_user = await oauth_service.kakao_callback(
-        code=code,
-        client_ip=client_ip,
+  Raises:
+      HTTPException: 400 on Kakao error reply or missing code,
+          502 on upstream Kakao failure, 429 on rate limit.
+  """
+  # 카카오에서 에러 응답이 온 경우
+  if error:
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail={
+        "error": error,
+        "error_description": error_description or "카카오 인증 중 오류가 발생했습니다.",
+      },
     )
 
-    # 서비스 JWT 토큰 발급 및 DB 저장
-    tokens = await oauth_service.issue_tokens(account)
-
-    # ── 하이브리드 발급 분기 (웹=HttpOnly 쿠키 / 앱=body 토큰) ──────────────
-    # 흐름: X-Client-Type: native 면 body 로 access+refresh 반환(쿠키 X),
-    #       아니면 웹 기본 = HttpOnly 쿠키로 발급(토큰 body 노출 안 함)
-    content = {
-        "status": "success",
-        "message": "Login successful",
-        "is_new_user": is_new_user,
-        "show_survey": is_new_user,
-    }
-
-    # 앱(native) 모드: 쿠키를 못 쓰므로 body 로 토큰 반환, 쿠키 미설정
-    if request.headers.get("X-Client-Type") == "native":
-        content["access_token"] = str(tokens["access_token"])
-        content["refresh_token"] = str(tokens["refresh_token"])
-        content["token_type"] = "Bearer"
-        return JSONResponse(content=content, status_code=status.HTTP_200_OK)
-
-    # 웹 모드: HttpOnly 쿠키로 발급
-    response = JSONResponse(content=content, status_code=status.HTTP_200_OK)
-
-    # Access Token (HttpOnly 쿠키)
-    response.set_cookie(
-        key="access_token",
-        value=str(tokens["access_token"]),
-        httponly=True,
-        secure=config.ENV == Env.PROD,
-        samesite="lax",
-        domain=config.COOKIE_DOMAIN or None,
-        max_age=config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+  # code 파라미터 필수 체크
+  if not code:
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail={
+        "error": "invalid_request",
+        "error_description": "인가 코드(code)가 필요합니다.",
+      },
     )
 
-    # Refresh Token (HttpOnly 쿠키)
-    response.set_cookie(
-        key="refresh_token",
-        value=str(tokens["refresh_token"]),
-        httponly=True,
-        secure=config.ENV == Env.PROD,
-        samesite="lax",
-        domain=config.COOKIE_DOMAIN or None,
-        max_age=config.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
+  # state 검증 (CSRF 방지) - BE에서 생성한 서명된 state 검증
+  if not state or not _verify_state(state):
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail={
+        "error": "invalid_state",
+        "error_description": "유효하지 않거나 만료된 state입니다.",
+      },
     )
 
-    return response
+  # 클라이언트 IP 추출 (Rate limiting용, 프록시 고려)
+  client_ip = _get_client_ip(request)
+
+  # 콜백 처리 (토큰 교환 + 사용자 정보 조회 + 계정 처리)
+  account, is_new_user = await oauth_service.kakao_callback(
+    code=code,
+    client_ip=client_ip,
+  )
+
+  # 서비스 JWT 토큰 발급 및 DB 저장
+  tokens = await oauth_service.issue_tokens(account)
+
+  # ── 하이브리드 발급 분기 (웹=HttpOnly 쿠키 / 앱=body 토큰) ──────────────
+  # 흐름: X-Client-Type: native 면 body 로 access+refresh 반환(쿠키 X),
+  #       아니면 웹 기본 = HttpOnly 쿠키로 발급(토큰 body 노출 안 함)
+  content = {
+    "status": "success",
+    "message": "Login successful",
+    "is_new_user": is_new_user,
+    "show_survey": is_new_user,
+  }
+
+  # 앱(native) 모드: 쿠키를 못 쓰므로 body 로 토큰 반환, 쿠키 미설정
+  if request.headers.get("X-Client-Type") == "native":
+    content["access_token"] = str(tokens["access_token"])
+    content["refresh_token"] = str(tokens["refresh_token"])
+    content["token_type"] = "Bearer"
+    return JSONResponse(content=content, status_code=status.HTTP_200_OK)
+
+  # 웹 모드: HttpOnly 쿠키로 발급
+  response = JSONResponse(content=content, status_code=status.HTTP_200_OK)
+
+  # Access Token (HttpOnly 쿠키)
+  response.set_cookie(
+    key="access_token",
+    value=str(tokens["access_token"]),
+    httponly=True,
+    secure=config.ENV == Env.PROD,
+    samesite="lax",
+    domain=config.COOKIE_DOMAIN or None,
+    max_age=config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+  )
+
+  # Refresh Token (HttpOnly 쿠키)
+  response.set_cookie(
+    key="refresh_token",
+    value=str(tokens["refresh_token"]),
+    httponly=True,
+    secure=config.ENV == Env.PROD,
+    samesite="lax",
+    domain=config.COOKIE_DOMAIN or None,
+    max_age=config.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
+  )
+
+  return response
 
 
 @oauth_router.post(
-    "/refresh",
-    response_model=TokenRefreshResponse,
-    summary="토큰 갱신 (RTR)",
-    description="""
+  "/refresh",
+  response_model=TokenRefreshResponse,
+  summary="토큰 갱신 (RTR)",
+  description="""
 Refresh Token으로 새 Access Token을 발급합니다.
 
 **RTR (Refresh Token Rotation):**
@@ -349,206 +349,206 @@ Refresh Token으로 새 Access Token을 발급합니다.
 - Grace Period 초과 후 구 토큰 사용 시 403 응답
 - 해당 토큰만 무효화 (다른 기기 세션 유지)
     """,
-    responses={
-        200: {"description": "토큰 갱신 성공", "model": TokenRefreshResponse},
-        401: {"description": "유효하지 않은 토큰", "model": OAuthErrorResponse},
-        403: {"description": "탈취 의심 (재로그인 필요)", "model": OAuthErrorResponse},
-    },
+  responses={
+    200: {"description": "토큰 갱신 성공", "model": TokenRefreshResponse},
+    401: {"description": "유효하지 않은 토큰", "model": OAuthErrorResponse},
+    403: {"description": "탈취 의심 (재로그인 필요)", "model": OAuthErrorResponse},
+  },
 )
 async def refresh_token(
-    request: Request,
-    oauth_service: Annotated[OAuthService, Depends(get_oauth_service)],
+  request: Request,
+  oauth_service: Annotated[OAuthService, Depends(get_oauth_service)],
 ) -> JSONResponse:
-    """Refresh access token using the rotating refresh-token cookie.
+  """Refresh access token using the rotating refresh-token cookie.
 
-    Args:
-        request: FastAPI Request (refresh_token cookie source).
-        oauth_service: Injected ``OAuthService`` for RTR rotation.
+  Args:
+      request: FastAPI Request (refresh_token cookie source).
+      oauth_service: Injected ``OAuthService`` for RTR rotation.
 
-    Returns:
-        JSONResponse with new access/refresh token pair.
+  Returns:
+      JSONResponse with new access/refresh token pair.
 
-    Raises:
-        HTTPException: 401 if refresh token missing/invalid,
-            403 if reuse detected (account compromised, force re-login).
-    """
-    # ── 하이브리드 refresh 토큰 추출 (쿠키=웹 / Bearer=앱) ──────────────────
-    # 흐름: 쿠키 refresh 우선 -> 없으면 Authorization Bearer -> 둘 다 없으면 401
-    cookie_token = request.cookies.get("refresh_token")
-    bearer = _bearer_token(request)
-    refresh_token_str = cookie_token or bearer
+  Raises:
+      HTTPException: 401 if refresh token missing/invalid,
+          403 if reuse detected (account compromised, force re-login).
+  """
+  # ── 하이브리드 refresh 토큰 추출 (쿠키=웹 / Bearer=앱) ──────────────────
+  # 흐름: 쿠키 refresh 우선 -> 없으면 Authorization Bearer -> 둘 다 없으면 401
+  cookie_token = request.cookies.get("refresh_token")
+  bearer = _bearer_token(request)
+  refresh_token_str = cookie_token or bearer
 
-    if not refresh_token_str:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "error": "missing_token",
-                "error_description": "Refresh token이 없습니다.",
-            },
-        )
-
-    # RTR 적용 토큰 갱신
-    tokens = await oauth_service.refresh_access_token(refresh_token_str)
-
-    # 앱(Bearer) 모드: 쿠키 없이 헤더로 온 경우 -> body 로 access+refresh 반환, 쿠키 미설정
-    if cookie_token is None and bearer is not None:
-        return JSONResponse(
-            content=TokenRefreshResponse(
-                access_token=tokens["access_token"],
-                refresh_token=tokens["refresh_token"],
-            ).model_dump(exclude_none=True),
-            status_code=status.HTTP_200_OK,
-        )
-
-    # 웹(쿠키) 모드: body access_token + Set-Cookie 회전(refresh_token 은 body 에 노출 안 함)
-    response = JSONResponse(
-        content=TokenRefreshResponse(
-            access_token=tokens["access_token"],
-        ).model_dump(exclude_none=True),
-        status_code=status.HTTP_200_OK,
+  if not refresh_token_str:
+    raise HTTPException(
+      status_code=status.HTTP_401_UNAUTHORIZED,
+      detail={
+        "error": "missing_token",
+        "error_description": "Refresh token이 없습니다.",
+      },
     )
 
-    # 새 Access Token을 HttpOnly 쿠키로 설정 (XSS 방지)
-    response.set_cookie(
-        key="access_token",
-        value=tokens["access_token"],
-        httponly=True,
-        secure=config.ENV == Env.PROD,
-        samesite="lax",
-        domain=config.COOKIE_DOMAIN or None,
-        max_age=config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+  # RTR 적용 토큰 갱신
+  tokens = await oauth_service.refresh_access_token(refresh_token_str)
+
+  # 앱(Bearer) 모드: 쿠키 없이 헤더로 온 경우 -> body 로 access+refresh 반환, 쿠키 미설정
+  if cookie_token is None and bearer is not None:
+    return JSONResponse(
+      content=TokenRefreshResponse(
+        access_token=tokens["access_token"],
+        refresh_token=tokens["refresh_token"],
+      ).model_dump(exclude_none=True),
+      status_code=status.HTTP_200_OK,
     )
 
-    # 새 Refresh Token을 HttpOnly 쿠키로 설정
-    response.set_cookie(
-        key="refresh_token",
-        value=tokens["refresh_token"],
-        httponly=True,
-        secure=config.ENV == Env.PROD,
-        samesite="lax",
-        domain=config.COOKIE_DOMAIN or None,
-        max_age=config.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
-    )
+  # 웹(쿠키) 모드: body access_token + Set-Cookie 회전(refresh_token 은 body 에 노출 안 함)
+  response = JSONResponse(
+    content=TokenRefreshResponse(
+      access_token=tokens["access_token"],
+    ).model_dump(exclude_none=True),
+    status_code=status.HTTP_200_OK,
+  )
 
-    return response
+  # 새 Access Token을 HttpOnly 쿠키로 설정 (XSS 방지)
+  response.set_cookie(
+    key="access_token",
+    value=tokens["access_token"],
+    httponly=True,
+    secure=config.ENV == Env.PROD,
+    samesite="lax",
+    domain=config.COOKIE_DOMAIN or None,
+    max_age=config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+  )
+
+  # 새 Refresh Token을 HttpOnly 쿠키로 설정
+  response.set_cookie(
+    key="refresh_token",
+    value=tokens["refresh_token"],
+    httponly=True,
+    secure=config.ENV == Env.PROD,
+    samesite="lax",
+    domain=config.COOKIE_DOMAIN or None,
+    max_age=config.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
+  )
+
+  return response
 
 
 @oauth_router.delete(
-    "/account",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="회원 탈퇴",
-    description="계정을 소프트 삭제하고 모든 토큰을 무효화합니다.",
-    responses={
-        204: {"description": "회원 탈퇴 성공 (본문 없음)"},
-        401: {"description": "인증 실패", "model": OAuthErrorResponse},
-    },
+  "/account",
+  status_code=status.HTTP_204_NO_CONTENT,
+  summary="회원 탈퇴",
+  description="계정을 소프트 삭제하고 모든 토큰을 무효화합니다.",
+  responses={
+    204: {"description": "회원 탈퇴 성공 (본문 없음)"},
+    401: {"description": "인증 실패", "model": OAuthErrorResponse},
+  },
 )
 async def delete_account(
-    request: Request,
-    current_account: Annotated[Account, Depends(get_current_account)],
-    oauth_service: Annotated[OAuthService, Depends(get_oauth_service)],
+  request: Request,
+  current_account: Annotated[Account, Depends(get_current_account)],
+  oauth_service: Annotated[OAuthService, Depends(get_oauth_service)],
 ) -> Response:
-    """Delete the current account (물리 삭제) and invalidate all tokens.
+  """Delete the current account (물리 삭제) and invalidate all tokens.
 
-    Args:
-        request: FastAPI Request (reserved for future audit log).
-        current_account: Authenticated account to delete.
-        oauth_service: Injected ``OAuthService``.
+  Args:
+      request: FastAPI Request (reserved for future audit log).
+      current_account: Authenticated account to delete.
+      oauth_service: Injected ``OAuthService``.
 
-    Returns:
-        204 No Content with both auth cookies cleared.
-    """
-    await oauth_service.delete_account(current_account)
+  Returns:
+      204 No Content with both auth cookies cleared.
+  """
+  await oauth_service.delete_account(current_account)
 
-    response = Response(status_code=status.HTTP_204_NO_CONTENT)
-    response.delete_cookie(
-        key="access_token",
-        httponly=True,
-        secure=config.ENV == Env.PROD,
-        samesite="lax",
-    )
-    response.delete_cookie(
-        key="refresh_token",
-        httponly=True,
-        secure=config.ENV == Env.PROD,
-        samesite="lax",
-    )
-    return response
+  response = Response(status_code=status.HTTP_204_NO_CONTENT)
+  response.delete_cookie(
+    key="access_token",
+    httponly=True,
+    secure=config.ENV == Env.PROD,
+    samesite="lax",
+  )
+  response.delete_cookie(
+    key="refresh_token",
+    httponly=True,
+    secure=config.ENV == Env.PROD,
+    samesite="lax",
+  )
+  return response
 
 
 @oauth_router.get(
-    "/me",
-    response_model=AuthMeResponse,
-    summary="인증 상태 확인",
-    description="현재 로그인 상태를 확인합니다. 유효한 access_token 쿠키가 있으면 200, 없으면 401을 반환합니다.",
-    responses={
-        200: {"description": "인증됨", "model": AuthMeResponse},
-        401: {"description": "미인증", "model": OAuthErrorResponse},
-    },
+  "/me",
+  response_model=AuthMeResponse,
+  summary="인증 상태 확인",
+  description="현재 로그인 상태를 확인합니다. 유효한 access_token 쿠키가 있으면 200, 없으면 401을 반환합니다.",
+  responses={
+    200: {"description": "인증됨", "model": AuthMeResponse},
+    401: {"description": "미인증", "model": OAuthErrorResponse},
+  },
 )
 async def get_me(
-    current_account: Annotated[Account, Depends(get_current_account)],
+  current_account: Annotated[Account, Depends(get_current_account)],
 ) -> AuthMeResponse:
-    """Return the authenticated account id.
+  """Return the authenticated account id.
 
-    Used by the frontend to verify whether the access_token cookie is valid
-    without parsing the JWT client-side.
+  Used by the frontend to verify whether the access_token cookie is valid
+  without parsing the JWT client-side.
 
-    Args:
-        current_account: Authenticated account (raises 401 upstream if missing).
+  Args:
+      current_account: Authenticated account (raises 401 upstream if missing).
 
-    Returns:
-        AuthMeResponse: ``{"account_id": "<uuid>"}``.
-    """
-    return AuthMeResponse(account_id=str(current_account.id))
+  Returns:
+      AuthMeResponse: ``{"account_id": "<uuid>"}``.
+  """
+  return AuthMeResponse(account_id=str(current_account.id))
 
 
 @oauth_router.post(
-    "/logout",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="로그아웃",
-    description="Refresh token을 무효화하고 쿠키를 삭제합니다.",
-    responses={
-        204: {"description": "로그아웃 성공 (본문 없음)"},
-    },
+  "/logout",
+  status_code=status.HTTP_204_NO_CONTENT,
+  summary="로그아웃",
+  description="Refresh token을 무효화하고 쿠키를 삭제합니다.",
+  responses={
+    204: {"description": "로그아웃 성공 (본문 없음)"},
+  },
 )
 async def logout(
-    request: Request,
-    oauth_service: Annotated[OAuthService, Depends(get_oauth_service)],
+  request: Request,
+  oauth_service: Annotated[OAuthService, Depends(get_oauth_service)],
 ) -> Response:
-    """Revoke the refresh token in DB and clear both auth cookies.
+  """Revoke the refresh token in DB and clear both auth cookies.
 
-    Args:
-        request: FastAPI Request (refresh_token cookie source).
-        oauth_service: Injected ``OAuthService``.
+  Args:
+      request: FastAPI Request (refresh_token cookie source).
+      oauth_service: Injected ``OAuthService``.
 
-    Returns:
-        204 No Content with cookies cleared.
-    """
-    # ── 하이브리드 로그아웃 (쿠키=웹 / Bearer=앱) ────────────────────────
-    # 흐름: 쿠키 refresh 우선 -> 없으면 Bearer -> DB 폐기. 웹 모드만 쿠키 삭제.
-    cookie_token = request.cookies.get("refresh_token")
-    bearer = _bearer_token(request)
-    refresh_token = cookie_token or bearer
+  Returns:
+      204 No Content with cookies cleared.
+  """
+  # ── 하이브리드 로그아웃 (쿠키=웹 / Bearer=앱) ────────────────────────
+  # 흐름: 쿠키 refresh 우선 -> 없으면 Bearer -> DB 폐기. 웹 모드만 쿠키 삭제.
+  cookie_token = request.cookies.get("refresh_token")
+  bearer = _bearer_token(request)
+  refresh_token = cookie_token or bearer
 
-    # DB에서 토큰 무효화
-    if refresh_token:
-        await oauth_service.revoke_refresh_token(refresh_token)
+  # DB에서 토큰 무효화
+  if refresh_token:
+    await oauth_service.revoke_refresh_token(refresh_token)
 
-    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+  response = Response(status_code=status.HTTP_204_NO_CONTENT)
 
-    # 앱(Bearer, 쿠키 없음) 모드가 아니면 쿠키 삭제
-    if not (cookie_token is None and bearer is not None):
-        response.delete_cookie(
-            key="access_token",
-            httponly=True,
-            secure=config.ENV == Env.PROD,
-            samesite="lax",
-        )
-        response.delete_cookie(
-            key="refresh_token",
-            httponly=True,
-            secure=config.ENV == Env.PROD,
-            samesite="lax",
-        )
-    return response
+  # 앱(Bearer, 쿠키 없음) 모드가 아니면 쿠키 삭제
+  if not (cookie_token is None and bearer is not None):
+    response.delete_cookie(
+      key="access_token",
+      httponly=True,
+      secure=config.ENV == Env.PROD,
+      samesite="lax",
+    )
+    response.delete_cookie(
+      key="refresh_token",
+      httponly=True,
+      secure=config.ENV == Env.PROD,
+      samesite="lax",
+    )
+  return response

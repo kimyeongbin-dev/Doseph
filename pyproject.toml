@@ -75,6 +75,9 @@ markers = [
 
 [tool.ruff]
 line-length = 120
+# 🔴 들여쓰기 2칸 단일 (2026-09-30 사용자 결정) — PEP 8 의 4칸에서 의도적으로 벗어난다.
+#    .editorconfig 의 indent_size 와 반드시 같은 값이어야 한다(다르면 편집기와 훅이 싸운다).
+indent-width = 2
 target-version = "py313"
 # Exclude auto-generated and migration files
 exclude = [
@@ -344,7 +347,8 @@ max-complexity = 12
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
-line-ending = "auto"
+# 🔴 "auto" 는 파일의 기존 줄끝을 따라가므로 CRLF 파일에 CRLF 를 쓴다 → LF 고정
+line-ending = "lf"
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
 # Preview features for cutting-edge formatting

@@ -43,9 +43,9 @@ import sys
 from scripts.gates._root import PRIVATE
 
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 #: 볼 폴더와 그 폴더의 접미사. **접미사가 «이 폴더 것인가» 를 가른다.**
 TARGETS = {"study": "-study", "portfolio": "-portfolio"}
@@ -59,127 +59,127 @@ MIN_LISTED = {"study": 55, "portfolio": 12}
 #:    ⚠️ 앵커를 빼면 설명 안의 **중첩 굵게**(`**식당 비유**`)에 `**` 짝짓기가 밀려
 #:    **6건을 조용히 놓친다**(실측 2026-09-23 — 54 를 34 로 셌다). 대장 `D47` 그대로다.
 _ENTRY_PATTERNS = (
-    re.compile(r"(?m)^\s*[-*]\s+\*\*`?([^*`]+?)`?\*\*"),  # - **이름**(요약)
-    re.compile(r"(?m)^\s*[-*]\s+`([^`]+?)`"),  # - `이름.md`
-    # ⚠️ 첫 칸에 이름 뒤 글자가 더 붙는다: `이름.md` (+ 짝 `.tsv`) — 칸 끝까지 허용한다.
-    #    좁게 잡아 **정상 2건을 고아로 오탐**했다(실측 2026-09-23).
-    re.compile(r"(?m)^\|\s*`([^`]+?)`[^|]*\|"),  # | `이름.md` (…) | … |
+  re.compile(r"(?m)^\s*[-*]\s+\*\*`?([^*`]+?)`?\*\*"),  # - **이름**(요약)
+  re.compile(r"(?m)^\s*[-*]\s+`([^`]+?)`"),  # - `이름.md`
+  # ⚠️ 첫 칸에 이름 뒤 글자가 더 붙는다: `이름.md` (+ 짝 `.tsv`) — 칸 끝까지 허용한다.
+  #    좁게 잡아 **정상 2건을 고아로 오탐**했다(실측 2026-09-23).
+  re.compile(r"(?m)^\|\s*`([^`]+?)`[^|]*\|"),  # | `이름.md` (…) | … |
 )
 
 
 @dataclass
 class IndexReport:
-    """한 폴더의 색인 ↔ 실물 대조 결과.
+  """한 폴더의 색인 ↔ 실물 대조 결과.
 
-    Attributes:
-        folder: 검사한 폴더 이름.
-        files: 실물 노트 수(`README.md` 제외).
-        listed: 색인이 **그 폴더 것으로** 언급한 이름 수.
-        dangling: 색인에만 있고 파일이 없다.
-        orphan: 파일은 있는데 색인이 안 부른다.
-        problem: 셀 수 없는 상태(색인 부재·바닥값 미달). `None` 이면 셀 수 있었다.
-    """
+  Attributes:
+      folder: 검사한 폴더 이름.
+      files: 실물 노트 수(`README.md` 제외).
+      listed: 색인이 **그 폴더 것으로** 언급한 이름 수.
+      dangling: 색인에만 있고 파일이 없다.
+      orphan: 파일은 있는데 색인이 안 부른다.
+      problem: 셀 수 없는 상태(색인 부재·바닥값 미달). `None` 이면 셀 수 있었다.
+  """
 
-    folder: str
-    files: int = 0
-    listed: int = 0
-    dangling: list[str] = field(default_factory=list)
-    orphan: list[str] = field(default_factory=list)
-    problem: str | None = None
+  folder: str
+  files: int = 0
+  listed: int = 0
+  dangling: list[str] = field(default_factory=list)
+  orphan: list[str] = field(default_factory=list)
+  problem: str | None = None
 
 
 # ── 색인이 «이 폴더 것» 으로 언급한 이름 ─────────────────────────────
 # 흐름: 굵게·백틱을 모두 긁는다 -> 접미사로 이 폴더 것만 남긴다
 def mentioned_names(readme: str, suffix: str, files: set[str] | None = None) -> set[str]:
-    """색인 본문이 언급한 **이 폴더 소속** 이름을 모은다.
+  """색인 본문이 언급한 **이 폴더 소속** 이름을 모은다.
 
-    Args:
-        readme: `README.md` 전문.
-        suffix: 이 폴더의 파일명 접미사(`-study` 등).
-        files: 그 폴더의 실물 이름. 주면 **접미사가 없어도 실물이면 소속**으로 본다.
+  Args:
+      readme: `README.md` 전문.
+      suffix: 이 폴더의 파일명 접미사(`-study` 등).
+      files: 그 폴더의 실물 이름. 주면 **접미사가 없어도 실물이면 소속**으로 본다.
 
-    Returns:
-        확장자를 뗀 이름 집합.
-    """
-    raw: set[str] = set()
-    for pattern in _ENTRY_PATTERNS:
-        raw |= set(pattern.findall(readme))
-    cleaned = {name.strip().removesuffix(".md") for name in raw}
-    # 🔴 경로가 붙은 언급(`docs-private/study/x.md`)은 파일명만 남긴다.
-    cleaned = {name.rsplit("/", 1)[-1] for name in cleaned}
-    # 🔴 «이 폴더 것인가» 는 **접미사 또는 실물**로 가른다.
-    #    접미사만 보면 누적형(`dev-english-terms` — `FILING` §3-4 예외)이 **고아로 오탐**된다.
-    #    실물만 보면 색인이 부르는 **없는 파일**(dangling)을 못 본다. 둘 다 필요하다.
-    known = files or set()
-    return {name for name in cleaned if name.endswith(suffix) or name in known}
+  Returns:
+      확장자를 뗀 이름 집합.
+  """
+  raw: set[str] = set()
+  for pattern in _ENTRY_PATTERNS:
+    raw |= set(pattern.findall(readme))
+  cleaned = {name.strip().removesuffix(".md") for name in raw}
+  # 🔴 경로가 붙은 언급(`docs-private/study/x.md`)은 파일명만 남긴다.
+  cleaned = {name.rsplit("/", 1)[-1] for name in cleaned}
+  # 🔴 «이 폴더 것인가» 는 **접미사 또는 실물**로 가른다.
+  #    접미사만 보면 누적형(`dev-english-terms` — `FILING` §3-4 예외)이 **고아로 오탐**된다.
+  #    실물만 보면 색인이 부르는 **없는 파일**(dangling)을 못 본다. 둘 다 필요하다.
+  known = files or set()
+  return {name for name in cleaned if name.endswith(suffix) or name in known}
 
 
 # ── 폴더 하나 대조 ───────────────────────────────────────────────────
 # 흐름: README 존재 -> 실물 수집 -> 언급 수집 -> 차집합 둘
 def audit_folder(folder: Path, suffix: str) -> IndexReport:
-    """색인과 실물을 양방향으로 대조한다.
+  """색인과 실물을 양방향으로 대조한다.
 
-    Args:
-        folder: 검사할 폴더.
-        suffix: 그 폴더의 파일명 접미사.
+  Args:
+      folder: 검사할 폴더.
+      suffix: 그 폴더의 파일명 접미사.
 
-    Returns:
-        대조 결과.
-    """
-    report = IndexReport(folder=folder.name)
-    readme = folder / "README.md"
-    if not readme.is_file():
-        report.problem = f"`{folder.name}/README.md` 가 없다 — 색인이 없으면 **어긋남 0 이 아니라 못 센 것**이다"
-        return report
-
-    files = {p.stem for p in folder.glob("*.md") if p.name != "README.md"}
-    listed = mentioned_names(readme.read_text(encoding="utf-8", errors="replace"), suffix, files)
-
-    report.files = len(files)
-    report.listed = len(listed)
-    report.dangling = sorted(listed - files)
-    report.orphan = sorted(files - listed)
+  Returns:
+      대조 결과.
+  """
+  report = IndexReport(folder=folder.name)
+  readme = folder / "README.md"
+  if not readme.is_file():
+    report.problem = f"`{folder.name}/README.md` 가 없다 — 색인이 없으면 **어긋남 0 이 아니라 못 센 것**이다"
     return report
+
+  files = {p.stem for p in folder.glob("*.md") if p.name != "README.md"}
+  listed = mentioned_names(readme.read_text(encoding="utf-8", errors="replace"), suffix, files)
+
+  report.files = len(files)
+  report.listed = len(listed)
+  report.dangling = sorted(listed - files)
+  report.orphan = sorted(files - listed)
+  return report
 
 
 def main() -> int:
-    """대상 폴더들의 색인을 대조한다.
+  """대상 폴더들의 색인을 대조한다.
 
-    Returns:
-        종료코드 — 0 이면 통과.
-    """
-    problems: list[str] = []
-    lines: list[str] = []
+  Returns:
+      종료코드 — 0 이면 통과.
+  """
+  problems: list[str] = []
+  lines: list[str] = []
 
-    for name, suffix in TARGETS.items():
-        report = audit_folder(PRIVATE / name, suffix)
-        if report.problem:
-            problems.append(report.problem)
-            continue
-        floor = MIN_LISTED.get(name, 0)
-        if report.listed < floor:
-            problems.append(
-                f"`{name}/` 색인이 **{report.listed}건**으로 바닥값 {floor} 아래다 — "
-                "형식이 바뀌어 파서가 못 읽었을 수 있다(0건은 «없다» 가 아니라 «못 셌다»)"
-            )
-        if report.dangling:
-            head = " · ".join(report.dangling[:6]) + (" …" if len(report.dangling) > 6 else "")
-            problems.append(f"`{name}/` 색인이 **없는 파일 {len(report.dangling)}건**을 부른다: {head}")
-        if report.orphan:
-            head = " · ".join(report.orphan[:6]) + (" …" if len(report.orphan) > 6 else "")
-            problems.append(f"`{name}/` 에 **색인이 안 부르는 파일 {len(report.orphan)}건**: {head}")
-        lines.append(f"{name} {report.files}건(색인 {report.listed})")
+  for name, suffix in TARGETS.items():
+    report = audit_folder(PRIVATE / name, suffix)
+    if report.problem:
+      problems.append(report.problem)
+      continue
+    floor = MIN_LISTED.get(name, 0)
+    if report.listed < floor:
+      problems.append(
+        f"`{name}/` 색인이 **{report.listed}건**으로 바닥값 {floor} 아래다 — "
+        "형식이 바뀌어 파서가 못 읽었을 수 있다(0건은 «없다» 가 아니라 «못 셌다»)"
+      )
+    if report.dangling:
+      head = " · ".join(report.dangling[:6]) + (" …" if len(report.dangling) > 6 else "")
+      problems.append(f"`{name}/` 색인이 **없는 파일 {len(report.dangling)}건**을 부른다: {head}")
+    if report.orphan:
+      head = " · ".join(report.orphan[:6]) + (" …" if len(report.orphan) > 6 else "")
+      problems.append(f"`{name}/` 에 **색인이 안 부르는 파일 {len(report.orphan)}건**: {head}")
+    lines.append(f"{name} {report.files}건(색인 {report.listed})")
 
-    if problems:
-        print("❌ 폴더 색인 검사 실패")
-        for line in problems:
-            print(f"   - {line}")
-        print("   🔑 색인은 처음 오는 사람이 먼저 읽는 자리다 — 틀리면 없는 파일을 찾아 헤매게 한다.")
-        return 1
+  if problems:
+    print("❌ 폴더 색인 검사 실패")
+    for line in problems:
+      print(f"   - {line}")
+    print("   🔑 색인은 처음 오는 사람이 먼저 읽는 자리다 — 틀리면 없는 파일을 찾아 헤매게 한다.")
+    return 1
 
-    print(f"✅ 폴더 색인 — {' · '.join(lines)} · dangling 0 · orphan 0.")
-    return 0
+  print(f"✅ 폴더 색인 — {' · '.join(lines)} · dangling 0 · orphan 0.")
+  return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

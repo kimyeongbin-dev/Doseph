@@ -25,39 +25,39 @@ from redis.retry import Retry
 
 # Producer 측 keepalive 옵션 — ai-worker 와 별도로 자체 정의(서비스 분리 원칙).
 _KEEPALIVE_KWARGS = {
-    "socket_keepalive": True,
-    "health_check_interval": 30,
-    "retry_on_timeout": True,
-    "retry_on_error": [redis.ConnectionError, redis.TimeoutError],
-    "retry": Retry(ExponentialBackoff(cap=10, base=1), retries=5),
+  "socket_keepalive": True,
+  "health_check_interval": 30,
+  "retry_on_timeout": True,
+  "retry_on_error": [redis.ConnectionError, redis.TimeoutError],
+  "retry": Retry(ExponentialBackoff(cap=10, base=1), retries=5),
 }
 
 
 def make_sync_redis(url: str, **overrides) -> redis.Redis:
-    """Producer 용 sync Redis client.
+  """Producer 용 sync Redis client.
 
-    Args:
-        url: redis://host:port/db 형태의 연결 URL.
-        **overrides: ``decode_responses=True`` 등 호출자 명시 옵션.
+  Args:
+      url: redis://host:port/db 형태의 연결 URL.
+      **overrides: ``decode_responses=True`` 등 호출자 명시 옵션.
 
-    Returns:
-        Hardened ``redis.Redis`` instance — RQ Queue 의 ``connection`` 인자로
-        직접 주입 가능.
-    """
-    kwargs = {**_KEEPALIVE_KWARGS, **overrides}
-    return redis.from_url(url, **kwargs)
+  Returns:
+      Hardened ``redis.Redis`` instance — RQ Queue 의 ``connection`` 인자로
+      직접 주입 가능.
+  """
+  kwargs = {**_KEEPALIVE_KWARGS, **overrides}
+  return redis.from_url(url, **kwargs)
 
 
 def make_async_redis(url: str, **overrides) -> AsyncRedis:
-    """Producer 용 async Redis client.
+  """Producer 용 async Redis client.
 
-    Args:
-        url: redis://host:port/db 형태의 연결 URL.
-        **overrides: 호출자 명시 옵션.
+  Args:
+      url: redis://host:port/db 형태의 연결 URL.
+      **overrides: 호출자 명시 옵션.
 
-    Returns:
-        Hardened ``redis.asyncio.Redis`` instance — PendingTurnStore 등
-        FastAPI 라우터 흐름 안에서 await 가능.
-    """
-    kwargs = {**_KEEPALIVE_KWARGS, **overrides}
-    return async_from_url(url, **kwargs)
+  Returns:
+      Hardened ``redis.asyncio.Redis`` instance — PendingTurnStore 등
+      FastAPI 라우터 흐름 안에서 await 가능.
+  """
+  kwargs = {**_KEEPALIVE_KWARGS, **overrides}
+  return async_from_url(url, **kwargs)

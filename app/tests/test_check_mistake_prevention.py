@@ -10,9 +10,9 @@
 from pathlib import Path
 
 from scripts.gates.doc.check_mistake_prevention import (
-    Known,
-    parse_hook_ids,
-    verify_reference,
+  Known,
+  parse_hook_ids,
+  verify_reference,
 )
 
 CONFIG_WITH_RETIRED_COMMENT = """\
@@ -28,85 +28,85 @@ repos:
 
 
 def make_known(tmp_path: Path) -> Known:
-    """표본 저장소로 `Known` 을 만든다.
+  """표본 저장소로 `Known` 을 만든다.
 
-    Args:
-        tmp_path: pytest 임시 디렉터리.
+  Args:
+      tmp_path: pytest 임시 디렉터리.
 
-    Returns:
-        훅·Ruff·루트가 채워진 `Known`.
-    """
-    (tmp_path / "scripts").mkdir()
-    (tmp_path / "scripts" / "live.py").write_text("x = 1\n", encoding="utf-8")
-    (tmp_path / "GUIDE.md").write_text("intro\n<!-- rule:있는앵커 -->\n규칙 본문\n", encoding="utf-8")
-    return Known(
-        hooks=frozenset({"doc-meta", "rule-layers"}),
-        ruff=frozenset({"BLE", "ANN", "D"}),
-        ignored=frozenset({"D203", "ANN401"}),
-        root=tmp_path,
-    )
+  Returns:
+      훅·Ruff·루트가 채워진 `Known`.
+  """
+  (tmp_path / "scripts").mkdir()
+  (tmp_path / "scripts" / "live.py").write_text("x = 1\n", encoding="utf-8")
+  (tmp_path / "GUIDE.md").write_text("intro\n<!-- rule:있는앵커 -->\n규칙 본문\n", encoding="utf-8")
+  return Known(
+    hooks=frozenset({"doc-meta", "rule-layers"}),
+    ruff=frozenset({"BLE", "ANN", "D"}),
+    ignored=frozenset({"D203", "ANN401"}),
+    root=tmp_path,
+  )
 
 
 # ── 훅 id 수집 ────────────────────────────────────────────────────────
 # 흐름: 설정 본문 -> 줄머리 `- id:` 만 -> 주석 속 이름은 제외
 def test_hook_ids_are_read_from_line_anchors_only() -> None:
-    """🔴 **주석에 남은 은퇴 훅 이름을 주워 오면 안 된다** — 그러면 죽은 참조가 통과한다."""
-    ids = parse_hook_ids(CONFIG_WITH_RETIRED_COMMENT)
+  """🔴 **주석에 남은 은퇴 훅 이름을 주워 오면 안 된다** — 그러면 죽은 참조가 통과한다."""
+  ids = parse_hook_ids(CONFIG_WITH_RETIRED_COMMENT)
 
-    assert ids == {"doc-meta", "rule-layers"}
-    assert "canon-sync" not in ids
+  assert ids == {"doc-meta", "rule-layers"}
+  assert "canon-sync" not in ids
 
 
 # ── 참조 디스패치 ─────────────────────────────────────────────────────
 # 흐름: 종류 접두사 -> 각각 다른 실재 검증
 def test_hook_reference_resolves(tmp_path: Path) -> None:
-    """`훅:` 은 설정의 id 목록에 있어야 한다."""
-    assert verify_reference("훅:doc-meta", make_known(tmp_path)) is None
+  """`훅:` 은 설정의 id 목록에 있어야 한다."""
+  assert verify_reference("훅:doc-meta", make_known(tmp_path)) is None
 
 
 def test_retired_hook_reference_is_rejected(tmp_path: Path) -> None:
-    """🔴 은퇴한 훅을 가리키면 **막는다** — «막힌다고 적혀 있는데 안 막히는» 상태다."""
-    assert verify_reference("훅:canon-sync", make_known(tmp_path)) is not None
+  """🔴 은퇴한 훅을 가리키면 **막는다** — «막힌다고 적혀 있는데 안 막히는» 상태다."""
+  assert verify_reference("훅:canon-sync", make_known(tmp_path)) is not None
 
 
 def test_ruff_rule_reference_resolves(tmp_path: Path) -> None:
-    """`규칙:` 은 `select` 가 켠 규칙군에 속해야 한다."""
-    assert verify_reference("규칙:BLE001", make_known(tmp_path)) is None
+  """`규칙:` 은 `select` 가 켠 규칙군에 속해야 한다."""
+  assert verify_reference("규칙:BLE001", make_known(tmp_path)) is None
 
 
 def test_ruff_rule_outside_select_is_rejected(tmp_path: Path) -> None:
-    """켜지지 않은 규칙은 **아무것도 안 막는다.**"""
-    assert verify_reference("규칙:PLR0915", make_known(tmp_path)) is not None
+  """켜지지 않은 규칙은 **아무것도 안 막는다.**"""
+  assert verify_reference("규칙:PLR0915", make_known(tmp_path)) is not None
 
 
 def test_script_reference_resolves(tmp_path: Path) -> None:
-    """`스크립트:` 는 파일이 실재해야 한다."""
-    assert verify_reference("스크립트:scripts/live.py", make_known(tmp_path)) is None
+  """`스크립트:` 는 파일이 실재해야 한다."""
+  assert verify_reference("스크립트:scripts/live.py", make_known(tmp_path)) is None
 
 
 def test_missing_script_is_rejected(tmp_path: Path) -> None:
-    """없는 파일을 가리키면 막는다."""
-    assert verify_reference("스크립트:scripts/gone.py", make_known(tmp_path)) is not None
+  """없는 파일을 가리키면 막는다."""
+  assert verify_reference("스크립트:scripts/gone.py", make_known(tmp_path)) is not None
 
 
 def test_doc_anchor_resolves(tmp_path: Path) -> None:
-    """`문서:` 는 **앵커 주석**이 그 파일에 있어야 한다 — 절 번호 문자열이 아니다."""
-    assert verify_reference("문서:GUIDE.md#있는앵커", make_known(tmp_path)) is None
+  """`문서:` 는 **앵커 주석**이 그 파일에 있어야 한다 — 절 번호 문자열이 아니다."""
+  assert verify_reference("문서:GUIDE.md#있는앵커", make_known(tmp_path)) is None
 
 
 def test_missing_anchor_is_rejected(tmp_path: Path) -> None:
-    """🔴 파일은 있는데 앵커가 없으면 **읽어도 아무것도 안 나오는 주소**다."""
-    assert verify_reference("문서:GUIDE.md#없는앵커", make_known(tmp_path)) is not None
+  """🔴 파일은 있는데 앵커가 없으면 **읽어도 아무것도 안 나오는 주소**다."""
+  assert verify_reference("문서:GUIDE.md#없는앵커", make_known(tmp_path)) is not None
 
 
 def test_unknown_kind_is_rejected(tmp_path: Path) -> None:
-    """모르는 종류 접두사는 막는다 — 어휘를 조용히 넓히지 않는다."""
-    assert verify_reference("무언가:something", make_known(tmp_path)) is not None
+  """모르는 종류 접두사는 막는다 — 어휘를 조용히 넓히지 않는다."""
+  assert verify_reference("무언가:something", make_known(tmp_path)) is not None
 
 
 def test_ignored_ruff_rule_is_rejected(tmp_path: Path) -> None:
-    """🔴 **켜진 군의 꺼진 규칙**은 아무것도 안 막는다 — `D203` 은 `D` 군이지만 `ignore` 다.
+  """🔴 **켜진 군의 꺼진 규칙**은 아무것도 안 막는다 — `D203` 은 `D` 군이지만 `ignore` 다.
 
-    군 접두사만 보면 통과한다. 결핍 주입이 이 구멍을 잡았다(B-13 S6).
-    """
-    assert verify_reference("규칙:D203", make_known(tmp_path)) is not None
+  군 접두사만 보면 통과한다. 결핍 주입이 이 구멍을 잡았다(B-13 S6).
+  """
+  assert verify_reference("규칙:D203", make_known(tmp_path)) is not None

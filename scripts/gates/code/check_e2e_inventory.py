@@ -53,9 +53,9 @@ import sys
 
 # 한글·이모지를 인쇄하므로 Windows cp949 콘솔에서 죽지 않게 먼저 방어한다(대장 D36).
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+  sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FE_DIR = REPO_ROOT / "medication-frontend"
@@ -75,37 +75,37 @@ MIN_SPEC_FILES = 12
 # 이 층은 **테스트를 돌리지 않는다.** 돌리려면 스택과 1.8분이 필요한데,
 # 매 push 마다 그러면 사람이 훅을 끈다. 대신 «CI 가 셀 수 있게 돼 있는가» 만 묻는다.
 def verify() -> int:
-    """E2E 설정 산출물만 검사한다 (리포트 불필요).
+  """E2E 설정 산출물만 검사한다 (리포트 불필요).
 
-    Returns:
-        종료코드 — 0 이면 통과.
-    """
-    problems: list[str] = []
+  Returns:
+      종료코드 — 0 이면 통과.
+  """
+  problems: list[str] = []
 
-    if not CONFIG_PATH.exists():
-        problems.append(f"설정이 없다: {CONFIG_PATH.relative_to(REPO_ROOT).as_posix()}")
-    else:
-        config = CONFIG_PATH.read_text(encoding="utf-8", errors="replace")
-        if "'json'" not in config and '"json"' not in config:
-            problems.append(
-                "`playwright.config.js` 에 **json 리포터가 없다** — 리포트가 없으면 "
-                "CI 가 실행 건수를 셀 수 없고, 그러면 이 게이트가 통째로 눈이 먼다"
-            )
+  if not CONFIG_PATH.exists():
+    problems.append(f"설정이 없다: {CONFIG_PATH.relative_to(REPO_ROOT).as_posix()}")
+  else:
+    config = CONFIG_PATH.read_text(encoding="utf-8", errors="replace")
+    if "'json'" not in config and '"json"' not in config:
+      problems.append(
+        "`playwright.config.js` 에 **json 리포터가 없다** — 리포트가 없으면 "
+        "CI 가 실행 건수를 셀 수 없고, 그러면 이 게이트가 통째로 눈이 먼다"
+      )
 
-    specs = sorted(E2E_DIR.glob("*.spec.js")) if E2E_DIR.exists() else []
-    if len(specs) < MIN_SPEC_FILES:
-        problems.append(
-            f"E2E 스펙 파일이 **{len(specs)}개**로 바닥값 {MIN_SPEC_FILES} 아래다 — *0건이 아니라 줄어든 것도 실패다*"
-        )
+  specs = sorted(E2E_DIR.glob("*.spec.js")) if E2E_DIR.exists() else []
+  if len(specs) < MIN_SPEC_FILES:
+    problems.append(
+      f"E2E 스펙 파일이 **{len(specs)}개**로 바닥값 {MIN_SPEC_FILES} 아래다 — *0건이 아니라 줄어든 것도 실패다*"
+    )
 
-    if problems:
-        print("❌ E2E 설정 검사 실패")
-        for line in problems:
-            print(f"   - {line}")
-        return 1
+  if problems:
+    print("❌ E2E 설정 검사 실패")
+    for line in problems:
+      print(f"   - {line}")
+    return 1
 
-    print(f"✅ E2E 설정 — 스펙 {len(specs)}개(바닥값 {MIN_SPEC_FILES}) · json 리포터 선언됨. **테스트는 안 돌렸다.**")
-    return 0
+  print(f"✅ E2E 설정 — 스펙 {len(specs)}개(바닥값 {MIN_SPEC_FILES}) · json 리포터 선언됨. **테스트는 안 돌렸다.**")
+  return 0
 
 
 # ── ② CI — 돈 테스트가 바닥값 이상인가 ────────────────────────────────
@@ -113,58 +113,58 @@ def verify() -> int:
 #       -> 바닥값 대조 -> 실패 0 대조
 # 🔴 리포트 부재를 통과로 읽지 않는다 — 그게 fail-open 의 본체다.
 def check() -> int:
-    """실행 리포트를 바닥값과 대조한다.
+  """실행 리포트를 바닥값과 대조한다.
 
-    Returns:
-        종료코드 — 0 이면 통과.
-    """
-    if not REPORT_PATH.exists():
-        print(f"❌ 실행 리포트가 없다: {REPORT_PATH.relative_to(REPO_ROOT).as_posix()}")
-        print("   E2E 가 돌지 않았거나 리포터가 꺼져 있다. **부재는 통과가 아니다**(fail-closed).")
-        return 1
+  Returns:
+      종료코드 — 0 이면 통과.
+  """
+  if not REPORT_PATH.exists():
+    print(f"❌ 실행 리포트가 없다: {REPORT_PATH.relative_to(REPO_ROOT).as_posix()}")
+    print("   E2E 가 돌지 않았거나 리포터가 꺼져 있다. **부재는 통과가 아니다**(fail-closed).")
+    return 1
 
-    stats = json.loads(REPORT_PATH.read_text(encoding="utf-8", errors="replace")).get("stats", {})
-    expected = int(stats.get("expected", 0))
-    unexpected = int(stats.get("unexpected", 0))
-    flaky = int(stats.get("flaky", 0))
-    skipped = int(stats.get("skipped", 0))
-    ran = expected + unexpected + flaky
+  stats = json.loads(REPORT_PATH.read_text(encoding="utf-8", errors="replace")).get("stats", {})
+  expected = int(stats.get("expected", 0))
+  unexpected = int(stats.get("unexpected", 0))
+  flaky = int(stats.get("flaky", 0))
+  skipped = int(stats.get("skipped", 0))
+  ran = expected + unexpected + flaky
 
-    problems: list[str] = []
-    if ran < MIN_E2E_TESTS:
-        problems.append(
-            f"실행된 테스트가 **{ran}건**으로 바닥값 {MIN_E2E_TESTS} 아래다 — "
-            "스펙이 지워졌거나 필터가 좁아졌다. *검사 범위는 조용히 줄어든다*(D31)"
-        )
-    if unexpected:
-        problems.append(f"실패 **{unexpected}건**")
-    if skipped:
-        problems.append(f"skip **{skipped}건** — skip 은 실행으로 세지 않는다(한계 선언 참고)")
+  problems: list[str] = []
+  if ran < MIN_E2E_TESTS:
+    problems.append(
+      f"실행된 테스트가 **{ran}건**으로 바닥값 {MIN_E2E_TESTS} 아래다 — "
+      "스펙이 지워졌거나 필터가 좁아졌다. *검사 범위는 조용히 줄어든다*(D31)"
+    )
+  if unexpected:
+    problems.append(f"실패 **{unexpected}건**")
+  if skipped:
+    problems.append(f"skip **{skipped}건** — skip 은 실행으로 세지 않는다(한계 선언 참고)")
 
-    if problems:
-        print("❌ E2E 인벤토리 검사 실패")
-        for line in problems:
-            print(f"   - {line}")
-        return 1
+  if problems:
+    print("❌ E2E 인벤토리 검사 실패")
+    for line in problems:
+      print(f"   - {line}")
+    return 1
 
-    print(f"✅ E2E 인벤토리 — 실행 {ran}건(바닥값 {MIN_E2E_TESTS}) · 실패 0 · skip 0 · flaky {flaky}.")
-    return 0
+  print(f"✅ E2E 인벤토리 — 실행 {ran}건(바닥값 {MIN_E2E_TESTS}) · 실패 0 · skip 0 · flaky {flaky}.")
+  return 0
 
 
 def main() -> int:
-    """서브커맨드를 고른다.
+  """서브커맨드를 고른다.
 
-    Returns:
-        종료코드.
-    """
-    mode = sys.argv[1] if len(sys.argv) > 1 else "check"
-    if mode == "verify":
-        return verify()
-    if mode == "check":
-        return check()
-    print(f"알 수 없는 서브커맨드: {mode} (check | verify)")
-    return 2
+  Returns:
+      종료코드.
+  """
+  mode = sys.argv[1] if len(sys.argv) > 1 else "check"
+  if mode == "verify":
+    return verify()
+  if mode == "check":
+    return check()
+  print(f"알 수 없는 서브커맨드: {mode} (check | verify)")
+  return 2
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())

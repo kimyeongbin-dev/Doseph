@@ -11,23 +11,23 @@ PR-D 이후 1개의 RQ task 만 노출 (RAG 재설계 후 retrieve_medicine_chun
 
 
 async def generate_chat_response_job(
-    messages: list[dict[str, str]],
-    system_prompt: str | None = None,
+  messages: list[dict[str, str]],
+  system_prompt: str | None = None,
 ) -> dict:
-    """[RQ Task] 최종 답변 생성.
+  """[RQ Task] 최종 답변 생성.
 
-    Args:
-        messages: 대화 턴 리스트 (마지막은 사용자 질문).
-        system_prompt: persona + medical_context + 용어 매핑 + RAG context 가
-            합쳐진 system prompt.
+  Args:
+      messages: 대화 턴 리스트 (마지막은 사용자 질문).
+      system_prompt: persona + medical_context + 용어 매핑 + RAG context 가
+          합쳐진 system prompt.
 
-    Returns:
-        ``{"answer", "token_usage"}`` 형태 dict.
-    """
-    from ai_worker.domains.rag.response_generator import generate_response
+  Returns:
+      ``{"answer", "token_usage"}`` 형태 dict.
+  """
+  from ai_worker.domains.rag.response_generator import generate_response
 
-    result = await generate_response(messages=messages, system_prompt=system_prompt)
-    return {
-        "answer": result.answer,
-        "token_usage": result.token_usage.model_dump() if result.token_usage is not None else None,
-    }
+  result = await generate_response(messages=messages, system_prompt=system_prompt)
+  return {
+    "answer": result.answer,
+    "token_usage": result.token_usage.model_dump() if result.token_usage is not None else None,
+  }

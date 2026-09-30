@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 # 정규화 필드 -> (레거시 kebab-case 키, Reporting API camelCase 키)
 _FIELD_ALIASES: dict[str, tuple[str, str]] = {
-    "document_uri": ("document-uri", "documentURL"),
-    "violated_directive": ("violated-directive", "violatedDirective"),
-    "effective_directive": ("effective-directive", "effectiveDirective"),
-    "blocked_uri": ("blocked-uri", "blockedURL"),
+  "document_uri": ("document-uri", "documentURL"),
+  "violated_directive": ("violated-directive", "violatedDirective"),
+  "effective_directive": ("effective-directive", "effectiveDirective"),
+  "blocked_uri": ("blocked-uri", "blockedURL"),
 }
 
 # URL 값인 필드(query·fragment 에 토큰·PII 가능 -> 로깅 전 제거 대상)
@@ -23,73 +23,73 @@ _URL_FIELDS = frozenset({"document_uri", "blocked_uri"})
 
 
 def _strip_query(value: str) -> str:
-    """Drop query/fragment from a URL value; return non-URL values unchanged."""
-    parts = urlsplit(value)
-    if parts.scheme and parts.netloc:
-        return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
-    return value
+  """Drop query/fragment from a URL value; return non-URL values unchanged."""
+  parts = urlsplit(value)
+  if parts.scheme and parts.netloc:
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+  return value
 
 
 class CspReportService:
-    """브라우저 CSP 위반 리포트를 정규화하고 로깅한다."""
+  """브라우저 CSP 위반 리포트를 정규화하고 로깅한다."""
 
-    # ── CSP 리포트 정규화 ──────────────────────────────────────────────
-    # 흐름: 형식 판별(레거시 dict / Reporting API list) -> 위반 본문 추출 -> 필드 정규화
-    def parse_violations(self, payload: dict | list) -> list[dict[str, str]]:
-        """Normalize a CSP report payload into a list of violation dicts.
+  # ── CSP 리포트 정규화 ──────────────────────────────────────────────
+  # 흐름: 형식 판별(레거시 dict / Reporting API list) -> 위반 본문 추출 -> 필드 정규화
+  def parse_violations(self, payload: dict | list) -> list[dict[str, str]]:
+    """Normalize a CSP report payload into a list of violation dicts.
 
-        Args:
-            payload: Parsed JSON body (legacy dict or Reporting API list).
+    Args:
+        payload: Parsed JSON body (legacy dict or Reporting API list).
 
-        Returns:
-            list[dict[str, str]]: Normalized violations; empty if unrecognized.
-        """
-        if isinstance(payload, dict):
-            report = payload.get("csp-report")
-            if not isinstance(report, dict):
-                return []
-            normalized = self._normalize(report)
-            return [normalized] if normalized else []
-
-        if isinstance(payload, list):
-            violations: list[dict[str, str]] = []
-            for item in payload:
-                if not isinstance(item, dict):
-                    continue
-                body = item.get("body")
-                if isinstance(body, dict):
-                    normalized = self._normalize(body)
-                    if normalized:
-                        violations.append(normalized)
-            return violations
-
+    Returns:
+        list[dict[str, str]]: Normalized violations; empty if unrecognized.
+    """
+    if isinstance(payload, dict):
+      report = payload.get("csp-report")
+      if not isinstance(report, dict):
         return []
+      normalized = self._normalize(report)
+      return [normalized] if normalized else []
 
-    # ── CSP 위반 로깅 ──────────────────────────────────────────────────
-    # 흐름: 위반별 WARNING (ScrubFilter 자동 마스킹 + request_id 컨텍스트)
-    def log_violations(self, violations: list[dict[str, str]]) -> None:
-        """Log each normalized violation at WARNING level.
+    if isinstance(payload, list):
+      violations: list[dict[str, str]] = []
+      for item in payload:
+        if not isinstance(item, dict):
+          continue
+        body = item.get("body")
+        if isinstance(body, dict):
+          normalized = self._normalize(body)
+          if normalized:
+            violations.append(normalized)
+      return violations
 
-        Args:
-            violations: Normalized violation dicts from parse_violations.
-        """
-        for violation in violations:
-            # 지시어 폴백: violated-directive(레거시)가 없으면 effective-directive
-            # (2026 Reporting API 표준, 최신 브라우저는 이것만 보냄)로 물러난다.
-            directive = violation.get("violated_directive") or violation.get("effective_directive") or "-"
-            logger.warning(
-                "CSP violation: directive=%s blocked=%s document=%s",
-                directive,
-                violation.get("blocked_uri", "-"),
-                violation.get("document_uri", "-"),
-            )
+    return []
 
-    def _normalize(self, report: dict) -> dict[str, str]:
-        """Extract known fields from a raw violation dict (either key style)."""
-        normalized: dict[str, str] = {}
-        for canonical, (legacy_key, api_key) in _FIELD_ALIASES.items():
-            value = report.get(legacy_key) or report.get(api_key)
-            if value is not None:
-                text = str(value)
-                normalized[canonical] = _strip_query(text) if canonical in _URL_FIELDS else text
-        return normalized
+  # ── CSP 위반 로깅 ──────────────────────────────────────────────────
+  # 흐름: 위반별 WARNING (ScrubFilter 자동 마스킹 + request_id 컨텍스트)
+  def log_violations(self, violations: list[dict[str, str]]) -> None:
+    """Log each normalized violation at WARNING level.
+
+    Args:
+        violations: Normalized violation dicts from parse_violations.
+    """
+    for violation in violations:
+      # 지시어 폴백: violated-directive(레거시)가 없으면 effective-directive
+      # (2026 Reporting API 표준, 최신 브라우저는 이것만 보냄)로 물러난다.
+      directive = violation.get("violated_directive") or violation.get("effective_directive") or "-"
+      logger.warning(
+        "CSP violation: directive=%s blocked=%s document=%s",
+        directive,
+        violation.get("blocked_uri", "-"),
+        violation.get("document_uri", "-"),
+      )
+
+  def _normalize(self, report: dict) -> dict[str, str]:
+    """Extract known fields from a raw violation dict (either key style)."""
+    normalized: dict[str, str] = {}
+    for canonical, (legacy_key, api_key) in _FIELD_ALIASES.items():
+      value = report.get(legacy_key) or report.get(api_key)
+      if value is not None:
+        text = str(value)
+        normalized[canonical] = _strip_query(text) if canonical in _URL_FIELDS else text
+    return normalized
