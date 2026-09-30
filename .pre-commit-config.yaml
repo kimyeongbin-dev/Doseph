@@ -423,6 +423,21 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # 공백 위생 (pre-push) — 줄끝 공백 · 탭 들여쓰기 · 파일 끝 개행
+      # 🔑 trailing-whitespace 훅은 **staged 파일만** 본다 — gitignore 된 docs-private 은
+      #    한 번도 staged 되지 않아 밖에 있었다(실측 2026-09-30: 추적 0건인데 미추적 82건).
+      # 🔴 대상을 «추적 파일 + docs-private» 로 정의한다 — 폴더 제외 목록을 세 번 늘려도
+      #    생성물이 계속 나왔다. 빼는 목록은 끝이 없어서 들어오는 목록으로 뒤집었다.
+      # 🔴 .sql 덤프와 .pem 은 대상 밖이다 — 줄끝 공백이 **데이터**다(실측 2,011건이 HTML 조각 안 공백).
+      - id: whitespace
+        name: "␣ 공백 위생 (줄끝·탭·끝개행)"
+        entry: uv run python -m scripts.gates.code.check_whitespace
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -443,6 +458,12 @@ repos:
       - id: mixed-line-ending
         name: 🔄 Fix Mixed Line Endings
         args: [--fix=lf]
+      # 🔴 임계값은 실측에 맞췄다 — 현재 최대 자산이 hero_bg_2.png 1,378 KB 다.
+      #    500(기본)으로 두면 그 이미지를 교체할 때마다 막혀 사람이 훅을 끈다.
+      #    목적은 «실수로 거대 파일을 커밋하는 것» 을 막는 것이지 자산 교체를 막는 게 아니다.
+      - id: check-added-large-files
+        name: 📦 Check Added Large Files
+        args: [--maxkb=1500]
 
 # Global configuration
 default_stages: [pre-commit]

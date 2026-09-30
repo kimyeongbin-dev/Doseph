@@ -1,2 +1,25 @@
+# 모든 텍스트 파일을 LF 로 정규화한다 (커밋·체크아웃 양쪽)
 * text=auto eol=lf
+
+# aerich 가 생성하는 마이그레이션은 손대지 않는다 (2026-05-01 — MODELS_STATE 손상 복구)
 app/db/migrations/models/*.py binary
+
+# ── 바이너리 명시 ──────────────────────────────────────────────────
+# git 은 NUL 바이트로 바이너리를 «자동» 판별하고 실측상 잘 돌고 있다
+# (png·ico·.DS_Store 가 `-text` 로 나온다). 그래도 명시하는 이유는
+# 🔴 NUL 이 없는 바이너리에서는 자동 판별이 실패하기 때문이다.
+# ⚠️ .svg 는 XML 이라 텍스트다 — 여기 넣지 않는다.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.gz binary
+*.sqlite3 binary

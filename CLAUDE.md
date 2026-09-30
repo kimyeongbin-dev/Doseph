@@ -507,7 +507,7 @@ git status --porcelain && git stash list && git log --oneline @{u}..HEAD
 | `I`·`TID252`·`F403` | import 정렬·3그룹 · **절대 import 강제** · 와일드카드 금지 |
 | `T20`·**`G004`**·**`TRY400`** | `print()` 금지 · 로그 **`%` 지연평가** · `logger.exception()` 의무 |
 | 📉 `debt-baseline` | `Any` 회피(천장 30) · top-level import(천장 26) |
-| ↵ `line-endings` · 📝 `text-mode-writes` | **워킹트리 전수 CR 금지**(미추적 `docs-private/` 포함) · 파일 쓰기에 `newline` 명시 |
+| ↵ `line-endings` · 📝 `text-mode-writes` · ␣ `whitespace` | **미추적 `docs-private/` 까지** 전수 CR 금지 · 파일 쓰기에 `newline` 명시 · 줄끝 공백·탭 들여쓰기 금지 |
 
 ### 기계가 **못** 잡는 것 — 그래서 여기 남는다 <!-- rule:스타일-수동 강제:없음 -->
 
