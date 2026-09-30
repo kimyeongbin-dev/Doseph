@@ -77,7 +77,13 @@ FLOORS = {"QA": 41, "문서": 37, "L": 13, "ROADMAP": 20, "B": 14}
 #:    `문서-N` 은 한 표에 열림·닫힘이 섞여 있어 **행마다 토큰**이 필요하다(문서-31).
 OPEN = "열림"
 CLOSED_TOKENS = frozenset({"완료", "보냄", "기각"})
-STATUS_TOKENS = CLOSED_TOKENS | {OPEN, "부분"}
+#: 🔴 **`보류` 는 «열림» 이다 — `CLOSED_TOKENS` 에 넣지 않는다**(2026-09-30, B-15 S4 · 사용자 제안).
+#:    *«착수 조건이 올 때까지 대기»* 는 **아직 처분되지 않은 것**이다. 닫힘으로 세면
+#:    후속 과제가 조용히 사라진다 — `FILING` §8-5 가 *«보류는 죽지 않는다»* 로 못 박은 그것이다.
+#: ⚠️ **문서 `status: pending` 과 이름이 겹치지 않게 갈랐다** — 항목 상태는 **`보류`**,
+#:    문서 생애주기는 **`pending`**(`FILING` §8 이 *«이름이 겹치지 않게»* 를 절 제목으로 단 문서다).
+PENDING = "보류"
+STATUS_TOKENS = CLOSED_TOKENS | {OPEN, PENDING, "부분"}
 STATUS_RE = re.compile(r"`(" + "|".join(sorted(STATUS_TOKENS)) + r")`")
 
 #: 절로 열림/닫힘이 갈리는 원장 — 표가 아니라 **구조**가 상태를 말한다.
@@ -276,7 +282,10 @@ def main() -> int:
     print("[거부] 열림/닫힘을 셀 수 없다 — 상태 어휘가 빠졌다.", file=sys.stderr)
     for line in problems:
       print(f"  - {line}", file=sys.stderr)
-    print("  값은 `열림`·`완료`·`보냄`·`기각`·`부분` 중 하나다(FILING).", file=sys.stderr)
+    # 🔴 어휘를 여기 베끼지 않는다 — 상수에서 만든다. 베끼면 어휘가 늘 때 이 줄만 낡는다
+    #    (실제로 `보류` 를 추가하자 이 줄이 즉시 거짓이 됐다, B-15 S4).
+    allowed = "·".join(f"`{t}`" for t in sorted(STATUS_TOKENS))
+    print(f"  값은 {allowed} 중 하나다(FILING).", file=sys.stderr)
     return 1
 
   low = {k: v for k, v in counts.items() if v < FLOORS[k]}
