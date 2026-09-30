@@ -34,6 +34,7 @@ if hasattr(sys.stderr, "reconfigure"):
   sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from scripts.gates._root import PRIVATE
+from scripts.gates.doc.check_table_shape import split_escaped
 
 INDEX = PRIVATE / "FOLLOWUP_INDEX.md"
 
@@ -115,7 +116,7 @@ def scrape(filename: str, prefix: str) -> list[tuple[str, list[str]]]:
       section = line[3:].strip()
     row = ROW.match(line)
     if row and row.group(1).startswith(prefix):
-      cells = [c.strip() for c in row.group(2).split("|") if c.strip()]
+      cells = [c.strip() for c in split_escaped(row.group(2)) if c.strip()]
       items.setdefault(row.group(1), [*cells, f"§절={section}"])
   section = ""
   for line in body.splitlines():
@@ -187,7 +188,7 @@ def build() -> tuple[str, dict[str, int]]:
   roadmap_body = (PRIVATE / "ROADMAP.md").read_text(encoding="utf-8", errors="replace")
   tracks = sorted(
     {
-      ident: [c.strip() for c in rest.split("|") if c.strip()]
+      ident: [c.strip() for c in split_escaped(rest) if c.strip()]
       for ident, rest in ROW.findall(roadmap_body)
       if re.match(r"^(OCR|C|ARCH)-\d+$", ident)
     }.items(),

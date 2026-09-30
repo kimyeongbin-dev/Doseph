@@ -124,11 +124,45 @@ def cell_count(line: str) -> int | None:
   Returns:
       칸 수, 또는 표 행이 아니면 ``None``.
   """
+  split = split_cells(line)
+  return None if split is None else len(split)
+
+
+# ── 표 행을 셀로 자른다 — **이 저장소의 유일한 구현이다** ────────────
+# 흐름: 앞 파이프 확인 -> 이스케이프된 수직선을 마스킹 -> split -> 마스킹 복원
+# 🔴 **왜 공용인가**(`문서-56`, 2026-09-30): `build_followup_index` 가 이 처리를 안 해
+#    같은 행을 **4칸 vs 5칸**으로 달리 셌다. 규격상 이스케이프된 수직선은 **셀 안의
+#    리터럴**이라 이쪽이 맞다. ⇒ **파서를 두 개 두면 두 개가 갈린다**(`D31`).
+#    세는 쪽도 읽는 쪽도 이 함수를 쓴다.
+def split_escaped(body: str) -> list[str]:
+  """파이프로 자르되 **이스케이프된 수직선은 셀 안에 둔다**.
+
+  🔑 앞 파이프를 요구하지 않는다 — 행의 «나머지» 만 들고 있는 호출자(`build_followup_index`)도
+  같은 처리를 써야 하기 때문이다. 앞 파이프 검사는 `split_cells` 가 한다.
+
+  Args:
+      body: 표 행 또는 그 일부.
+
+  Returns:
+      셀 목록(공백 미제거, 이스케이프는 원문 그대로).
+  """
+  masked = body.replace(ESCAPED_PIPE, _PLACEHOLDER)
+  return [cell.replace(_PLACEHOLDER, ESCAPED_PIPE) for cell in masked.split("|")]
+
+
+def split_cells(line: str) -> list[str] | None:
+  """표 행 하나를 셀 목록으로 자른다.
+
+  Args:
+      line: 원본 한 줄.
+
+  Returns:
+      셀 목록(양끝 공백 제거), 표 행이 아니면 ``None``.
+  """
   body = line.strip()
   if len(body) < 2 or not body.startswith("|"):
     return None
-  masked = body.replace(ESCAPED_PIPE, _PLACEHOLDER)
-  return len(masked.strip("|").split("|"))
+  return [cell.strip() for cell in split_escaped(body.strip("|"))]
 
 
 @dataclass
