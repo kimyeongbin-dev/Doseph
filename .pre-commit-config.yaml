@@ -400,6 +400,7 @@ repos:
         name: 📁 Check Case Conflicts
       - id: mixed-line-ending
         name: 🔄 Fix Mixed Line Endings
+        args: [--fix=lf]
 
 # Global configuration
 default_stages: [pre-commit]

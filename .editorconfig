@@ -1,0 +1,30 @@
+# ── 크로스플랫폼 편집기 표준 ─────────────────────────────────────────
+# 흐름: [1] 편집기가 새 파일을 만들 때 -> [2] pre-commit 훅이 남은 것을 고침
+#       -> [3] .gitattributes 가 커밋 시 정규화
+# 세 층이 각각 다른 순간에 작동한다 — 이 파일은 [1]을 맡는다.
+#
+# 🔴 들여쓰기는 «2칸 단일» 이다(2026-09-30 사용자 결정). 파이썬도 예외가 아니다.
+#    ⚠️ PEP 8 은 4칸을 권하므로 이 저장소는 의도적으로 그 관행에서 벗어난다.
+#    이 파일만 바꾸면 ruff format 이 매 커밋 4칸으로 되돌리므로
+#    pyproject.toml 의 [tool.ruff] indent-width 를 같은 값으로 묶어 둔다.
+root = true
+
+[*]
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+indent_style = space
+indent_size = 2
+
+# 파이썬 — 폭은 [*] 에서 상속(2칸). 줄 길이만 ruff 설정과 맞춘다
+[*.py]
+max_line_length = 120
+
+# Makefile 은 탭이 문법이다
+[Makefile]
+indent_style = tab
+
+# diff·patch 는 줄 끝 공백이 의미를 가진다
+[*.{diff,patch}]
+trim_trailing_whitespace = false
