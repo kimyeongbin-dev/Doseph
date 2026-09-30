@@ -114,6 +114,9 @@ jobs:
   #       -> next build(정적 export, out/ 산출)
   # audit 는 blocking(high 이상 발견 시 RED). 2026-09-13 취약점 0건 정리 완료 후
   # report-only -> blocking 승격(Dependabot next 16.3.4 그룹머지 + npm audit fix).
+  # dev/prod 를 구분하지 않는다(--omit=dev 를 쓰지 않는다) — 빌드 체인도 공급망이고,
+  # 범위를 좁히면 「취약점이 없다」와 「볼 대상이 없다」가 같은 모양이 된다.
+  # 판정 경위와 되돌릴 조건 = docs/QUALITY_GATES.md §1-4
   frontend:
     name: Frontend (ESLint · audit · build)
     runs-on: ubuntu-latest
