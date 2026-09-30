@@ -51,25 +51,56 @@ S1 이 사본을 대부분 **없앴다**(수치 16 + 상태 표식 15칸). 그�
 """
 
 import argparse
+from collections import Counter
 from pathlib import Path
 import re
 import sys
 
-from scripts.gates._root import PRIVATE
+from scripts.gates._root import PRIVATE, REPO_ROOT
 from scripts.gates.doc.build_followup_index import build
+from scripts.gates.doc.mistake_ledger import DEFAULT_LEDGER, MarkerError, parse_ledger
 
 if hasattr(sys.stdout, "reconfigure"):
   sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-#: 마커를 찾는 문서. 🔴 직하 정본만 본다 — 닫힌 스냅샷에 마커를 넣으면 mtime 이 깨진다.
-TARGETS = ("ROADMAP.md", "FOLLOWUP_QUEUE.md", "DOC_TRUTH_DRIFT.md", "LOCAL_RESIDUE.md")
+#: 마커를 찾는 문서. 🔴 직하 정본과 층②만 본다 — 닫힌 스냅샷에 마커를 넣으면 mtime 이 깨진다.
+TARGETS = (
+  PRIVATE / "ROADMAP.md",
+  PRIVATE / "FOLLOWUP_QUEUE.md",
+  PRIVATE / "DOC_TRUTH_DRIFT.md",
+  PRIVATE / "LOCAL_RESIDUE.md",
+  PRIVATE / "AGENT_실수-오류-기록.md",
+  REPO_ROOT / "CLAUDE.md",
+)
 
 #: 🔢 바닥값 — 이 아래로 떨어지면 «못 찾음» 으로 본다(게이트 범위는 조용히 줄어든다).
-MIN_MARKERS = 1
+#: 🔴 S3 에서 층②(축 10 + 최소 핵) + 대장 절 제목 3 이 들어와 바닥이 올라갔다.
+MIN_MARKERS = 15
 
-#: 마커 이름 등록부. 값은 `build()` 의 집계에서 뽑는다.
-#: 🔴 등록되지 않은 이름은 막는다 — 오타가 «조용히 통과» 하면 그 칸은 영원히 안 채워진다.
-KNOWN = ("ledger-open",)
+#: 대장 축 이름(한글) → 마커 슬러그. 🔴 마커 이름은 ASCII 여야 한다(정규식·셸 안전).
+#: 🔑 **여기가 등록부다** — 축이 늘면 이 표에 넣어야 하고, 안 넣으면 `--fix` 가 그 칸을 모른다.
+AXIS_SLUG = {
+  "셸-원격실행": "axis-shell",
+  "배포-인프라": "axis-deploy",
+  "문서-닫기": "axis-doc",
+  "게이트-검사기": "axis-gate",
+  "git-커밋": "axis-git",
+  "파일편집": "axis-file",
+  "프론트엔드": "axis-fe",
+  "시크릿": "axis-secret",
+  "상시-측정": "axis-measure",
+  "상시-주장": "axis-claim",
+}
+
+#: 대장 §상시 세트의 두 하위 절 — 절 제목이 든 건수를 채우기 위해 행을 센다.
+ALWAYS_SECTIONS = {"core-count": "최소 핵", "always-rest": "나머지 상시"}
+
+#: 요약 표의 행. 🔴 항목 «정의» 가 아니라 **인용 행**이라 `parse_ledger` 의 관심사와 다르다.
+SUMMARY_ROW = re.compile(r"^\|\s*\*\*(D\d+)\*\*\s*\|", re.MULTILINE)
+HEADING = re.compile(r"^#{2,4}\s+(.*)$", re.MULTILINE)
+
+#: 마커 이름 등록부(문서화용). 실제 판정은 `measure()` 가 돌려주는 키로 한다.
+KNOWN = ("ledger-open", *AXIS_SLUG.values(), *ALWAYS_SECTIONS, "always-total")
 
 MARKER = re.compile(r"<!--=([a-z][a-z0-9-]*)-->")
 
@@ -118,7 +149,70 @@ def measure() -> tuple[dict[str, int], list[str]]:
   missing = [k for k in ("QA", "문서", "L") if k not in opens]
   if missing:
     return {}, [f"빌더 출력에 원장이 빠졌다 — {', '.join(missing)}"]
-  return {"ledger-open": sum(opens[k] for k in ("QA", "문서", "L"))}, []
+
+  truth = {"ledger-open": sum(opens[k] for k in ("QA", "문서", "L"))}
+  axis_truth, axis_problems = measure_ledger()
+  truth.update(axis_truth)
+  return truth, axis_problems
+
+
+# ── 대장에서 축 건수와 상시 세트를 센다 ──────────────────────────────
+# 흐름: 공용 파서로 항목 -> 축별 Counter -> 슬러그로 이름 바꿈
+#       + §최소 핵 · §나머지 상시 절의 인용 행을 세어 절 제목값을 만든다
+# 🔑 **공용 파서를 쓴다** — 여기서 정규식을 새로 짜면 `check_mistake_routing` 과
+#    «덜 엄밀한 두 번째 구현» 이 되어 두 게이트가 서로 다른 수를 말한다(`D31`).
+def measure_ledger() -> tuple[dict[str, int], list[str]]:
+  """대장에서 축별 건수와 상시 세트 건수를 센다.
+
+  Returns:
+      (값 사전, 문제 목록).
+  """
+  try:
+    ledger = parse_ledger(DEFAULT_LEDGER)
+  except (MarkerError, OSError) as exc:
+    return {}, [f"대장을 읽지 못했다 — {exc}"]
+
+  counts = Counter(entry.axis for entry in ledger.entries if entry.axis is not None)
+  problems: list[str] = []
+  truth: dict[str, int] = {}
+  for korean, slug in AXIS_SLUG.items():
+    # 🔴 fail-closed — 축 하나가 0 이면 «없다» 가 아니라 «이름이 바뀌었다» 로 본다.
+    if korean not in counts:
+      problems.append(f"대장에 축 `{korean}` 이 0건이다 — 축 이름이 바뀌었거나 파서가 어긋났다")
+      continue
+    truth[slug] = counts[korean]
+
+  text = DEFAULT_LEDGER.read_text(encoding="utf-8", errors="replace")
+  rows = section_rows(text)
+  for key, heading in ALWAYS_SECTIONS.items():
+    if heading not in rows:
+      problems.append(f"대장에 §{heading} 절이 없다 — 절 제목이 바뀌었다")
+      continue
+    truth[key] = rows[heading]
+  if not problems:
+    truth["always-total"] = sum(truth[k] for k in ALWAYS_SECTIONS)
+  return truth, problems
+
+
+# ── 절 안의 인용 행을 센다 ───────────────────────────────────────────
+# 흐름: 표제를 잘라 구간을 만들고 그 안의 `| **D##** |` 행을 센다
+def section_rows(text: str) -> dict[str, int]:
+  """표제에 이 낱말이 든 절 → 그 절의 인용 행 수.
+
+  Args:
+      text: 대장 전문.
+
+  Returns:
+      {표제 조각: 행 수}. 표제 조각은 `ALWAYS_SECTIONS` 의 값으로 찾는다.
+  """
+  marks = [(m.start(), m.group(1)) for m in HEADING.finditer(text)]
+  out: dict[str, int] = {}
+  for index, (start, title) in enumerate(marks):
+    end = marks[index + 1][0] if index + 1 < len(marks) else len(text)
+    for heading in ALWAYS_SECTIONS.values():
+      if heading in title:
+        out[heading] = len(SUMMARY_ROW.findall(text[start:end]))
+  return out
 
 
 # ── 마커 한 개의 위치 ────────────────────────────────────────────────
@@ -235,8 +329,7 @@ def main() -> int:
   errors: list[str] = []
   total = 0
   fixed: list[str] = []
-  for name in TARGETS:
-    path = PRIVATE / name
+  for path in TARGETS:
     if not path.exists():
       continue
     if args.fix:
