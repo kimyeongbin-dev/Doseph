@@ -383,6 +383,13 @@ git status --porcelain && git stash list && git log --oneline @{u}..HEAD
 테스트가 할 말이지 주석이 할 말이 아니다.
 → 게이트 정본 = `docs/QUALITY_GATES.md`
 
+### 🔗 코드 위치는 **줄 번호로 가리키지 않는다** <!-- rule:코드참조 강제:훅:code-refs 잔류:표식이 «맞는지» 는 기계가 못 본다 -->
+
+함수·클래스·상수 이름 · `QA-##` 같은 ID · 인용할 문자열 자체로 쓴다.
+🔢 줄 번호는 **조용히 썩고 «셀 수조차 없다»** — `ROADMAP` 이 *«2곳 호출»* 이라 적은 것이
+함수명으로 세니 **5곳**이었다(2026-09-30). 함수명은 `grep` 이 다시 세므로 드리프트가 드러난다.
+⚠️ 닫힌 스냅샷(`record/`·`plan/`)과 `_legacy/` 는 **그때의 사실**이라 면제다.
+
 ---
 
 ## 6-1. 작업 완료 조건 — 문서화 (Definition of Done) <!-- rule:완료조건 강제:훅:plan-archive-parity,훅:doc-meta 잔류:5개 조건 중 기계가 보는 것은 둘뿐 -->
@@ -500,6 +507,7 @@ git status --porcelain && git stash list && git log --oneline @{u}..HEAD
 | `I`·`TID252`·`F403` | import 정렬·3그룹 · **절대 import 강제** · 와일드카드 금지 |
 | `T20`·**`G004`**·**`TRY400`** | `print()` 금지 · 로그 **`%` 지연평가** · `logger.exception()` 의무 |
 | 📉 `debt-baseline` | `Any` 회피(천장 30) · top-level import(천장 26) |
+| ↵ `line-endings` · 📝 `text-mode-writes` | **워킹트리 전수 CR 금지**(미추적 `docs-private/` 포함) · 파일 쓰기에 `newline` 명시 |
 
 ### 기계가 **못** 잡는 것 — 그래서 여기 남는다 <!-- rule:스타일-수동 강제:없음 -->
 

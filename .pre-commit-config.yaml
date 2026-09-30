@@ -381,6 +381,48 @@ repos:
         stages: [pre-push]
 
   # External hooks for additional checks
+      # 줄끝 (pre-push) — 워킹트리 전수에서 CR 을 막는다. 정본 = docs/QUALITY_GATES.md
+      # 🔴 .gitattributes 와 mixed-line-ending 훅은 **추적 파일만** 본다. docs-private 은
+      #    gitignore 라 한 번도 staged 되지 않아 구조적으로 무방비였다 —
+      #    실측 2026-09-30: 추적 CRLF 0 인 상태에서 **미추적 CRLF 170건**(CR 38,953개).
+      # 🔑 확장자로 가르지 않고 NUL 로 바이너리를 판별한다(확장자 화이트리스트로 7건을 놓친 전례).
+      - id: line-endings
+        name: "↵ 줄끝 (CR 금지)"
+        entry: uv run python -m scripts.gates.code.check_line_endings
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # 텍스트 모드 쓰기 (pre-push) — CRLF 를 만드는 «원인» 쪽을 막는다
+      # 🔑 결과 게이트(line-endings)만 두면 «돌린다 → 오염 → Red → 고친다» 가 반복된다.
+      #    실증 2026-09-30: CR 을 0 으로 만든 직후 생성기를 한 번 돌리니 CRLF 212개가 즉시 돌아왔다.
+      # 🔴 전역으로 끌 방법이 없다 — open() 의 newline 기본값을 바꾸는 설정이 CPython 에 없고,
+      #    sitecustomize.py 는 uv run 에서 로드되지 않는다(실측). 남은 길은 호출마다 명시다.
+      - id: text-mode-writes
+        name: 📝 텍스트 모드 쓰기 (newline 명시)
+        entry: uv run python -m scripts.gates.code.check_text_mode_writes
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # 코드 참조 (pre-push) — 문서가 코드 위치를 «줄 번호» 로 가리키는 것을 막는다
+      # 🔑 줄 번호는 조용히 썩고 **셀 수조차 없다.** 실측 2026-09-30: ROADMAP 이 «2곳 호출» 이라
+      #    적은 것이 함수명으로 세니 5곳이었다. 함수명으로 적으면 grep 이 다시 센다.
+      # 🔴 천장 방식이다 — 신규는 막고 기존 53건은 줄어들기만 한다(서둘러 고치면 틀린 표식이 박힌다).
+      #    축 폴더·_legacy 는 «그때의 사실» 이라 면제한다(FILING §12-1).
+      - id: code-refs
+        name: 🔗 코드 참조 (줄 번호 금지)
+        entry: uv run python -m scripts.gates.doc.check_code_refs
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
