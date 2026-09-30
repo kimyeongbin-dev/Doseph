@@ -222,6 +222,7 @@ def main() -> int:
     BASELINE_PATH.write_text(
       json.dumps(current, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
       encoding="utf-8",
+      newline="\n",
     )
     total_missing = sum(current.values())
     print(f"✅ baseline 갱신 — 파일 {len(current)}개 · 미커버 합계 {total_missing}줄 -> {BASELINE_PATH.name}")

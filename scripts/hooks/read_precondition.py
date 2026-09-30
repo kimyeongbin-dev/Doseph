@@ -121,7 +121,7 @@ def decide(payload: dict[str, object]) -> dict[str, object] | None:
       m = marker_path(session, GATED_DOC)
       m.parent.mkdir(parents=True, exist_ok=True)
       # 🔑 `touch()` 가 아니라 **비운다** — 앞서 새겨진 «압축됨» 을 걷어내야 한다(`QA-50`).
-      m.write_text("", encoding="utf-8")
+      m.write_text("", encoding="utf-8", newline="\n")
     return None
 
   # ② Write/Edit — docs-private 의 문서를 고칠 때만 묻는다.
@@ -207,7 +207,7 @@ def reset_after_compaction(session_id: str) -> int:
     (folder / INJECTED).unlink(missing_ok=True)  # 없어도 죽지 않는다 — 압축이 두 번 와도 안전
     read_marker = folder / GATED_DOC
     if read_marker.exists():
-      read_marker.write_text(COMPACTED, encoding="utf-8")
+      read_marker.write_text(COMPACTED, encoding="utf-8", newline="\n")
   return 0
 
 

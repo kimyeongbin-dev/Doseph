@@ -80,7 +80,7 @@ def make_pkg(tmp_path: Path, rel: str, files: dict[str, str]) -> Path:
   folder = tmp_path / rel
   folder.mkdir(parents=True)
   for name, body in files.items():
-    (folder / name).write_text(body, encoding="utf-8")
+    (folder / name).write_text(body, encoding="utf-8", newline="\n")
   return tmp_path
 
 
@@ -119,7 +119,7 @@ def test_frontend_routes_come_from_page_files(tmp_path: Path) -> None:
   root = tmp_path
   for rel in ("src/app", "src/app/medication", "src/app/medication/detail"):
     (root / "medication-frontend" / rel).mkdir(parents=True, exist_ok=True)
-    (root / "medication-frontend" / rel / "page.jsx").write_text("x", encoding="utf-8")
+    (root / "medication-frontend" / rel / "page.jsx").write_text("x", encoding="utf-8", newline="\n")
 
   axis = collect_frontend_routes(root)
 

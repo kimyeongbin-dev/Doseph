@@ -299,7 +299,7 @@ def main() -> int:
     print(f"✅ 후속 과제 색인 정합 — {tally} · 총 {sum(counts.values())}건.")
     return 0
 
-  INDEX.write_text(content, encoding="utf-8")
+  INDEX.write_text(content, encoding="utf-8", newline="\n")
   print(f"✅ 생성 — {INDEX.name} · {tally} · 총 {sum(counts.values())}건.")
   return 0
 

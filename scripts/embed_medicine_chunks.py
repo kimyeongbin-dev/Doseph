@@ -607,7 +607,7 @@ async def _submit_batch_and_wait(
   # 1. JSONL 파일 작성 (file IO — async 안에서 sync open 사용은 1회성 short-lived 라 OK)
   jsonl_path = Path("/tmp/embed_batch_input.jsonl")
   body = "\n".join(json.dumps(req, ensure_ascii=False) for req in requests) + "\n"
-  jsonl_path.write_text(body, encoding="utf-8")  # noqa: ASYNC240  # 1회성 short-lived
+  jsonl_path.write_text(body, encoding="utf-8", newline="\n")  # noqa: ASYNC240  # 1회성 short-lived
   logger.info("[Batch] JSONL written: %d requests, path=%s", len(requests), jsonl_path)
 
   # 2. 파일 업로드

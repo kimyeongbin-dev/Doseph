@@ -61,7 +61,7 @@ def locate(text: str) -> tuple[list[str], dict[str, int], int]:
   workspace = Path(tempfile.mkdtemp(prefix="locate-"))
   try:
     sample = workspace / "l.md"
-    sample.write_text(text, encoding="utf-8")
+    sample.write_text(text, encoding="utf-8", newline="\n")
     ledger = parse_ledger(sample)
   finally:
     shutil.rmtree(workspace, ignore_errors=True)
@@ -149,13 +149,13 @@ def main() -> int:
   try:
     # ⓪ 하네스가 살아 있나 — 여기서 실패하면 아래 결과는 전부 무의미하다.
     pristine = workspace / "pristine.md"
-    pristine.write_text(original, encoding="utf-8")
+    pristine.write_text(original, encoding="utf-8", newline="\n")
     assert_doc_harness_live(GATE, pristine)
 
     rows: list[tuple[str, int, int]] = []
     for index, (name, text, expected) in enumerate(build_cases(original)):
       sample = workspace / f"case{index}.md"
-      sample.write_text(text, encoding="utf-8")
+      sample.write_text(text, encoding="utf-8", newline="\n")
       rows.append((name, run_doc_gate(GATE, sample), expected))
   finally:
     shutil.rmtree(workspace, ignore_errors=True)

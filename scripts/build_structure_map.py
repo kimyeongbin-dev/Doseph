@@ -458,7 +458,7 @@ def main() -> int:
     print(text)
     return 0
   out = Path(args.out)
-  out.write_text(text, encoding="utf-8")
+  out.write_text(text, encoding="utf-8", newline="\n")
   # 🔑 **센 것을 그대로 인쇄한다.** 마크다운을 다시 파싱하지 않는다(`D52`).
   summary = " · ".join(f"{a.name} {a.count}" for a in axes)
   print(f"✅ 구조 지도 — {summary}")

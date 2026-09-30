@@ -133,7 +133,7 @@ def assert_harness_live(probe: Path, canary_source: str, rule: str) -> None:
       AssertionError: 표식이 이미 있거나, 카나리아가 안 잡힐 때(= 검사 구역 밖).
   """
   assert not probe.exists(), f"🔴 이름 충돌 — {probe} 를 덮을 뻔했다"
-  probe.write_text(canary_source, encoding="utf-8")
+  probe.write_text(canary_source, encoding="utf-8", newline="\n")
   try:
     seen = ruff_count(rule)
   finally:
