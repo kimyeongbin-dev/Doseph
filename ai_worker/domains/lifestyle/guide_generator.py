@@ -87,16 +87,18 @@ async def generate_guide_payload(
   last_error: ValueError | None = None
   for attempt in range(_MAX_GENERATE_RETRIES):
     seed = (base_seed + attempt) & 0x7FFFFFFF
-    raw_json = await _call_llm(prompt, client, seed=seed)
+    # 🔑 재시도 대상은 **스키마 위반(ValidationError)** 만이다.
+    #    `OpenAIError` 는 `_call_llm` 이 `ValueError` 로 정규화해 **즉시 전파**한다 —
+    #    호출 자체가 실패한 것을 seed 를 바꿔 다시 불러도 같다(승격 전 동작 보존).
     try:
-      parsed = _parse_response(raw_json)
-    except ValueError as exc:
-      last_error = exc
+      parsed = await _call_llm(prompt, client, seed=seed)
+    except ValidationError as exc:
+      last_error = ValueError(f"가이드 생성 실패: LLM 응답 파싱 오류 — {exc}")
       logger.warning(
         "[GUIDE] attempt %d/%d 실패 — %s. 재시도 (seed=%d).",
         attempt + 1,
         _MAX_GENERATE_RETRIES,
-        exc,
+        last_error,
         seed,
       )
       continue
@@ -108,13 +110,33 @@ async def generate_guide_payload(
   raise last_error
 
 
-async def _call_llm(prompt: str, client: AsyncOpenAI, *, seed: int) -> str:
-  """OpenAI ``chat.completions`` json_object 호출 (deterministic 강화)."""
+async def _call_llm(prompt: str, client: AsyncOpenAI, *, seed: int) -> LlmGuideResponse:
+  """OpenAI ``chat.completions`` **Structured Output** 호출 (deterministic 강화).
+
+  🔑 `json_object` 에서 승격했다(`QA-07` ②, 2026-10-07) — 전자는 *«JSON 이기만 하면
+  된다»* 라 필드 이름·타입을 모델이 지킬 의무가 없었다. 이제 스키마를 보내므로 모델이
+  지키고, SDK 가 `LlmGuideResponse` 로 검증까지 한다.
+
+  🔴 **챌린지 15개 룰은 스키마로 보내지 않는다** — strict 모드가 `minItems` 를 미지원이라
+  DTO 의 `field_validator` 가 맡고, 위반은 호출자의 **재시도 루프**가 받는다.
+
+  Args:
+      prompt: 빌드된 프롬프트.
+      client: 호출자가 소유하는 AsyncOpenAI 클라이언트.
+      seed: 결정성 seed.
+
+  Returns:
+      검증된 ``LlmGuideResponse``.
+
+  Raises:
+      ValueError: OpenAI 호출 실패 — 재시도 대상이 **아니다**.
+      ValidationError: 응답이 스키마를 어김 — 호출자가 seed 를 바꿔 재시도한다.
+  """
   try:
-    response = await client.chat.completions.create(
+    response = await client.beta.chat.completions.parse(
       model=LIFESTYLE_GUIDE_MODEL,
       messages=[{"role": "user", "content": prompt}],
-      response_format={"type": "json_object"},
+      response_format=LlmGuideResponse,
       temperature=_LLM_TEMPERATURE,
       seed=seed,
     )
@@ -124,16 +146,12 @@ async def _call_llm(prompt: str, client: AsyncOpenAI, *, seed: int) -> str:
         seed,
         response.system_fingerprint,
       )
-    return response.choices[0].message.content or ""
+    parsed = response.choices[0].message.parsed
+    if parsed is None:
+      # 거절(refusal) — 스키마 위반과 같은 취급으로 재시도에 맡긴다.
+      msg = "LLM 이 가이드 스키마를 돌려주지 않았다 (거절 가능)"
+      raise ValueError(msg)
+    return parsed
   except OpenAIError as e:
     logger.exception("[GUIDE] GPT 호출 실패")
     raise ValueError(f"가이드 생성 실패: LLM 호출 오류 — {e}") from e
-
-
-def _parse_response(raw_json: str) -> LlmGuideResponse:
-  """Validate raw GPT JSON string into typed ``LlmGuideResponse``."""
-  try:
-    return LlmGuideResponse.model_validate_json(raw_json)
-  except (ValidationError, ValueError) as e:
-    logger.warning("[GUIDE] GPT 응답 파싱 실패 — %s", e)
-    raise ValueError(f"가이드 생성 실패: LLM 응답 파싱 오류 — {e}") from e
