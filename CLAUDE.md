@@ -245,7 +245,7 @@ All feature development and session tasks MUST follow this loop. This project fo
 | `파일편집` | 스크립트로 파일을 고칠 때 (4건)<!--=axis-file--> |
 | `프론트엔드` | FE 코드·테스트를 만질 때 (2건)<!--=axis-fe--> |
 | `시크릿` | `.env`·토큰·키를 다룰 때 (1건)<!--=axis-secret--> |
-| `상시-측정` | **항상** — 무엇이든 셀 때 (9건)<!--=axis-measure--> |
+| `상시-측정` | **항상** — 무엇이든 셀 때 (10건)<!--=axis-measure--> |
 | `상시-주장` | **항상** — 무엇이든 주장·확인할 때 (14건)<!--=axis-claim--> |
 
 <!-- 실수대장-라우팅 끝 -->
