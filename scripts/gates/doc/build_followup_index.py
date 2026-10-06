@@ -46,6 +46,10 @@ ROW = re.compile(r"^\|\s*\*\*([A-Z가-힣]+-?\d+)[^*|]*\*\*[^|]*\|(.*)$", re.MUL
 HEAD = re.compile(r"^#{2,4}\s+(QA-\d+|문서-\d+)\s*[—-]\s*(.+)$", re.MULTILINE)
 #: 트랙 B 의 단계 표 — `| 9 | **문서 정독·분류** | 🔵 진행 중 |`
 BSTEP = re.compile(r"^\|\s*\*{0,2}(\d{1,2})\*{0,2}\s*\|([^|]+)\|([^|]*)\|", re.MULTILINE)
+#: 트랙 A 의 「한눈에 보기」 표 — `| v2.3 | 테마 | 중 | 상태 | 종료 기준 |`
+#: 🔴 `ROW` 로는 못 잡는다 — 그 패턴은 **굵은 ID**(`| **C-6** |`)를 요구하는데 이 표는 굵게가 아니다.
+#:    2026-10-06 실측: 이 꼴은 저장소에서 **8행 전부 「한눈에 보기」 절**에만 있다(유일하다).
+AROW = re.compile(r"^\|\s*(v2\.\d)\s*\|(.*)$", re.MULTILINE)
 
 NOISE = re.compile(r"\*\*|`|<br>|[🔴🟠🟡🟢🔵⬜✅⚠️🔑⭐📦⏸⛔🆕🟦🧱🧪🔁]")
 
@@ -70,7 +74,9 @@ NOISE = re.compile(r"\*\*|`|<br>|[🔴🟠🟡🟢🔵⬜✅⚠️🔑⭐📦⏸
 #: ⚠️ 2026-09-22 (B-11 S2): QA 36->37(QA-51) · 37->38(QA-52 — debt-baseline 천장의 내용물)
 #: ⚠️ 2026-09-22 (B-11 닫은 뒤): 문서 27->28(문서-31 — 색인이 «미해결» 을 못 센다)
 #:    · ROADMAP 19->21(B-12 AGENTS.md 재배치 · B-13 예방기 열)
-FLOORS = {"QA": 41, "문서": 37, "L": 13, "ROADMAP": 20, "B": 14}
+#: ⚠️ 2026-10-06 (`문서-55`): **트랙 A 를 세기 시작했다**(8단계 · v2.0~v2.7). 그전까지 빌더는
+#:    그 표를 **아예 안 봤다** — *«열린 것 전체»* 라고 부르면서 한 트랙이 통째로 빠져 있었다.
+FLOORS = {"QA": 41, "문서": 37, "L": 13, "A": 8, "ROADMAP": 20, "B": 14}
 
 
 #: 🔴 **항목 상태 어휘 — 텍스트 값이다. 이모지로 태깅하지 않는다**(사용자 지시 2026-09-22).
@@ -84,7 +90,10 @@ CLOSED_TOKENS = frozenset({"완료", "보냄", "기각"})
 #: ⚠️ **문서 `status: pending` 과 이름이 겹치지 않게 갈랐다** — 항목 상태는 **`보류`**,
 #:    문서 생애주기는 **`pending`**(`FILING` §8 이 *«이름이 겹치지 않게»* 를 절 제목으로 단 문서다).
 PENDING = "보류"
-STATUS_TOKENS = CLOSED_TOKENS | {OPEN, PENDING, "부분"}
+#: 🔴 **`진행` 도 «열림» 이다** (2026-10-06, `문서-55`). 트랙 A 의 *«진행 중»* 을 받기 위해 넣었다 —
+#:    원장 3종에는 이 상태가 없었다(항목은 열렸거나 닫혔거나다). **트랙은 «구간» 이라 중간이 있다.**
+PROGRESS = "진행"
+STATUS_TOKENS = CLOSED_TOKENS | {OPEN, PENDING, PROGRESS, "부분"}
 STATUS_RE = re.compile(r"`(" + "|".join(sorted(STATUS_TOKENS)) + r")`")
 
 #: 절로 열림/닫힘이 갈리는 원장 — 표가 아니라 **구조**가 상태를 말한다.
@@ -156,6 +165,63 @@ def open_count(rows: list[tuple[str, list[str]]], ledger: str) -> tuple[int, str
   return opened, None
 
 
+# ── 트랙 A 수집 ──────────────────────────────────────────────────────
+# 흐름: 「한눈에 보기」 행 -> 칸 분리 -> (ID, [테마, **상태**])
+# 🔑 **상태를 마지막 셀에 둔다** — `track_open_count` 가 칸 위치를 추측하지 않게.
+# 🔴 **`tidy()` 를 여기서 걸지 않는다.** 그 함수는 백틱을 지우므로(`NOISE`) 상태 토큰
+#    ``` `완료` ``` 가 ``` 완료 ``` 가 되어 **판정기가 못 찾는다.** 표시용 축약은 `table()` 이 한다.
+def collect_track_a(body: str) -> tuple[list[tuple[str, list[str]]], list[str]]:
+  """「한눈에 보기」 8행을 (ID, [테마, 상태]) 로 모은다.
+
+  Args:
+      body: ``ROADMAP.md`` 전문.
+
+  Returns:
+      (행 목록, 문제 목록).
+  """
+  rows: list[tuple[str, list[str]]] = []
+  problems: list[str] = []
+  for ident, rest in AROW.findall(body):
+    cells = [c.strip() for c in split_escaped(rest)]
+    # 칸 = 테마 / 크기 / 상태 / 종료 기준 (+ 끝 파이프 뒤 빈칸)
+    if len(cells) < 4:
+      problems.append(f"트랙 A `{ident}` 의 칸이 {len(cells)}개다 — 상태 칸을 특정할 수 없다")
+      continue
+    rows.append((ident, [cells[0], cells[2]]))
+  return rows, problems
+
+
+# ── 트랙의 열림 판정 ────────────────────────────────────────────────
+# 흐름: 상태 셀(**마지막 칸**)에서 토큰 -> 닫힘 어휘에 없으면 열림
+# 🔴 **원장(`open_count`)과 한 함수로 합치지 않는다** — 신호가 다르다. 원장은 «절» 이나
+#    «행 토큰» 으로 갈리고(§C·§A·행마다), 트랙은 **전부 행 토큰**이다. 합치면 분기가 늘어
+#    어느 쪽도 읽기 어려워진다(설계 판단 2026-10-06 · Architect 관점).
+# 🔑 **상태를 마지막 칸으로 정규화해 수집한다** — 그래야 여기서 칸 위치를 추측하지 않는다.
+#    트랙마다 열 수가 다르다(A 5열 · B 3열 · C 4열).
+def track_open_count(rows: list[tuple[str, list[str]]], label: str) -> tuple[int, str | None]:
+  """(열린 건수, 문제 메시지 또는 None). 상태 칸은 ``cells[-1]`` 이다.
+
+  Args:
+      rows: (ID, 셀 목록). 마지막 셀이 상태여야 한다.
+      label: 실패 메시지에 쓰는 트랙 이름.
+
+  Returns:
+      (열린 건수, 문제 메시지 또는 None).
+  """
+
+  def token(cells: list[str]) -> str | None:
+    found = STATUS_RE.search(cells[-1]) if cells else None
+    return found.group(1) if found else None
+
+  # 🔴 fail-closed — 토큰 없는 행이 하나라도 있으면 «열림» 수를 믿을 수 없다.
+  #    트랙 표는 상태를 **이모지·산문**으로 말해 온 자리라, 이 검사가 그 복귀를 막는다.
+  missing = [ident for ident, cells in rows if token(cells) is None]
+  if missing:
+    head = " · ".join(missing[:8]) + (" …" if len(missing) > 8 else "")
+    return 0, f"상태 토큰이 없는 {label} {len(missing)}건 — {head}"
+  return sum(1 for _, cells in rows if token(cells) not in CLOSED_TOKENS), None
+
+
 # ── 트랙 B 구간 잘라내기 ─────────────────────────────────────────────
 # 흐름: `## 트랙 B` 부터 **다음 `## `** 까지 — 하위 절(`###`·`####`)은 그 안에 남긴다
 # 🔴 예전엔 `split("###")[0]` 로 잘랐는데, 트랙 B 머리에 `####` 대응표가 들어오자
@@ -179,8 +245,8 @@ def track_b_block(roadmap: str) -> str:
 
 # ── 색인 본문 생성 ──────────────────────────────────────────────────
 # 흐름: 5개 원장 긁기 -> 바닥값 대조 -> 마크다운 조립
-def build() -> tuple[str, dict[str, int]]:
-  """(색인 본문, 원장별 건수)."""
+def build() -> tuple[str, dict[str, int], dict[str, int], list[str]]:
+  """(색인 본문, 원장별 등재 수, 원장별 열림 수, 문제 목록)."""
   qa = scrape("FOLLOWUP_QUEUE.md", "QA-")
   docs = scrape("DOC_TRUTH_DRIFT.md", "문서-")
   local = scrape("LOCAL_RESIDUE.md", "L-")
@@ -194,15 +260,31 @@ def build() -> tuple[str, dict[str, int]]:
     }.items(),
     key=lambda kv: (kv[0].split("-")[0], int(kv[0].split("-")[1])),
   )
-  btrack = [
-    (f"B-{num}", [tidy(title), tidy(state, 60)]) for num, title, state in BSTEP.findall(track_b_block(roadmap_body))
-  ]
+  # 🔴 `tidy()` 를 걸지 않는다 — 백틱이 지워져 상태 토큰을 못 읽는다. 축약은 `table()` 몫이다.
+  btrack = [(f"B-{num}", [title, state]) for num, title, state in BSTEP.findall(track_b_block(roadmap_body))]
+  atrack, problems = collect_track_a(roadmap_body)
 
-  counts = {"QA": len(qa), "문서": len(docs), "L": len(local), "ROADMAP": len(tracks), "B": len(btrack)}
+  counts = {
+    "QA": len(qa),
+    "문서": len(docs),
+    "L": len(local),
+    "A": len(atrack),
+    "ROADMAP": len(tracks),
+    "B": len(btrack),
+  }
   opens: dict[str, int] = {}
-  problems: list[str] = []
   for key, rows in (("QA", qa), ("문서", docs), ("L", local)):
     opened, why = open_count(rows, key)
+    opens[key] = opened
+    if why:
+      problems.append(why)
+  # 🔑 트랙은 **별 판정기**로 센다(신호가 다르다 — 전부 행 토큰이다). 2026-10-06 `문서-55`.
+  for key, rows, label in (
+    ("A", atrack, "트랙 A"),
+    ("ROADMAP", tracks, "트랙 C·OCR·ARCH"),
+    ("B", btrack, "트랙 B"),
+  ):
+    opened, why = track_open_count(rows, label)
     opens[key] = opened
     if why:
       problems.append(why)
@@ -250,8 +332,16 @@ def build() -> tuple[str, dict[str, int]]:
   table("🧪 QA — 테스트·검증·게이트", qa, "docs-private/FOLLOWUP_QUEUE.md")
   table("📄 문서-N — 문서↔현실 어긋남", docs, "docs-private/DOC_TRUTH_DRIFT.md")
   table("💾 L-N — git 밖 로컬 잔재", local, "docs-private/LOCAL_RESIDUE.md")
+  table("🚀 트랙 A — 제품 (v2.x)", atrack, "docs-private/ROADMAP.md")
   table("🗺️ 트랙 C · OCR · ARCH", tracks, "docs-private/ROADMAP.md")
   table("🧱 트랙 B — 정리·강화", btrack, "docs-private/ROADMAP.md")
+
+  ledger_keys = ("QA", "문서", "L")
+  track_keys = ("A", "ROADMAP", "B")
+  ledger_open = sum(opens[k] for k in ledger_keys)
+  track_open = sum(opens[k] for k in track_keys)
+  ledger_total = sum(counts[k] for k in ledger_keys)
+  track_total = sum(counts[k] for k in track_keys)
 
   out += [
     "---",
@@ -260,11 +350,23 @@ def build() -> tuple[str, dict[str, int]]:
     "",
     "| 원장 | 등재 | **열림** | 바닥값 |",
     "|---|---:|---:|---:|",
-    *[f"| {k} | {v} | {opens.get(k, chr(8212))} | {FLOORS[k]} |" for k, v in counts.items()],
-    f"| **총합** | **{sum(counts.values())}** | **{sum(opens.values())}**(QA·문서·L) | |",
+    *[f"| {k} | {v} | {opens[k]} | {FLOORS[k]} |" for k, v in counts.items()],
+    f"| **원장 소계**(QA·문서·L) | {ledger_total} | **{ledger_open}** | |",
+    f"| **트랙 소계**(A·B·C) | {track_total} | **{track_open}** | |",
+    f"| **총합** | **{sum(counts.values())}** | **{sum(opens.values())}** | |",
     "",
     '> 🔢 **바닥값 아래로 떨어지면 게이트가 막는다** — *0건은 "없다"가 아니라 "못 셌다"이다.*',
     "> 줄어든 것도 실패로 본다(대장 **D31** — `check_utf8_guard` 가 11건→1건이 되고도 초록이었다).",
+    ">",
+    "> 🔑 **소계를 둘로 가른 이유**: 🧱 `check_doc_markers` 의 `ledger-open` 마커가 담는 것은",
+    "> **원장 소계**다. 둘을 한 수로 합치면 그 마커가 무엇을 뜻하는지 알 수 없어진다 —",
+    "> *«열린 것 전체»* 라고 부르면서 트랙을 손으로 유지하다 하루에 네 번 썩은 자리가 그것이다",
+    "> (`문서-44` · B-15). **이름이 담는 범위를 표가 보여 준다.**",
+    ">",
+    "> 🆕 **2026-10-06 — 트랙 A·B·C 를 세기 시작했다**(`문서-55`). 그전까지 이 칸은 `—` 였다:",
+    "> 트랙 표가 상태를 **이모지·산문**으로 말해 `🔶 2구간 완료 … 3구간 남음` 처럼 *«완료» 가",
+    "> 들어 있는데 열려 있는* 행이 있었다(`D47`). 43행을 **행마다 사람이 판정**해 텍스트 어휘로",
+    "> 바꾸고 나서야 셀 수 있게 됐다.",
     "",
   ]
   return "\n".join(out), counts, opens, problems

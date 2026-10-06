@@ -24,11 +24,17 @@ S1 이 사본을 대부분 **없앴다**(수치 16 + 상태 표식 15칸). 그�
 
 🔴 이 게이트가 **하지 않는 것**
 -------------------------------
-- **트랙(A·B·C)의 «열림» 은 세지 않는다.** 그 표들은 상태를 이모지·산문으로 말하고,
-  `🔶 2구간 완료 … 3구간 남음` 처럼 **«완료» 가 들어 있는데 열려 있는** 행이 있다 —
-  문자열로 세면 틀린다(`D47`). 빌더가 그래서 안 센다. ⇒ 마커가 담는 것은
-  **원장 3종(`QA`·`문서-N`·`L-N`)의 열림**이고, 이름도 `ledger-open` 이다.
-  트랙까지 세려면 **먼저 그 표의 상태를 텍스트 어휘로 바꿔야 한다**(→ `문서-55`).
+- **값을 판정하지 않는다** (아래 참조). 그리고 마커 하나가 *«열린 것 전체»* 를 담지 않는다 —
+  **이름이 범위를 말한다**(`ledger-open` · `track-open` · `total-open`).
+
+  🆕 **2026-10-06 (`문서-55`) — 트랙도 센다.** 그전까지 이 게이트는 원장 3종만 담았다:
+  트랙 표가 상태를 **이모지·산문**으로 말해 `🔶 2구간 완료 … 3구간 남음` 처럼 *«완료» 가
+  들어 있는데 열려 있는* 행이 있었고, 문자열로 세면 틀렸다(`D47`). 43행을 **행마다 사람이
+  판정**해 텍스트 어휘로 바꾸고 빌더에 트랙 판정기를 붙인 뒤에야 셀 수 있게 됐다.
+
+  🔴 **그래도 한 수로 합치지 않았다.** *«열린 것 전체»* 라는 이름으로 손으로 유지하다
+  하루에 네 번 썩은 자리가 바로 그것이다(`문서-44`) — **무엇을 포함하는지가 이름에 없으면
+  읽는 사람이 범위를 추측한다.**
 - **값을 판정하지 않는다.** 빌더가 센 수를 옮길 뿐이다. 빌더가 틀리면 여기도 틀린다.
 
 무엇을 막나
@@ -75,7 +81,8 @@ TARGETS = (
 
 #: 🔢 바닥값 — 이 아래로 떨어지면 «못 찾음» 으로 본다(게이트 범위는 조용히 줄어든다).
 #: 🔴 S3 에서 층②(축 10 + 최소 핵) + 대장 절 제목 3 이 들어와 바닥이 올라갔다.
-MIN_MARKERS = 15
+#: ⚠️ 2026-10-06 (`문서-55`): 15 -> 17 — `track-open`·`total-open` 신설.
+MIN_MARKERS = 17
 
 #: 대장 축 이름(한글) → 마커 슬러그. 🔴 마커 이름은 ASCII 여야 한다(정규식·셸 안전).
 #: 🔑 **여기가 등록부다** — 축이 늘면 이 표에 넣어야 하고, 안 넣으면 `--fix` 가 그 칸을 모른다.
@@ -92,6 +99,10 @@ AXIS_SLUG = {
   "상시-주장": "axis-claim",
 }
 
+#: 빌더가 돌려주는 열림 사전의 키. 🔴 **원장과 트랙을 가른다** — 마커 이름이 그 경계다.
+LEDGER_KEYS = ("QA", "문서", "L")
+TRACK_KEYS = ("A", "ROADMAP", "B")
+
 #: 대장 §상시 세트의 두 하위 절 — 절 제목이 든 건수를 채우기 위해 행을 센다.
 ALWAYS_SECTIONS = {"core-count": "최소 핵", "always-rest": "나머지 상시"}
 
@@ -100,7 +111,7 @@ SUMMARY_ROW = re.compile(r"^\|\s*\*\*(D\d+)\*\*\s*\|", re.MULTILINE)
 HEADING = re.compile(r"^#{2,4}\s+(.*)$", re.MULTILINE)
 
 #: 마커 이름 등록부(문서화용). 실제 판정은 `measure()` 가 돌려주는 키로 한다.
-KNOWN = ("ledger-open", *AXIS_SLUG.values(), *ALWAYS_SECTIONS, "always-total")
+KNOWN = ("ledger-open", "track-open", "total-open", *AXIS_SLUG.values(), *ALWAYS_SECTIONS, "always-total")
 
 MARKER = re.compile(r"<!--=([a-z][a-z0-9-]*)-->")
 
@@ -146,11 +157,14 @@ def measure() -> tuple[dict[str, int], list[str]]:
   _content, _counts, opens, problems = build()
   if problems:
     return {}, [f"빌더가 열림을 못 셌다 — {p}" for p in problems]
-  missing = [k for k in ("QA", "문서", "L") if k not in opens]
+  missing = [k for k in (*LEDGER_KEYS, *TRACK_KEYS) if k not in opens]
   if missing:
     return {}, [f"빌더 출력에 원장이 빠졌다 — {', '.join(missing)}"]
 
-  truth = {"ledger-open": sum(opens[k] for k in ("QA", "문서", "L"))}
+  # 🔑 **이름이 범위다** — 하나로 합치면 그 수가 무엇을 세는지 알 수 없어진다(`D43`).
+  ledger = sum(opens[k] for k in LEDGER_KEYS)
+  track = sum(opens[k] for k in TRACK_KEYS)
+  truth = {"ledger-open": ledger, "track-open": track, "total-open": ledger + track}
   axis_truth, axis_problems = measure_ledger()
   truth.update(axis_truth)
   return truth, axis_problems
