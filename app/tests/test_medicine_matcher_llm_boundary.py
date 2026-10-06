@@ -70,7 +70,9 @@ def _route(payload: dict[str, Any]) -> respx.Route:
 
 def _sent(route: respx.Route, call: int = 0) -> dict[str, Any]:
   """실제로 **전송된** 요청 본문."""
-  return json.loads(route.calls[call].request.content)
+  # 🔑 `json.loads` 는 `Any` 를 돌려주므로 선언 타입으로 **좁혀서** 반환한다(MyPy `no-any-return`).
+  sent: dict[str, Any] = json.loads(route.calls[call].request.content)
+  return sent
 
 
 @pytest.fixture(autouse=True)
