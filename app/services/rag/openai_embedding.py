@@ -22,6 +22,7 @@ import logging
 from openai import APIConnectionError, APITimeoutError, AsyncOpenAI, RateLimitError
 
 from app.core.config import config
+from app.core.logger import log_boundary
 from app.services.rag.config import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL_NAME
 from app.services.tools.retry import retry_async
 
@@ -57,21 +58,23 @@ def _get_client() -> AsyncOpenAI | None:
 
 @retry_async(retryable=_RETRYABLE)
 async def _embed_one(client: AsyncOpenAI, query: str) -> list[float]:
-  response = await client.embeddings.create(
-    model=EMBEDDING_MODEL_NAME,
-    input=query,
-    dimensions=EMBEDDING_DIMENSIONS,
-  )
+  async with log_boundary(logger, "openai_embeddings", model=EMBEDDING_MODEL_NAME, inputs=1):
+    response = await client.embeddings.create(
+      model=EMBEDDING_MODEL_NAME,
+      input=query,
+      dimensions=EMBEDDING_DIMENSIONS,
+    )
   return list(response.data[0].embedding)
 
 
 @retry_async(retryable=_RETRYABLE)
 async def _embed_batch(client: AsyncOpenAI, queries: list[str]) -> list[list[float]]:
-  response = await client.embeddings.create(
-    model=EMBEDDING_MODEL_NAME,
-    input=queries,
-    dimensions=EMBEDDING_DIMENSIONS,
-  )
+  async with log_boundary(logger, "openai_embeddings", model=EMBEDDING_MODEL_NAME, inputs=len(queries)):
+    response = await client.embeddings.create(
+      model=EMBEDDING_MODEL_NAME,
+      input=queries,
+      dimensions=EMBEDDING_DIMENSIONS,
+    )
   # response.data 는 input 순서 그대로 반환 (OpenAI 명세 보장)
   return [list(d.embedding) for d in response.data]
 

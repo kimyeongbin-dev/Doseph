@@ -7,6 +7,7 @@ from tortoise import Tortoise
 
 from ai_worker.core.openai_client import get_openai_client
 from app.core.llm_models import MEDICINE_MATCHER_MODEL
+from app.core.logger import log_boundary
 from app.db.databases import TORTOISE_ORM
 from app.dtos.ocr import ExtractedMedicine, OcrLlmExtraction
 from app.repositories.medicine_info_repository import MedicineInfoRepository
@@ -189,12 +190,13 @@ async def _extract_medicines_with_llm(raw_text: str) -> list[dict]:
     # 🔑 `parse` + Pydantic 스키마 — `json_object` 에서 승격했다(`QA-07` ②, 2026-10-07).
     #    `json_object` 는 «JSON 이기만 하면 된다» 라 필드 이름·타입을 모델이 지킬 의무가
     #    없었다. 이제 스키마를 보내므로 모델이 지키고, SDK 가 검증까지 한다.
-    response = await client.beta.chat.completions.parse(
-      model=MEDICINE_MATCHER_MODEL,
-      messages=[{"role": "user", "content": prompt}],
-      response_format=OcrLlmExtraction,
-      temperature=0.0,
-    )
+    async with log_boundary(logger, "openai_ocr_extract", model=MEDICINE_MATCHER_MODEL):
+      response = await client.beta.chat.completions.parse(
+        model=MEDICINE_MATCHER_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        response_format=OcrLlmExtraction,
+        temperature=0.0,
+      )
     parsed = response.choices[0].message.parsed
     if parsed is None:
       # 거절(refusal) 이나 스키마 미충족 — 호출자는 빈 목록을 fallback 으로 받는다.

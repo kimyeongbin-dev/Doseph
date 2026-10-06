@@ -18,6 +18,7 @@
 """
 
 import json
+import logging
 from typing import Any
 
 import httpx
@@ -130,6 +131,33 @@ class TestRequestContract:
     route = _route({"items": [_ITEM]})
     await _extract_medicines_with_llm("쿠파린정 2mg 1일 3회")
     assert "쿠파린정 2mg 1일 3회" in _sent(route)["messages"][0]["content"]
+
+  @pytest.mark.asyncio
+  @respx.mock
+  async def test_the_boundary_log_actually_runs(
+    self, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+  ) -> None:
+    """🔴 `QA-07` ④ 의 계약 — **부착이 아니라 «실행» 을 단언한다**.
+
+    2구간이 적어 둔 경고가 이것이다: *«`log_boundary` 를 OpenAI 경계에 부착해도 래퍼를
+    `AsyncMock` 으로 바꾸면 한 번도 실행되지 않는다»*. respx 는 **httpx 레벨**에서
+    가로채므로 경계를 감싼 코드가 **실제로 지나간다.**
+
+    🔑 이 단언이 없으면 ④ 는 영원히 미지다 — *«붙였다»* 와 *«돈다»* 를 구분할 수 없다.
+
+    🔴 **`caplog` 만으로는 아무것도 안 보인다**(`D49` 가 적어 둔 함정).
+    `setup_logger` 가 부모 로거(`ai_worker`)에 **`propagate = False`** 를 걸어 중복 출력을
+    막는데, pytest 의 `caplog` 은 **root 에** 핸들러를 붙인다 — 레코드가 부모에서 멈춘다.
+    ⇒ 그 한 줄을 켜 주어야 **캡처가 실제로 일어난다.** 실제로 켜기 전에는 4건 전부
+    Red 였고, 그 Red 가 *«캡처가 되는지»* 를 증명했다.
+    """
+    monkeypatch.setattr(logging.getLogger("ai_worker"), "propagate", True)
+    _route({"items": [_ITEM]})
+    with caplog.at_level(logging.INFO, logger="ai_worker"):
+      await _extract_medicines_with_llm("타이레놀정 500mg")
+    assert any("[BOUNDARY] openai_ocr_extract 성공" in r.getMessage() for r in caplog.records), (
+      "경계 로그가 없다 — log_boundary 가 실행되지 않았다"
+    )
 
 
 class TestExtraction:

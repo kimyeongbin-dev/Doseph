@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from ai_worker.core.logger import get_logger
 from app.core.llm_models import LIFESTYLE_GUIDE_MODEL
+from app.core.logger import log_boundary
 from app.dtos.lifestyle_guide import LlmGuideResponse
 from app.services.lifestyle_guide_prompt_builder import build_guide_prompt
 
@@ -133,13 +134,14 @@ async def _call_llm(prompt: str, client: AsyncOpenAI, *, seed: int) -> LlmGuideR
       ValidationError: 응답이 스키마를 어김 — 호출자가 seed 를 바꿔 재시도한다.
   """
   try:
-    response = await client.beta.chat.completions.parse(
-      model=LIFESTYLE_GUIDE_MODEL,
-      messages=[{"role": "user", "content": prompt}],
-      response_format=LlmGuideResponse,
-      temperature=_LLM_TEMPERATURE,
-      seed=seed,
-    )
+    async with log_boundary(logger, "openai_lifestyle_guide", model=LIFESTYLE_GUIDE_MODEL, seed=seed):
+      response = await client.beta.chat.completions.parse(
+        model=LIFESTYLE_GUIDE_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        response_format=LlmGuideResponse,
+        temperature=_LLM_TEMPERATURE,
+        seed=seed,
+      )
     if response.system_fingerprint:
       logger.info(
         "[GUIDE] LLM 호출 seed=%d fingerprint=%s",

@@ -18,6 +18,7 @@ from openai import AsyncOpenAI
 
 from app.core.config import config
 from app.core.llm_models import QUERY_REWRITER_MODEL
+from app.core.logger import log_boundary
 from app.dtos.query_rewriter import IntentType, QueryRewriterOutput
 
 logger = logging.getLogger(__name__)
@@ -199,11 +200,12 @@ async def rewrite_query(
     *messages,
   ]
 
-  completion = await client.beta.chat.completions.parse(
-    model=QUERY_REWRITER_MODEL,
-    messages=full_messages,  # type: ignore[arg-type]
-    response_format=QueryRewriterOutput,
-  )
+  async with log_boundary(logger, "openai_query_rewriter", model=QUERY_REWRITER_MODEL):
+    completion = await client.beta.chat.completions.parse(
+      model=QUERY_REWRITER_MODEL,
+      messages=full_messages,  # type: ignore[arg-type]
+      response_format=QueryRewriterOutput,
+    )
   parsed = completion.choices[0].message.parsed
   if parsed is None:
     logger.warning("[QueryRewriter] parsed is None — fallback to ambiguous")
