@@ -1,7 +1,6 @@
 """OCR 후보 토큰을 medicine_info DB 와 매칭한다. (아키텍트 패러다임 시프트 버전)"""
 
 import asyncio
-import json
 import logging
 
 from tortoise import Tortoise
@@ -9,7 +8,7 @@ from tortoise import Tortoise
 from ai_worker.core.openai_client import get_openai_client
 from app.core.llm_models import MEDICINE_MATCHER_MODEL
 from app.db.databases import TORTOISE_ORM
-from app.dtos.ocr import ExtractedMedicine
+from app.dtos.ocr import ExtractedMedicine, OcrLlmExtraction
 from app.repositories.medicine_info_repository import MedicineInfoRepository
 
 logger = logging.getLogger(__name__)
@@ -187,14 +186,22 @@ async def _extract_medicines_with_llm(raw_text: str) -> list[dict]:
         """
 
   try:
-    response = await client.chat.completions.create(
+    # 🔑 `parse` + Pydantic 스키마 — `json_object` 에서 승격했다(`QA-07` ②, 2026-10-07).
+    #    `json_object` 는 «JSON 이기만 하면 된다» 라 필드 이름·타입을 모델이 지킬 의무가
+    #    없었다. 이제 스키마를 보내므로 모델이 지키고, SDK 가 검증까지 한다.
+    response = await client.beta.chat.completions.parse(
       model=MEDICINE_MATCHER_MODEL,
       messages=[{"role": "user", "content": prompt}],
-      response_format={"type": "json_object"},
+      response_format=OcrLlmExtraction,
       temperature=0.0,
     )
-    result = json.loads(response.choices[0].message.content)
-    return result.get("items", [])
+    parsed = response.choices[0].message.parsed
+    if parsed is None:
+      # 거절(refusal) 이나 스키마 미충족 — 호출자는 빈 목록을 fallback 으로 받는다.
+      logger.warning("LLM 이 추출 스키마를 돌려주지 않았다 — 빈 목록으로 떨어진다")
+      return []
+    # 사용처가 `item.get("name")` 처럼 dict 로 읽으므로 모양을 유지한다.
+    return [item.model_dump() for item in parsed.items]
   # 🟠 QA-51: 아래 두 예외 억제는 «부채» 다 — 정당한 설계가 아니라 미판정이다.
   #    BLE001 은 openai 예외 + json.JSONDecodeError 로 좁힐 수 있고,
   #    TRY400 은 스택이 없어 원인 추적이 안 된다. 행동 변경이라 B-11 범위 밖으로 미뤘다.

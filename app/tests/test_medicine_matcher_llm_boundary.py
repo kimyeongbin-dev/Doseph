@@ -96,19 +96,32 @@ class TestRequestContract:
 
   @pytest.mark.asyncio
   @respx.mock
-  async def test_request_uses_json_object_before_promotion(self) -> None:
-    """🔴 **승격 전 상태를 잠근다** — 지금은 `json_object` 다.
+  async def test_request_carries_the_structured_output_schema(self) -> None:
+    """🔴 `QA-07` ② 의 계약 — **스키마가 전송된다**(`json_object` 에서 승격했다).
 
-    `QA-07` ② 가 `parse(PydanticModel)` 로 올리면 **이 단언이 Red 가 되어야 정상**이고,
-    그 Red 가 *«승격이 실제로 일어났다»* 는 증거다. 그때 `json_schema` 를 단언하도록 바꾼다.
+    🔑 **차이**: `json_object` 는 *«JSON 이기만 하면 된다»* 라 필드 이름·타입을 모델이
+    지킬 의무가 없었다. `json_schema` + `strict` 는 **모델이 지킨다.**
 
-    🔑 **`json_object` 와 `json_schema` 의 차이**: 전자는 *«JSON 이기만 하면 된다»* 라
-    필드 이름·타입을 **모델이 지킬 의무가 없다.** 지금 사용처가 `item.get("name") or ""`
-    처럼 방어적으로 쓰는 이유가 그것이다.
+    ✅ **이 테스트가 승격의 증거다** — 승격 전에는 같은 자리에서
+    `{"type": "json_object"}` 를 단언하고 있었고, 승격이 그 단언을 Red 로 만들었다.
     """
     route = _route({"items": [_ITEM]})
     await _extract_medicines_with_llm("타이레놀정 500mg")
-    assert _sent(route)["response_format"] == {"type": "json_object"}
+    fmt = _sent(route)["response_format"]
+    assert fmt["type"] == "json_schema"
+    assert fmt["json_schema"]["name"] == "OcrLlmExtraction"
+    assert fmt["json_schema"]["strict"] is True
+    # 🔑 항목 필드가 스키마에 실제로 들어 있어야 모델이 그 모양을 지킨다.
+    item_schema = fmt["json_schema"]["schema"]["$defs"]["OcrLlmExtractedItem"]
+    assert set(item_schema["required"]) == {
+      "name",
+      "strength",
+      "type",
+      "dose",
+      "daily_count",
+      "total_days",
+      "instruction",
+    }
 
   @pytest.mark.asyncio
   @respx.mock

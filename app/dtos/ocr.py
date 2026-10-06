@@ -27,6 +27,37 @@ class OcrDraftStatus(StrEnum):
   FAILED = "failed"
 
 
+class OcrLlmExtractedItem(BaseModel):
+  """LLM 이 OCR 원문에서 뽑아낸 약품 1건 — **LLM 경계 DTO**(`DTO_DESIGN_RULES` §7).
+
+  🔴 아래 `ExtractedMedicine` 과 다르다. 저쪽은 **DB 매칭을 거친 최종 응답**이고
+  추적 필드(`raw_ocr_name`·`match_score` 등)를 담는다. 이것은 **모델이 돌려주는 모양**
+  그대로이며, 프롬프트의 「출력 예시」와 1:1 이다.
+
+  🔑 **기본값을 주지 않는다** — OpenAI Structured Output 의 `strict` 모드는 모든 필드를
+  required 로 요구한다. *«값이 없음»* 은 기본값이 아니라 **`None`** 으로 표현한다
+  (프롬프트도 *«없다면 null 로 반환해»* 라고 지시한다).
+  """
+
+  name: str = Field(description="약품명 (용량 제외)")
+  strength: str = Field(description="용량 (예: 500mg). 없으면 빈 문자열")
+  type: str = Field(description="약품 유형 — 의약품 또는 영양제")
+  dose: int | None = Field(description="1회 투약량. 텍스트에 없으면 null")
+  daily_count: int | None = Field(description="1일 투약 횟수. 없으면 null")
+  total_days: int | None = Field(description="총 투약 일수. 없으면 null")
+  instruction: str = Field(description="복용 방법 (예: 식후 30분)")
+
+
+class OcrLlmExtraction(BaseModel):
+  """LLM 응답 봉투 — 프롬프트가 요구하는 `items` 배열.
+
+  `QA-07` ② 의 승격 대상이다. `json_object` 는 *«JSON 이기만 하면 된다»* 라
+  필드 이름·타입을 모델이 지킬 의무가 없었다. 이 스키마를 보내면 **모델이 지킨다.**
+  """
+
+  items: list[OcrLlmExtractedItem] = Field(description="추출된 약품 목록")
+
+
 class ExtractedMedicine(BaseModel):
   """Individual medicine extraction data model.
 
