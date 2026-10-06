@@ -22,14 +22,13 @@ import logging
 from openai import APIConnectionError, APITimeoutError, AsyncOpenAI, RateLimitError
 
 from app.core.config import config
+from app.services.rag.config import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL_NAME
 from app.services.tools.retry import retry_async
 
 logger = logging.getLogger(__name__)
 
 _RETRYABLE = (APIConnectionError, APITimeoutError, RateLimitError, ConnectionError, TimeoutError)
 
-EMBEDDING_MODEL = "text-embedding-3-large"
-EMBEDDING_DIMENSIONS = 3072
 
 _client: AsyncOpenAI | None = None
 _initialised: bool = False
@@ -59,7 +58,7 @@ def _get_client() -> AsyncOpenAI | None:
 @retry_async(retryable=_RETRYABLE)
 async def _embed_one(client: AsyncOpenAI, query: str) -> list[float]:
   response = await client.embeddings.create(
-    model=EMBEDDING_MODEL,
+    model=EMBEDDING_MODEL_NAME,
     input=query,
     dimensions=EMBEDDING_DIMENSIONS,
   )
@@ -69,7 +68,7 @@ async def _embed_one(client: AsyncOpenAI, query: str) -> list[float]:
 @retry_async(retryable=_RETRYABLE)
 async def _embed_batch(client: AsyncOpenAI, queries: list[str]) -> list[list[float]]:
   response = await client.embeddings.create(
-    model=EMBEDDING_MODEL,
+    model=EMBEDDING_MODEL_NAME,
     input=queries,
     dimensions=EMBEDDING_DIMENSIONS,
   )

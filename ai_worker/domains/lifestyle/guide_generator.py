@@ -15,12 +15,12 @@ from openai import AsyncOpenAI, OpenAIError
 from pydantic import ValidationError
 
 from ai_worker.core.logger import get_logger
+from app.core.llm_models import LIFESTYLE_GUIDE_MODEL
 from app.dtos.lifestyle_guide import LlmGuideResponse
 from app.services.lifestyle_guide_prompt_builder import build_guide_prompt
 
 logger = get_logger(__name__)
 
-_LLM_MODEL = "gpt-4o"
 # 일관성 우선 — 같은 처방전+건강정보 조합엔 거의 동일 출력.
 _LLM_TEMPERATURE = 0.0
 
@@ -112,7 +112,7 @@ async def _call_llm(prompt: str, client: AsyncOpenAI, *, seed: int) -> str:
   """OpenAI ``chat.completions`` json_object 호출 (deterministic 강화)."""
   try:
     response = await client.chat.completions.create(
-      model=_LLM_MODEL,
+      model=LIFESTYLE_GUIDE_MODEL,
       messages=[{"role": "user", "content": prompt}],
       response_format={"type": "json_object"},
       temperature=_LLM_TEMPERATURE,

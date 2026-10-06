@@ -11,11 +11,11 @@ from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 
 from ai_worker.core.openai_client import get_openai_client
 from ai_worker.domains.rag.prompt_builder import build_chat_system_prompt
+from app.core.llm_models import RAG_RESPONSE_MODEL
 from app.dtos.rag import ChatCompletion, TokenUsage
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "gpt-4o"
 _TEMPERATURE = 0.7
 _MAX_TOKENS = 800
 _FALLBACK_ANSWER = "현재 AI 응답을 생성할 수 있는 설정이 준비되지 않았어요."
@@ -41,7 +41,7 @@ async def generate_response(
 
   instruction = build_chat_system_prompt(system_prompt)
   response = await client.chat.completions.create(
-    model=_MODEL,
+    model=RAG_RESPONSE_MODEL,
     messages=[{"role": "system", "content": instruction}, *messages],
     temperature=_TEMPERATURE,
     max_tokens=_MAX_TOKENS,
@@ -60,7 +60,7 @@ def _extract_token_usage(response: OpenAIChatCompletion) -> TokenUsage | None:
   if response.usage is None:
     return None
   return TokenUsage(
-    model=_MODEL,
+    model=RAG_RESPONSE_MODEL,
     prompt_tokens=response.usage.prompt_tokens,
     completion_tokens=response.usage.completion_tokens,
     total_tokens=response.usage.total_tokens,

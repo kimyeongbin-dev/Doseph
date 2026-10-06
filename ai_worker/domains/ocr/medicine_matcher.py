@@ -7,6 +7,7 @@ import logging
 from tortoise import Tortoise
 
 from ai_worker.core.openai_client import get_openai_client
+from app.core.llm_models import MEDICINE_MATCHER_MODEL
 from app.db.databases import TORTOISE_ORM
 from app.dtos.ocr import ExtractedMedicine
 from app.repositories.medicine_info_repository import MedicineInfoRepository
@@ -187,7 +188,7 @@ async def _extract_medicines_with_llm(raw_text: str) -> list[dict]:
 
   try:
     response = await client.chat.completions.create(
-      model="gpt-4o-mini",
+      model=MEDICINE_MATCHER_MODEL,
       messages=[{"role": "user", "content": prompt}],
       response_format={"type": "json_object"},
       temperature=0.0,

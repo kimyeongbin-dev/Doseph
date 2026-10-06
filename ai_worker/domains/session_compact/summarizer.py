@@ -22,11 +22,11 @@ from ai_worker.domains.rag.prompt_builder import (
   SUMMARY_SYSTEM_PROMPT,
   build_summary_user_prompt,
 )
+from app.core.llm_models import SESSION_SUMMARY_MODEL
 from app.dtos.rag import SummaryResult, SummaryStatus, TokenUsage
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "gpt-4o"
 _TEMPERATURE = 0.2
 _MAX_TOKENS = 400
 _MIN_MESSAGES = 2
@@ -68,7 +68,7 @@ async def _call_llm(client: AsyncOpenAI, user_prompt: str) -> tuple[OpenAIChatCo
   start = time.perf_counter()
   try:
     response = await client.chat.completions.create(
-      model=_MODEL,
+      model=SESSION_SUMMARY_MODEL,
       messages=[
         {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
         {"role": "user", "content": user_prompt},
@@ -121,7 +121,7 @@ def _extract_token_usage(response: OpenAIChatCompletion) -> TokenUsage | None:
   if response.usage is None:
     return None
   return TokenUsage(
-    model=_MODEL,
+    model=SESSION_SUMMARY_MODEL,
     prompt_tokens=response.usage.prompt_tokens,
     completion_tokens=response.usage.completion_tokens,
     total_tokens=response.usage.total_tokens,

@@ -61,6 +61,7 @@ from app.services.medicine_doc_parser import (
   classify_article_section,
   parse_doc_articles,
 )
+from app.services.rag.config import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL_NAME
 
 logging.basicConfig(
   level=logging.INFO,
@@ -71,8 +72,6 @@ logger = logging.getLogger("embed_medicine_chunks")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # ── 상수 ───────────────────────────────────────────────────────────
-EMBEDDING_MODEL = "text-embedding-3-large"
-EMBEDDING_DIMENSIONS = 3072
 EMBEDDING_PRICE_PER_1M = 0.13  # USD
 
 # OpenAI text-embedding-3-large input 한도 = 8192 tok. 분할 한도는 더 보수적
@@ -550,7 +549,7 @@ async def _embed_with_retry(client: AsyncOpenAI, texts: list[str]) -> list[list[
   for attempt in range(1, MAX_RETRIES + 1):
     try:
       response = await client.embeddings.create(
-        model=EMBEDDING_MODEL,
+        model=EMBEDDING_MODEL_NAME,
         input=texts,
         dimensions=EMBEDDING_DIMENSIONS,
       )
@@ -719,7 +718,7 @@ async def process_medicines_batch_api(
           "method": "POST",
           "url": "/v1/embeddings",
           "body": {
-            "model": EMBEDDING_MODEL,
+            "model": EMBEDDING_MODEL_NAME,
             "input": content,
             "dimensions": EMBEDDING_DIMENSIONS,
           },
@@ -805,7 +804,7 @@ async def _insert_chunks_batch(
       content,
       tok,
       _vector_literal(emb),
-      EMBEDDING_MODEL,
+      EMBEDDING_MODEL_NAME,
       json.dumps(ingredients, ensure_ascii=False),
     ])
 
@@ -863,7 +862,7 @@ async def process_medicines(  # noqa: PLR0915  # batch loop + per-medicine + pro
     batch_size,
     concurrency,
     scope_desc,
-    EMBEDDING_MODEL,
+    EMBEDDING_MODEL_NAME,
     EMBEDDING_DIMENSIONS,
   )
 

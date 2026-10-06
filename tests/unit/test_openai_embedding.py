@@ -11,9 +11,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.services.rag import openai_embedding
+from app.services.rag.config import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL_NAME
 from app.services.rag.openai_embedding import (
-  EMBEDDING_DIMENSIONS,
-  EMBEDDING_MODEL,
   encode_queries_batch,
   encode_query,
 )
@@ -23,10 +22,28 @@ class TestConstants:
   """모델/차원 상수가 chunk 임베딩과 일치하는지."""
 
   def test_model_name(self) -> None:
-    assert EMBEDDING_MODEL == "text-embedding-3-large"
+    assert EMBEDDING_MODEL_NAME == "text-embedding-3-large"
+
+  def test_the_module_reads_the_canonical_name(self) -> None:
+    """🔴 중복 선언을 막는다 — 이 모듈은 정본을 **그대로** 써야 한다.
+
+    2026-10-07(`QA-07` ①)까지 `openai_embedding` 과 `scripts/embed_medicine_chunks` 가
+    같은 값을 **각자** 들고 있었다. `config.py` 가 docstring 에 *«정본은 이 파일이다»* 를
+    적어 두고도 그랬다. 같은 객체인지 보면 중복이 다시 생기는 것을 막는다.
+    """
+    assert openai_embedding.EMBEDDING_MODEL_NAME is EMBEDDING_MODEL_NAME
 
   def test_dimensions(self) -> None:
     assert EMBEDDING_DIMENSIONS == 3072
+
+  def test_the_module_reads_the_canonical_dimensions(self) -> None:
+    """🔴 차원도 중복이었다 — 모델명과 **같은 파일**에서 각자 들고 있었다.
+
+    2026-10-07 실측: `openai_embedding` 과 `scripts/embed_medicine_chunks` 가
+    `EMBEDDING_DIMENSIONS = 3072` 를 각자 선언하고 있었다. `QA-07` 은 «모델명 5곳» 만
+    세었으므로 **이 넷은 등재에 없었다**(모델명 2 + 차원 2).
+    """
+    assert openai_embedding.EMBEDDING_DIMENSIONS == EMBEDDING_DIMENSIONS
 
 
 def _make_mock_client(vectors: list[list[float]]) -> MagicMock:

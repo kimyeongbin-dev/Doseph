@@ -17,11 +17,11 @@ import logging
 from openai import AsyncOpenAI
 
 from app.core.config import config
+from app.core.llm_models import QUERY_REWRITER_MODEL
 from app.dtos.query_rewriter import IntentType, QueryRewriterOutput
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "gpt-4o-mini"
 
 # 클라이언트 싱글톤 — openai_embedding / classifier 와 동일 패턴
 _client: AsyncOpenAI | None = None
@@ -200,7 +200,7 @@ async def rewrite_query(
   ]
 
   completion = await client.beta.chat.completions.parse(
-    model=_MODEL,
+    model=QUERY_REWRITER_MODEL,
     messages=full_messages,  # type: ignore[arg-type]
     response_format=QueryRewriterOutput,
   )
