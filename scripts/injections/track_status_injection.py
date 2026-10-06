@@ -20,6 +20,13 @@ import subprocess
 import sys
 
 from scripts.gates._root import PRIVATE
+from scripts.gates.doc.build_followup_index import (
+  CLOSED_TOKENS,
+  FLOORS,
+  PENDING,
+  PROGRESS,
+  build,
+)
 from scripts.injection_harness import inject
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -111,14 +118,6 @@ def negative_checks() -> list[str]:
   Returns:
       실패 메시지 목록(비면 전부 통과).
   """
-  from scripts.gates.doc.build_followup_index import (
-    CLOSED_TOKENS,
-    FLOORS,
-    PENDING,
-    PROGRESS,
-    build,
-  )
-
   fails: list[str] = []
   _content, counts, opens, problems = build()
   if problems:
