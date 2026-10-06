@@ -19,15 +19,15 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
-    "@tanstack/react-query": "^5.102.8",
+    "@tanstack/react-query": "^5.104.1",
     "axios": "^1.20.0",
-    "lucide-react": "^1.43.0",
+    "lucide-react": "^1.51.0",
     "next": "16.4.0",
     "prop-types": "^15.8.1",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "react-hook-form": "^7.87.0",
-    "react-hot-toast": "^2.6.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "^7.89.0",
+    "react-hot-toast": "^2.6.1",
     "react-loading-skeleton": "^3.5.0",
     "react-markdown": "^10.1.0",
     "zod": "^3.25.76"
@@ -35,7 +35,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
-    "@testing-library/dom": "^10.4.1",
+    "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
@@ -46,7 +46,7 @@
     "jsdom": "^29.1.1",
     "serve": "^14.2.4",
     "tailwindcss": "^4",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.3"
   },
   "overrides": {
     "compression": "^1.8.2"
