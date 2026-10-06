@@ -14,6 +14,7 @@ sync/filter 가 동일 정규화를 거치므로 로컬 생성 baseline 이 CI �
 """
 
 import os
+from pathlib import Path
 import subprocess
 import sys
 
@@ -46,7 +47,8 @@ MYPY_PLAIN_FLAGS = [
 ]
 
 # baseline 파일 경로(점 파일로 고정)·정렬(git diff 안정). sync/filter 공통.
-BASELINE_ARGS = ["--baseline-path", ".mypy-baseline.txt", "--sort-baseline"]
+BASELINE_PATH = ".mypy-baseline.txt"
+BASELINE_ARGS = ["--baseline-path", BASELINE_PATH, "--sort-baseline"]
 
 
 # ── mypy 실행 + 이식성 정규화 ───────────────────────────────────────────
@@ -71,6 +73,30 @@ def run_mypy_normalized() -> str:
 # ── 게이트 본문 ────────────────────────────────────────────────────────
 # 흐름: 인자(sync|filter, 기본 filter) -> mypy 정규화 출력 -> mypy-baseline 전달
 #       -> filter 는 신규 오류 있으면 non-zero 로 커밋/CI 차단
+# ── sync 뒤 줄끝 정규화 ──────────────────────────────────────────────
+# 흐름: `mypy-baseline` 이 쓴 파일을 읽어 CRLF -> LF
+# 🔴 왜 필요한가: 그 도구는 **텍스트 모드**로 쓰므로 Windows 에서 **CRLF** 가 된다.
+#    🧱 `check_line_endings` 는 추적 파일 전수 **CR 0** 을 요구하므로 그대로 두면
+#    **푸시가 막힌다**(실측 2026-10-07: `sync` 직후 CR **328** = 전 줄).
+# 🔑 **결과 게이트만 두면 사람이 매번 손으로 접는다** — 2026-09-30 크로스플랫폼 구간이
+#    *«결과 게이트만으로는 고리가 안 끊긴다»* 로 적어 둔 그것이다. 원인 쪽에서 끊는다.
+def fold_baseline_newlines() -> int:
+  """Baseline 파일의 CRLF 를 LF 로 접는다.
+
+  Returns:
+      접은 CR 개수(0 이면 손대지 않았다).
+  """
+  path = Path(BASELINE_PATH)
+  if not path.exists():
+    return 0
+  raw = path.read_bytes()
+  cr, lf = bytes([13]), bytes([10])
+  count = raw.count(cr)
+  if count:
+    path.write_bytes(raw.replace(cr + lf, lf).replace(cr, lf))
+  return count
+
+
 def main() -> int:
   """신규 오류만 차단한다 — baseline 과 대조해 이미 있던 것은 통과시킨다."""
   subcommand = sys.argv[1] if len(sys.argv) > 1 else "filter"
@@ -83,6 +109,11 @@ def main() -> int:
     env=UTF8_ENV,
     check=False,
   )
+  # 🔴 `sync` 는 파일을 **쓴다** — 그 도구의 줄끝을 여기서 접는다(위 주석 참조).
+  if subcommand == "sync":
+    folded = fold_baseline_newlines()
+    if folded:
+      print(f"↵ baseline 줄끝 정규화 — CR {folded}개를 LF 로 접었다")
   return result.returncode
 
 
