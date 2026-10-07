@@ -23,6 +23,7 @@ from ai_worker.domains.rag.prompt_builder import (
   build_summary_user_prompt,
 )
 from app.core.llm_models import SESSION_SUMMARY_MODEL
+from app.core.logger import log_boundary
 from app.dtos.rag import SummaryResult, SummaryStatus, TokenUsage
 
 logger = logging.getLogger(__name__)
@@ -67,15 +68,16 @@ async def _call_llm(client: AsyncOpenAI, user_prompt: str) -> tuple[OpenAIChatCo
   """OpenAI API 호출. 실패 시 ``(None, elapsed_ms)``."""
   start = time.perf_counter()
   try:
-    response = await client.chat.completions.create(
-      model=SESSION_SUMMARY_MODEL,
-      messages=[
-        {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
-        {"role": "user", "content": user_prompt},
-      ],
-      temperature=_TEMPERATURE,
-      max_tokens=_MAX_TOKENS,
-    )
+    async with log_boundary(logger, "openai_session_summary", model=SESSION_SUMMARY_MODEL):
+      response = await client.chat.completions.create(
+        model=SESSION_SUMMARY_MODEL,
+        messages=[
+          {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
+          {"role": "user", "content": user_prompt},
+        ],
+        temperature=_TEMPERATURE,
+        max_tokens=_MAX_TOKENS,
+      )
   # 🟠 QA-51: BLE001 은 부채다 — openai 예외로 좁힐 수 있으나 행동 변경이라 미뤘다.
   except Exception as exc:  # noqa: BLE001
     elapsed_ms = int((time.perf_counter() - start) * 1000)

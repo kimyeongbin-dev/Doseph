@@ -12,6 +12,7 @@ from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 from ai_worker.core.openai_client import get_openai_client
 from ai_worker.domains.rag.prompt_builder import build_chat_system_prompt
 from app.core.llm_models import RAG_RESPONSE_MODEL
+from app.core.logger import log_boundary
 from app.dtos.rag import ChatCompletion, TokenUsage
 
 logger = logging.getLogger(__name__)
@@ -40,12 +41,13 @@ async def generate_response(
     return ChatCompletion(answer=_FALLBACK_ANSWER, token_usage=None)
 
   instruction = build_chat_system_prompt(system_prompt)
-  response = await client.chat.completions.create(
-    model=RAG_RESPONSE_MODEL,
-    messages=[{"role": "system", "content": instruction}, *messages],
-    temperature=_TEMPERATURE,
-    max_tokens=_MAX_TOKENS,
-  )
+  async with log_boundary(logger, "openai_rag_response", model=RAG_RESPONSE_MODEL):
+    response = await client.chat.completions.create(
+      model=RAG_RESPONSE_MODEL,
+      messages=[{"role": "system", "content": instruction}, *messages],
+      temperature=_TEMPERATURE,
+      max_tokens=_MAX_TOKENS,
+    )
   return _to_chat_completion(response)
 
 
