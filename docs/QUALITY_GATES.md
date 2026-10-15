@@ -134,10 +134,18 @@
 > ⚠️ **되돌릴 조건을 미리 적는다** — 패치가 없는 devDep 취약점이 main 을 **3일 이상** 막거나,
 > 이 사유로 넣은 `overrides` 가 **3건**을 넘으면 그때 범위를 다시 본다.
 >
-> 🔴 **그 조건이 2026-10-06 에 발동을 시작했다** — `braces` 체인(dev)이 `npm audit` 를 막고 있고
-> **advisory 범위가 `*` 라 패치 버전이 없다.** 🔢 **계류 현황**: 막힌 날 **2026-10-06** ·
-> 만료 **2026-10-09** · `overrides` **1건**(`compression`). ⇒ 아직 **조건 미충족**이라
-> 정책대로 둔다(2026-10-07 사용자 판정). 추적 = **`C-15`**.
+> 🔴 **그 조건이 2026-10-06 에 발동했다** — `braces` 체인(dev)이 `npm audit` 를 막았고
+> **advisory 범위가 `*` 라 패치 버전이 없었다.** 막힌 날 **2026-10-06** · 만료 **2026-10-09** —
+> 만료 뒤에도 **엿새를 더 빨간 채로** 두었다(2026-10-15 해소). 추적 = **`C-15`**.
+>
+> ✅ **범위를 좁히지 않고 원인을 걷어냈다** (2026-10-15) — 사슬은
+> `@next/eslint-plugin-next`(고정 `fast-glob@3.3.1`) → `micromatch` → `braces` 였고, 플러그인이
+> `fast-glob` 을 쓰는 곳은 `get-root-dirs` 의 `globSync(pattern, { onlyDirectories: true })` **하나뿐**이었다.
+> 같은 시그니처를 가진 `tinyglobby`(이미 vite·typescript-eslint 가 쓰는 패키지)로 **그 플러그인 범위에서만**
+> `overrides` 했다 ⇒ `npm audit` **전체 0건**, Next 규칙 22개 유지. 예외 목록·`--omit=dev` 는 쓰지 않았다.
+> 🔢 `overrides` **2건**(`compression` · `@next/eslint-plugin-next › fast-glob`) — 위 «3건» 조건 안이다.
+> ⚠️ **걷어낼 조건**: `npm view @next/eslint-plugin-next dependencies` 에 `fast-glob@3.3.1` 이 사라지면
+> 이 override 를 지운다. 남겨 두면 플러그인이 바꾼 의존성을 우리가 덮어쓰게 된다.
 > ⚪ 같은 날 **prod 노출은 0 으로** 만들었다 — `next` 16.4.0(critical) · `sharp` · `source-map-js`.
 > 🔑 **조건 없이 «엄격하게 간다» 만 적으면, 막힌 날에 사람이 게이트를 끈다**(§2-1).
 
