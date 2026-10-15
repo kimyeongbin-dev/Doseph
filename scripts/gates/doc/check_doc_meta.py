@@ -88,6 +88,14 @@ ALLOWED_STATUS: dict[str, frozenset[str]] = {
   "queue": frozenset({"current", "superseded"}),
   "drift": frozenset({"current", "superseded"}),
 }
+#: 은퇴한 status → 대신 쓸 값. **은퇴 목록의 정본은 여기 하나다** — 다른 게이트는 이걸 가져다 쓴다.
+#: 🔑 사본이 실제로 사고를 냈다(2026-10-15): ``suspended`` 를 통합할 때 ``AGENTS.md`` 는 고쳤지만
+#: ``MEMORY.md`` 는 빠졌고, 매 세션 로드되는 그 낡은 줄을 보고 에이전트가 없는 값을 선택지로 냈다.
+RETIRED_STATUS: dict[str, str] = {
+  "active": "in-progress / current",
+  "dropped": "rejected / withdrawn",
+  "suspended": "pending",
+}
 #: 직하 작업버퍼 — `closes:` 선언을 요구하는 종류(FILING §9 · 문서-32).
 BUFFER_KINDS = frozenset({"plan", "report", "record"})
 
