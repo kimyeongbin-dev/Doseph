@@ -42,6 +42,9 @@ This document defines the logical guidelines and coding rules that all AI agents
 * **코드를 먼저 고치지 않는다.** 아키텍처·데이터 흐름·엣지 케이스를 먼저 적는다.
 * BE 데이터 흐름·비즈니스 로직은 **Mermaid 흐름도**로 시각화한다.
 * `PLAN.md` 가 이미 있으면 그것이 진행 중인 계획이다. **덮어쓰지 않는다** — 먼저 닫는다.
+* **새 작업을 고르기 전에 보류(`pending`) 문서부터 본다** — `grep -lE '^status:\s+pending' docs-private/plan/*.md docs-private/report/*.md`.
+  하나씩 ⓵재개할 수 있으면 그것부터 ⓶선행 조건에 막혔으면 그 선행을 적고 넘어간다 ⓷안 할 거면 `rejected`·`withdrawn` 으로 닫는다.
+  판단 없이 건너뛰는 것만 금지다. 사용자가 순서를 정하면 그걸 따르고, 보류하는 문서에 **재개 조건**을 적는다. 상세 = `FILING.md` §8-5.
 
 **② 실행** (`status: in-progress`)
 * 초안을 쓴 뒤 **멈추고 사용자 피드백을 기다린다.** `go` 라고 할 때만 구현을 시작한다.
@@ -246,7 +249,7 @@ All feature development and session tasks MUST follow this loop. This project fo
 | `프론트엔드` | FE 코드·테스트를 만질 때 (2건)<!--=axis-fe--> |
 | `시크릿` | `.env`·토큰·키를 다룰 때 (1건)<!--=axis-secret--> |
 | `상시-측정` | **항상** — 무엇이든 셀 때 (11건)<!--=axis-measure--> |
-| `상시-주장` | **항상** — 무엇이든 주장·확인할 때 (15건)<!--=axis-claim--> |
+| `상시-주장` | **항상** — 무엇이든 주장·확인할 때 (16건)<!--=axis-claim--> |
 
 <!-- 실수대장-라우팅 끝 -->
 
