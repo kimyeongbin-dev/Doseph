@@ -24,6 +24,7 @@
 | dangling — 인덱스가 없는 파일을 가리킨다 | 파일 실재 여부(이분법) | 🔴 **실패** |
 | orphan — 파일이 인덱스에 없다 | 파일 실재 여부(이분법) | 🔴 **실패** |
 | 상태어 충돌 — 본문 `description` 과 인덱스가 반대말 | **실측 2/4 (50%)** | 🟡 **보고만** |
+| 은퇴한 `status` 값 — 은퇴를 설명하지 않는 줄이 쓴다 | **실측 1/1 · 음성 2/2** | 🔴 **실패** |
 
 상태어 충돌을 게이트로 만들지 않는 이유: 오늘의 4건 중 2건만 잡힌다.
 나머지 2건은 본문 `description` 자체가 상태를 말하지 않아 대조할 것이 없었다.
@@ -38,6 +39,8 @@
 from pathlib import Path
 import re
 import sys
+
+from scripts.gates.doc.check_doc_meta import RETIRED_STATUS
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
@@ -57,6 +60,27 @@ DESCRIPTION = re.compile(r"^description:\s*[\"']?(.+?)[\"']?\s*$", re.MULTILINE)
 DONE_WORDS = ("해결됨", "완료", "✅", "해소")
 PENDING_WORDS = ("대기", "pending", "미착수", "다음은", "진행 예정", "예정")
 
+# 은퇴한 status 값을 백틱으로 인용한 자리. 은퇴 자체를 설명하는 줄은 그 값을 말해야 하므로 통과시킨다.
+RETIRED_VALUE = re.compile(r"`(" + "|".join(map(re.escape, sorted(RETIRED_STATUS))) + r")`")
+RETIREMENT_MARKERS = ("은퇴", "통합", "갈랐", "폐지")
+
+
+# ── 은퇴한 status 값 검출 ───────────────────────────────────────────────
+# 흐름: 메모리 전 파일 -> 줄마다 은퇴값 인용 -> 은퇴 설명 줄이면 통과 -> 나머지 실패
+# 왜 메모리인가: comment-staleness 는 저장소 안 코드 파일만 본다. MEMORY.md 는 매 세션
+#   전부 로드되는데 저장소 밖이라, 여기 남은 낡은 상태값은 아무 게이트에도 안 걸렸다.
+def find_retired_status(paths: list[Path]) -> list[str]:
+  """은퇴한 status 값을 은퇴 설명 없이 쓰는 줄을 찾는다."""
+  hits: list[str] = []
+  for path in paths:
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+      found = RETIRED_VALUE.search(line)
+      if not found or any(marker in line for marker in RETIREMENT_MARKERS):
+        continue
+      value = found.group(1)
+      hits.append(f"{path.name}:{lineno} — `{value}` 는 은퇴했다 → {RETIRED_STATUS[value]}")
+  return hits
+
 
 # ── 인덱스 줄 수집 ──────────────────────────────────────────────────────
 # 흐름: MEMORY.md 의 **모든 줄**에서 메모리 링크를 찾아 {파일명: 그 줄} 로 모은다
@@ -69,6 +93,21 @@ def index_entries() -> dict[str, str]:
     for match in LINK.finditer(line):
       entries.setdefault(match.group(1), line.strip())
   return entries
+
+
+# ── 실패 보고 ───────────────────────────────────────────────────────────
+# 흐름: (머리말, 항목들) 묶음 -> 항목이 있는 것만 인쇄 -> 하나라도 있으면 실패
+def report_failures(failures: list[tuple[str, list[str]]]) -> bool:
+  """항목이 있는 실패 묶음을 인쇄하고, 하나라도 있었는지 돌려준다."""
+  failed = False
+  for header, items in failures:
+    if not items:
+      continue
+    print(header)
+    for item in items:
+      print(f"   - {item}")
+    failed = True
+  return failed
 
 
 # ── 검사 본문 ───────────────────────────────────────────────────────────
@@ -113,19 +152,13 @@ def main() -> int:
       print(f"   - {item}")
     print()
 
-  failed = False
-  if dangling:
-    print(f"❌ 인덱스가 **없는 파일**을 가리킨다 {len(dangling)}건:")
-    for name in dangling:
-      print(f"   - {name}")
-    failed = True
-  if orphan:
-    print(f"❌ 인덱스에 **없는 메모리 파일** {len(orphan)}건 (회상되지 않으면 영원히 안 읽힌다):")
-    for name in orphan:
-      print(f"   - {name}")
-    failed = True
-
-  if failed:
+  retired = find_retired_status(sorted(MEMORY_DIR.glob("*.md")))
+  failures = [
+    (f"❌ 인덱스가 **없는 파일**을 가리킨다 {len(dangling)}건:", dangling),
+    (f"❌ 인덱스에 **없는 메모리 파일** {len(orphan)}건 (회상되지 않으면 영원히 안 읽힌다):", orphan),
+    (f"❌ 은퇴한 status 값 {len(retired)}건 — 정본은 FILING §8-1 (매 세션 로드되는 낡은 사본):", retired),
+  ]
+  if report_failures(failures):
     return 1
 
   if len(entries) < MIN_MEMORIES or len(files) < MIN_MEMORIES:
