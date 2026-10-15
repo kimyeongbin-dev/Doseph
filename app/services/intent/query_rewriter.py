@@ -17,6 +17,7 @@ import logging
 from openai import AsyncOpenAI
 
 from app.core.config import config
+from app.core.llm_client import build_llm_client
 from app.core.llm_models import QUERY_REWRITER_MODEL
 from app.core.logger import log_boundary
 from app.dtos.query_rewriter import IntentType, QueryRewriterOutput
@@ -164,7 +165,7 @@ def _get_client() -> AsyncOpenAI | None:
     logger.warning("OPENAI_API_KEY 미설정 — QueryRewriter 비활성")
     _initialised = True
     return None
-  _client = AsyncOpenAI(api_key=api_key)
+  _client = build_llm_client(api_key)
   _initialised = True
   return _client
 

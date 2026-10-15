@@ -15,6 +15,7 @@ import logging
 from openai import AsyncOpenAI
 
 from ai_worker.core.config import config
+from app.core.llm_client import build_llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ def get_openai_client() -> AsyncOpenAI | None:
     _initialised = True
     return None
 
-  _client = AsyncOpenAI(api_key=api_key)
+  _client = build_llm_client(api_key)
   _initialised = True
   logger.info("AsyncOpenAI 클라이언트 초기화 완료")
   return _client

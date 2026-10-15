@@ -18,6 +18,7 @@ from tortoise import Tortoise
 
 from ai_worker.core.logger import get_logger
 from ai_worker.domains.lifestyle.guide_generator import generate_guide_payload
+from app.core.llm_client import build_llm_client
 from app.db.databases import TORTOISE_ORM
 from app.dtos.lifestyle_guide import LlmGuideResponse
 from app.models.lifestyle_guide import LifestyleGuideStatusValue
@@ -145,7 +146,7 @@ def _build_openai_client() -> AsyncOpenAI:
   api_key = os.environ.get("OPENAI_API_KEY")
   if not api_key:
     raise ValueError("OPENAI_API_KEY 가 설정되지 않았습니다.")
-  return AsyncOpenAI(api_key=api_key)
+  return build_llm_client(api_key)
 
 
 def _med_to_dict(med: Medication) -> dict:

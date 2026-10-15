@@ -22,6 +22,7 @@ import logging
 from openai import APIConnectionError, APITimeoutError, AsyncOpenAI, RateLimitError
 
 from app.core.config import config
+from app.core.llm_client import build_llm_client
 from app.core.logger import log_boundary
 from app.services.rag.config import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL_NAME
 from app.services.tools.retry import retry_async
@@ -51,7 +52,7 @@ def _get_client() -> AsyncOpenAI | None:
     _initialised = True
     return None
 
-  _client = AsyncOpenAI(api_key=api_key)
+  _client = build_llm_client(api_key)
   _initialised = True
   return _client
 
