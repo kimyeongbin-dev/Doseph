@@ -14,10 +14,14 @@
 
 from openai import AsyncOpenAI
 
+#: Gemini 의 OpenAI 호환 엔드포인트 (2026-10-16 전환, v2.0 재배포 PLAN 결정 ⓝ).
+#: 환경변수가 아니라 상수다 — 모델명(``llm_models``)과 짝이라 따로 바뀌면 404 가 난다.
+LLM_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
 
 # ── LLM 클라이언트 생성 ──────────────────────────────────────────────
-# 흐름: API 키 -> AsyncOpenAI 인스턴스
+# 흐름: API 키 -> AsyncOpenAI 인스턴스(Gemini OpenAI 호환 주소)
 # 키 유무 판단과 싱글톤 보관은 호출자 몫이다(없을 때 None 이냐 예외냐가 경로마다 다르다).
 def build_llm_client(api_key: str) -> AsyncOpenAI:
   """API 키로 LLM 비동기 클라이언트를 만든다."""
-  return AsyncOpenAI(api_key=api_key)
+  return AsyncOpenAI(api_key=api_key, base_url=LLM_BASE_URL)

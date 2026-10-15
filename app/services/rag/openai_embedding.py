@@ -1,4 +1,4 @@
-"""OpenAI text-embedding-3-large query-side 임베딩 — 3072d.
+"""query-side 임베딩 — 3072d (OpenAI 호환 SDK 로 Gemini 엔드포인트 호출).
 
 사라진 계획 «feature/RAG» §0 결정 — chunk 임베딩과 동일 모델/dim 사용.
 🔑 모델·차원의 정본 = `app/services/rag/config.py`.
@@ -37,7 +37,7 @@ _initialised: bool = False
 
 
 def _get_client() -> AsyncOpenAI | None:
-  """AsyncOpenAI 싱글톤 — config.OPENAI_API_KEY 가 없으면 None.
+  """AsyncOpenAI 싱글톤 — config.GEMINI_API_KEY 가 없으면 None.
 
   ai_worker.core.openai_client 와 동일 패턴 — 매 호출마다 재할당 X.
   """
@@ -46,9 +46,9 @@ def _get_client() -> AsyncOpenAI | None:
   if _initialised:
     return _client
 
-  api_key = config.OPENAI_API_KEY
+  api_key = config.GEMINI_API_KEY
   if not api_key:
-    logger.warning("OPENAI_API_KEY 미설정 — encode_query 비활성")
+    logger.warning("GEMINI_API_KEY 미설정 — encode_query 비활성")
     _initialised = True
     return None
 

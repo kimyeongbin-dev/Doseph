@@ -52,6 +52,7 @@ from tortoise import Tortoise
 from tortoise.transactions import in_transaction
 
 from app.core.config import config
+from app.core.llm_client import build_llm_client
 from app.db.databases import TORTOISE_ORM
 from app.models.medicine_chunk import MedicineChunk, MedicineChunkSection
 from app.models.medicine_info import MedicineInfo
@@ -676,11 +677,11 @@ async def process_medicines_batch_api(
   OpenAI Embedding 호출을 한 번의 Batch API submit 으로 통합. 50% 할인 +
   24h 내 완료 (보통 1-3시간).
   """
-  api_key = config.OPENAI_API_KEY
+  api_key = config.GEMINI_API_KEY
   if not api_key:
-    msg = "OPENAI_API_KEY 미설정 — Batch API 호출 필수"
+    msg = "GEMINI_API_KEY 미설정 — Batch API 호출 필수"
     raise SystemExit(msg)
-  client = AsyncOpenAI(api_key=api_key)
+  client = build_llm_client(api_key)
 
   # 1. medicines + chunks 빌드 (cache miss 만 collect)
   if medicine_ids is not None:
@@ -844,11 +845,11 @@ async def process_medicines(  # noqa: PLR0915  # batch loop + per-medicine + pro
       resume_from: 시작 medicine_info.id (재시작용). medicine_ids 지정 시 무시.
       medicine_ids: 특정 ID 만 처리 (None 이면 resume_from 이후 모두).
   """
-  api_key = config.OPENAI_API_KEY
+  api_key = config.GEMINI_API_KEY
   if not api_key:
-    msg = "OPENAI_API_KEY 미설정 — 본 batch 는 OpenAI 호출 필수"
+    msg = "GEMINI_API_KEY 미설정 — 임베딩 호출 필수"
     raise SystemExit(msg)
-  client = AsyncOpenAI(api_key=api_key)
+  client = build_llm_client(api_key)
 
   if medicine_ids is not None:
     total = len(medicine_ids)
@@ -1046,19 +1047,17 @@ async def main_async(args: argparse.Namespace) -> None:
       ids = list(matched)
       logger.info("name-like 매칭 — %d medicines (patterns=%s)", len(ids), patterns)
 
+    # 2026-10-16 Gemini 전환 — OpenAI 호환 엔드포인트는 Batch API 를 지원하지 않는다.
+    # 대체는 v2.0 재배포 PLAN S4 에서 정한다. 그때까지 실패를 호출 전에 드러낸다.
     if args.use_batch_api:
-      await process_medicines_batch_api(
-        batch_size=args.batch,
-        medicine_ids=ids,
-        resume_from=args.resume_from,
-      )
-    else:
-      await process_medicines(
-        batch_size=args.batch,
-        concurrency=args.concurrency,
-        resume_from=args.resume_from,
-        medicine_ids=ids,
-      )
+      msg = "--use-batch-api 는 Gemini OpenAI 호환 엔드포인트에서 지원되지 않는다 — 표준 모드를 쓴다"
+      raise SystemExit(msg)
+    await process_medicines(
+      batch_size=args.batch,
+      concurrency=args.concurrency,
+      resume_from=args.resume_from,
+      medicine_ids=ids,
+    )
   finally:
     await Tortoise.close_connections()
 

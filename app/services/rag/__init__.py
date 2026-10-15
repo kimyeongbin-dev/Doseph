@@ -6,8 +6,8 @@
 
 본 패키지의 책임:
 
-- ``app.services.rag.config`` — 임베딩 모델 이름·차원 (text-embedding-3-large, 3072d)
-- ``app.services.rag.openai_embedding`` — query 측 OpenAI Embedding 호출
+- ``app.services.rag.config`` — 임베딩 모델 이름·차원 (정본은 그 파일)
+- ``app.services.rag.openai_embedding`` — query 측 임베딩 호출(OpenAI 호환 SDK)
 - ``app.services.rag.retrievers.hybrid_metadata`` — JSONB ``?|`` 메타 필터 + halfvec cosine top-K
 - ``app.services.rag.protocols`` — ``EmbeddingProvider`` / ``Retriever`` Protocol 정의
 

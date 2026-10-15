@@ -28,7 +28,7 @@ def get_openai_client() -> AsyncOpenAI | None:
   """프로세스 전역 AsyncOpenAI 클라이언트를 반환한다.
 
   Returns:
-      설정된 ``OPENAI_API_KEY`` 가 있으면 AsyncOpenAI 인스턴스,
+      설정된 ``GEMINI_API_KEY`` 가 있으면 AsyncOpenAI 인스턴스,
       없으면 ``None`` (호출자가 fallback 처리).
   """
   global _client, _initialised
@@ -36,9 +36,9 @@ def get_openai_client() -> AsyncOpenAI | None:
   if _initialised:
     return _client
 
-  api_key = config.OPENAI_API_KEY
+  api_key = config.GEMINI_API_KEY
   if not api_key:
-    logger.warning("OPENAI_API_KEY 미설정 — AsyncOpenAI 클라이언트 비활성")
+    logger.warning("GEMINI_API_KEY 미설정 — AsyncOpenAI 클라이언트 비활성")
     _initialised = True
     return None
 

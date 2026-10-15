@@ -30,7 +30,7 @@ from ai_worker.domains.lifestyle.guide_generator import (
   _MAX_GENERATE_RETRIES,
   generate_guide_payload,
 )
-from app.core.llm_client import LLM_BASE_URL
+from app.core.llm_client import LLM_BASE_URL, build_llm_client
 from app.core.llm_models import LIFESTYLE_GUIDE_MODEL
 
 _URL = f"{LLM_BASE_URL}chat/completions"
@@ -91,8 +91,8 @@ def _ok(count: int = 15) -> dict[str, Any]:
 
 
 def _client() -> AsyncOpenAI:
-  """respx 가 가로채므로 키는 형식만 맞으면 된다."""
-  return AsyncOpenAI(api_key="FAKE_gemini_key")
+  """운영과 같은 생성 함수로 만든다 — 주소가 어긋나면 respx 가 «not mocked» 로 잡는다."""
+  return build_llm_client("FAKE_gemini_key")
 
 
 def _sent(route: respx.Route, call: int = 0) -> dict[str, Any]:

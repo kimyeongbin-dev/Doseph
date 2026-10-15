@@ -42,7 +42,7 @@ class TestConstants:
   """모델/차원 상수가 chunk 임베딩과 일치하는지."""
 
   def test_model_name(self) -> None:
-    assert EMBEDDING_MODEL_NAME == "text-embedding-3-large"
+    assert EMBEDDING_MODEL_NAME == "gemini-embedding-001"
 
   def test_the_module_reads_the_canonical_name(self) -> None:
     """🔴 중복 선언을 막는다 — 이 모듈은 정본을 **그대로** 써야 한다.
