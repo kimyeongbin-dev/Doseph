@@ -41,7 +41,7 @@ def _require_api_key() -> None:
   이 디렉터리가 수집됐다는 것은 *«돌리기로 했다»* 는 뜻이고, 그때 키가 없는 것은
   **환경 문제이지 «검증 불필요» 가 아니다**(`pyproject.toml` 의 `db` marker 주석과 같은 결).
   """
-  assert config.OPENAI_API_KEY, "OPENAI_API_KEY 가 없다 — 계약 테스트를 돌리기로 했으면 키가 있어야 한다"
+  assert config.GEMINI_API_KEY, "GEMINI_API_KEY 가 없다 — 계약 테스트를 돌리기로 했으면 키가 있어야 한다"
 
 
 class TestOcrExtractionContract:
@@ -77,9 +77,9 @@ class TestGuideContract:
 
     ⚠️ 재시도 루프가 최대 3회 돌 수 있으므로 호출이 1~3회다(개수를 못 맞추면 늘어난다).
     """
-    from openai import AsyncOpenAI
+    from app.core.llm_client import build_llm_client
 
-    client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
+    client = build_llm_client(config.GEMINI_API_KEY)
     result = await generate_guide_payload(
       [{"medicine_name": "타이레놀정", "dose_per_intake": "1정", "daily_intake_count": 3}],
       {"나이": 30, "성별": "여성", "기저질환": "없음"},

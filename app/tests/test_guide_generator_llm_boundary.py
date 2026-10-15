@@ -30,9 +30,10 @@ from ai_worker.domains.lifestyle.guide_generator import (
   _MAX_GENERATE_RETRIES,
   generate_guide_payload,
 )
+from app.core.llm_client import LLM_BASE_URL
 from app.core.llm_models import LIFESTYLE_GUIDE_MODEL
 
-_URL = "https://api.openai.com/v1/chat/completions"
+_URL = f"{LLM_BASE_URL}chat/completions"
 
 #: 프롬프트 빌더가 요구하는 카테고리 다섯 — 가이드 본문 필드와 짝이다.
 _GUIDE_TEXT = {
@@ -91,7 +92,7 @@ def _ok(count: int = 15) -> dict[str, Any]:
 
 def _client() -> AsyncOpenAI:
   """respx 가 가로채므로 키는 형식만 맞으면 된다."""
-  return AsyncOpenAI(api_key="sk-test-not-a-real-key")
+  return AsyncOpenAI(api_key="FAKE_gemini_key")
 
 
 def _sent(route: respx.Route, call: int = 0) -> dict[str, Any]:

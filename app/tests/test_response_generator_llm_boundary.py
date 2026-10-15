@@ -31,9 +31,10 @@ from ai_worker.domains.rag.response_generator import (
   _TEMPERATURE,
   generate_response,
 )
+from app.core.llm_client import LLM_BASE_URL
 from app.core.llm_models import RAG_RESPONSE_MODEL
 
-_URL = "https://api.openai.com/v1/chat/completions"
+_URL = f"{LLM_BASE_URL}chat/completions"
 _MESSAGES = [{"role": "user", "content": "타이레놀 먹어도 돼?"}]
 
 
@@ -73,7 +74,7 @@ def _client_ready(monkeypatch: pytest.MonkeyPatch) -> None:
   """싱글톤 초기화 + API key 주입 — `get_openai_client` 가 **실제로 돌게** 한다."""
   monkeypatch.setattr(oc_module, "_client", None)
   monkeypatch.setattr(oc_module, "_initialised", False)
-  monkeypatch.setattr(config, "OPENAI_API_KEY", "sk-test-not-a-real-key")
+  monkeypatch.setattr(config, "GEMINI_API_KEY", "FAKE_gemini_key")
 
 
 class TestRequestContract:
@@ -142,7 +143,7 @@ class TestNoClient:
   @respx.mock
   async def test_no_api_key_returns_fallback_without_calling(self, monkeypatch: pytest.MonkeyPatch) -> None:
     """🔑 `get_openai_client` 분기가 **실제로** 돈다 — 호출 0 을 단언한다."""
-    monkeypatch.setattr(config, "OPENAI_API_KEY", None)
+    monkeypatch.setattr(config, "GEMINI_API_KEY", None)
     route = _route()
     result = await generate_response(_MESSAGES)
     assert not route.called

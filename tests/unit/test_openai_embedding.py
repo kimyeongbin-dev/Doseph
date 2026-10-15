@@ -27,6 +27,7 @@ import pytest
 import respx
 
 from app.core.config import config
+from app.core.llm_client import LLM_BASE_URL
 from app.services.rag import openai_embedding
 from app.services.rag.config import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL_NAME
 from app.services.rag.openai_embedding import (
@@ -34,7 +35,7 @@ from app.services.rag.openai_embedding import (
   encode_query,
 )
 
-_URL = "https://api.openai.com/v1/embeddings"
+_URL = f"{LLM_BASE_URL}embeddings"
 
 
 class TestConstants:
@@ -97,7 +98,7 @@ def _reset_embedding_singleton(monkeypatch: pytest.MonkeyPatch) -> None:
   """
   monkeypatch.setattr(openai_embedding, "_client", None)
   monkeypatch.setattr(openai_embedding, "_initialised", False)
-  monkeypatch.setattr(config, "OPENAI_API_KEY", "sk-test-not-a-real-key")
+  monkeypatch.setattr(config, "GEMINI_API_KEY", "FAKE_gemini_key")
 
 
 class TestEncodeQuery:
@@ -147,7 +148,7 @@ class TestEncodeQuery:
     🔑 이제 `_get_client` 가 **실제로 실행**되어 그 분기를 지난다
     (앞 판은 그 함수를 `lambda: None` 으로 바꿔 분기 자체가 없었다).
     """
-    monkeypatch.setattr(config, "OPENAI_API_KEY", None)
+    monkeypatch.setattr(config, "GEMINI_API_KEY", None)
     route = _route([_vec(0.1)])
     result = await encode_query("타이레놀")
     assert len(result) == EMBEDDING_DIMENSIONS
