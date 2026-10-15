@@ -18,7 +18,10 @@ services:
     container_name: postgres
     environment:
       POSTGRES_USER: ${DB_USER:-doseph_admin}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-doseph_admin}
+      # 비밀번호만 기본값을 두지 않는다 — .env 가 없거나 키가 빠지면 조용히 아는 값으로 뜨지 말고
+      # 기동 시점에 멈춘다. 사용자명·DB 이름은 비밀이 아니라 기본값을 남긴다.
+      # ⚠️ postgres 는 볼륨을 «처음 만들 때만» 이 값을 쓴다 — 이미 있는 볼륨의 비밀번호는 안 바뀐다.
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?.env 에 DB_PASSWORD 를 설정하세요 (.env.example 참고)}
       POSTGRES_DB: ${DB_NAME:-doseph_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
