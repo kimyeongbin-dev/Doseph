@@ -6,6 +6,7 @@
 - 생활 가이드 잡은 키가 없으면 **예외**다(다른 경로의 «None → fallback» 과 다르다 — 지금 동작 그대로).
 """
 
+from pydantic_settings import BaseSettings
 import pytest
 
 from ai_worker.core.config import Config as WorkerConfig
@@ -36,12 +37,12 @@ class TestKeyName:
   """설정이 읽는 키."""
 
   @pytest.mark.parametrize("settings_cls", [AppConfig, WorkerConfig], ids=["app", "ai_worker"])
-  def test_settings_define_gemini_key(self, settings_cls: type) -> None:
+  def test_settings_define_gemini_key(self, settings_cls: type[BaseSettings]) -> None:
     """앱·워커 설정 모두 ``GEMINI_API_KEY`` 를 갖는다."""
     assert "GEMINI_API_KEY" in settings_cls.model_fields
 
   @pytest.mark.parametrize("settings_cls", [AppConfig, WorkerConfig], ids=["app", "ai_worker"])
-  def test_settings_drop_openai_key(self, settings_cls: type) -> None:
+  def test_settings_drop_openai_key(self, settings_cls: type[BaseSettings]) -> None:
     """``OPENAI_API_KEY`` 는 없다 — 남아 있으면 옛 키로 도는 경로를 아무도 못 본다."""
     assert "OPENAI_API_KEY" not in settings_cls.model_fields
 

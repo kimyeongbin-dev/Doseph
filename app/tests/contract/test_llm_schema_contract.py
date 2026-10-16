@@ -79,7 +79,9 @@ class TestGuideContract:
     """
     from app.core.llm_client import build_llm_client
 
-    client = build_llm_client(config.GEMINI_API_KEY)
+    key = config.GEMINI_API_KEY
+    assert key, "autouse fixture 가 이미 확인했다 — 타입 좁히기용"
+    client = build_llm_client(key)
     result = await generate_guide_payload(
       [{"medicine_name": "타이레놀정", "dose_per_intake": "1정", "daily_intake_count": 3}],
       {"나이": 30, "성별": "여성", "기저질환": "없음"},
