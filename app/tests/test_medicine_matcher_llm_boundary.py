@@ -97,6 +97,7 @@ class TestRequestContract:
     route = _route({"items": [_ITEM]})
     await _extract_medicines_with_llm("타이레놀정 500mg")
     assert _sent(route)["model"] == MEDICINE_MATCHER_MODEL
+    assert "temperature" not in _sent(route), "Gemini 3 공식 권장 — temperature 는 기본값"
 
   @pytest.mark.asyncio
   @respx.mock

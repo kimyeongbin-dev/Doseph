@@ -30,7 +30,6 @@ from ai_worker.core.config import config
 from ai_worker.domains.session_compact.summarizer import (
   _MAX_TOKENS,
   _MIN_MESSAGES,
-  _TEMPERATURE,
   summarize_session_messages,
 )
 from app.core.llm_client import LLM_BASE_URL
@@ -89,12 +88,12 @@ class TestRequestContract:
   @pytest.mark.asyncio
   @respx.mock
   async def test_request_carries_the_canonical_model_and_knobs(self) -> None:
-    """🔴 `QA-07` ① 의 계약 + 요약은 **보수적 설정**(낮은 temperature)이다."""
+    """🔴 `QA-07` ① 의 계약 + temperature 는 **보내지 않는다**(Gemini 3 기본값)."""
     route = _route()
     await summarize_session_messages(_MESSAGES)
     sent = _sent(route)
     assert sent["model"] == SESSION_SUMMARY_MODEL
-    assert sent["temperature"] == _TEMPERATURE
+    assert "temperature" not in sent, "Gemini 3 공식 권장 — temperature 는 기본값"
     assert sent["max_tokens"] == _MAX_TOKENS
 
   @pytest.mark.asyncio

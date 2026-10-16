@@ -28,7 +28,6 @@ from ai_worker.core.config import config
 from ai_worker.domains.rag.response_generator import (
   _FALLBACK_ANSWER,
   _MAX_TOKENS,
-  _TEMPERATURE,
   generate_response,
 )
 from app.core.llm_client import LLM_BASE_URL
@@ -83,12 +82,12 @@ class TestRequestContract:
   @pytest.mark.asyncio
   @respx.mock
   async def test_request_carries_the_canonical_model_and_knobs(self) -> None:
-    """🔴 `QA-07` ① 의 계약 + 생성 설정이 **요청에 실린다**."""
+    """🔴 `QA-07` ① 의 계약 + 생성 설정이 **요청에 실린다**(temperature 는 빼고 — Gemini 3 기본값)."""
     route = _route()
     await generate_response(_MESSAGES)
     sent = _sent(route)
     assert sent["model"] == RAG_RESPONSE_MODEL
-    assert sent["temperature"] == _TEMPERATURE
+    assert "temperature" not in sent, "Gemini 3 공식 권장 — temperature 는 기본값"
     assert sent["max_tokens"] == _MAX_TOKENS
 
   @pytest.mark.asyncio

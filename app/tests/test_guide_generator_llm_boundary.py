@@ -5,9 +5,9 @@
 🔬 실측 2026-10-07: OpenAI 를 직접 호출하는 경로 **6곳** 중 `ai_worker` 의 4곳은 테스트가
 0개였고 `generate_guide_payload` 가 그중 하나다. 그래서 다음이 전부 미검증이었다 —
 
-- 요청에 실리는 ``model`` · ``response_format`` · ``temperature`` · ``seed``
+- 요청에 실리는 ``model`` · ``response_format`` (2026-10-16 Gemini 전환으로 ``temperature`` · ``seed`` 는 **안 보낸다**)
 - 🔴 **재시도 루프** — LLM 이 `recommended_challenges` **15개 룰**을 위반하면
-  `ValidationError` 가 나고 **seed 를 +1 해서 다시 부른다.** 이 동작이 코드 주석으로만
+  `ValidationError` 가 나고 **다시 부른다.** 이 동작이 코드 주석으로만
   설명돼 있었고 **한 번도 실행되지 않았다.**
 - 모든 재시도 실패 시 마지막 에러 전파 · `OpenAIError` → `ValueError` 정규화
 
@@ -107,18 +107,19 @@ class TestRequestContract:
 
   @pytest.mark.asyncio
   @respx.mock
-  async def test_request_carries_the_canonical_model_and_determinism_knobs(self) -> None:
-    """🔴 `QA-07` ① 의 계약 + **결정성 설정**(`temperature` · `seed`).
+  async def test_request_carries_the_canonical_model_without_sampling_knobs(self) -> None:
+    """🔴 `QA-07` ① 의 계약 + **샘플링 설정을 보내지 않는다**.
 
-    가이드는 *같은 입력이면 같은 출력*이어야 하므로 `temperature=0` 과 `seed` 를 보낸다.
-    그 둘이 실제로 요청에 실리는지는 지금까지 **아무도 보지 않았다.**
+    - ``seed`` — Gemini OpenAI 호환 엔드포인트가 400 으로 거부한다(계약 테스트 실측).
+    - ``temperature`` — Gemini 3 공식 권장 = temperature 기본값(1.0) 유지 — 낮추면 루프·성능 저하(2026-10-16 확인).
+    «같은 입력 → 같은 가이드» 는 서비스의 입력 fingerprint 재사용이 맡는다(LLM 을 다시 부르지 않는다).
     """
     route = respx.post(_URL).mock(return_value=httpx.Response(200, json=_ok()))
     await generate_guide_payload(_MEDS, _PROFILE, _client())
     sent = _sent(route)
     assert sent["model"] == LIFESTYLE_GUIDE_MODEL
-    assert sent["temperature"] == 0.0
-    assert isinstance(sent["seed"], int)
+    assert "temperature" not in sent
+    assert "seed" not in sent
 
   @pytest.mark.asyncio
   @respx.mock
@@ -191,26 +192,16 @@ class TestHappyPath:
     assert result.interaction == "약물-생활 상호작용 안내"
     assert len(result.recommended_challenges) == 15
 
-  @pytest.mark.asyncio
-  @respx.mock
-  async def test_the_same_input_gets_the_same_seed(self) -> None:
-    """🔑 결정성 — 같은 입력이면 **같은 seed** 로 부른다."""
-    route = respx.post(_URL).mock(return_value=httpx.Response(200, json=_ok()))
-    await generate_guide_payload(_MEDS, _PROFILE, _client())
-    first = _sent(route)["seed"]
-    await generate_guide_payload(_MEDS, _PROFILE, _client())
-    assert _sent(route, 1)["seed"] == first
-
 
 class TestRetryLoop:
   """🔴 재시도 루프 — 코드 주석으로만 설명돼 있던 동작."""
 
   @pytest.mark.asyncio
   @respx.mock
-  async def test_a_challenge_count_violation_is_retried_with_a_new_seed(self) -> None:
-    """챌린지가 15개가 아니면 **seed 를 바꿔 다시** 부른다.
+  async def test_a_challenge_count_violation_is_retried(self) -> None:
+    """챌린지가 15개가 아니면 **다시** 부른다.
 
-    `min_length=max_length=15` 를 Pydantic 이 잡고, 루프가 `seed+1` 로 재시도한다.
+    15개 룰을 Pydantic 이 잡고 루프가 재시도한다. 기본 temperature 라 다시 부르면 다른 표본이 나온다.
     """
     route = respx.post(_URL).mock(
       side_effect=[
@@ -221,7 +212,7 @@ class TestRetryLoop:
     result = await generate_guide_payload(_MEDS, _PROFILE, _client())
     assert len(result.recommended_challenges) == 15
     assert route.call_count == 2, "위반 뒤 재시도가 일어나야 한다"
-    assert _sent(route, 1)["seed"] != _sent(route, 0)["seed"], "seed 가 변해야 다른 sample 이 나온다"
+    assert "seed" not in _sent(route, 1), "재시도에도 seed 를 싣지 않는다 — Gemini 가 거부한다"
 
   @pytest.mark.asyncio
   @respx.mock

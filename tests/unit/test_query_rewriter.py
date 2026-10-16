@@ -104,6 +104,7 @@ class TestRequestContract:
     route = _route(_GREETING)
     await rewrite_query(messages=[{"role": "user", "content": "안녕"}])
     assert _sent(route)["model"] == QUERY_REWRITER_MODEL
+    assert "temperature" not in _sent(route), "Gemini 3 공식 권장 — temperature 는 기본값"
 
   @pytest.mark.asyncio
   @respx.mock
