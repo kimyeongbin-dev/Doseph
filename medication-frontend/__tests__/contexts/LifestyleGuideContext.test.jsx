@@ -12,7 +12,9 @@ import { LifestyleGuideProvider, useLifestyleGuide } from '@/contexts/LifestyleG
 import api from '@/lib/api'
 
 vi.mock('@/lib/api', () => ({ default: { get: vi.fn() } }))
-vi.mock('@/contexts/ProfileContext', () => ({ useProfile: () => ({ selectedProfileId: 'prof-1' }) }))
+vi.mock('@/contexts/ProfileContext', () => ({
+  useProfile: () => ({ selectedProfileId: 'prof-1' }),
+}))
 vi.mock('@/lib/sseClient', () => ({ streamSSE: vi.fn() }))
 
 // 컨슈머가 렌더될 때마다 guides 참조를 기록한다(참조 안정성 관찰용).
@@ -87,7 +89,10 @@ describe('LifestyleGuideContext 특성화', () => {
     //    참조 비교는 **data 가 undefined 로 확정된 뒤**에 시작해야 의미가 있으므로
     //    settled 에서만 참인 isError 를 앵커로 쓴다.
     await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('true'))
-    expect(screen.getByTestId('count'), '실패 상태에서도 빈 배열 계약은 유지한다').toHaveTextContent('0')
+    expect(
+      screen.getByTestId('count'),
+      '실패 상태에서도 빈 배열 계약은 유지한다',
+    ).toHaveTextContent('0')
 
     const before = renderedRefs.at(-1)
     await user.click(screen.getByRole('button', { name: '리렌더' }))

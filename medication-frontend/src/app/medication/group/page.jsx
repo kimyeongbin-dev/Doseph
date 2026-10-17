@@ -129,13 +129,13 @@ function MedicationItem({ medication, onClick, selected = false }) {
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-ink truncate">{medication.medicine_name}</span>
           {inactive && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-surface-2 text-muted shrink-0">완료</span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-surface-2 text-muted shrink-0">
+              완료
+            </span>
           )}
         </div>
         {(dose || instr) && (
-          <p className="text-xs text-muted truncate">
-            {[dose, instr].filter(Boolean).join(' · ')}
-          </p>
+          <p className="text-xs text-muted truncate">{[dose, instr].filter(Boolean).join(' · ')}</p>
         )}
       </div>
       <ChevronRight size={18} className="text-muted shrink-0" />
@@ -189,7 +189,9 @@ function PrescriptionGroupContent() {
     try {
       await updateGroup(groupId, { [currentField]: next })
       setEditingField(null)
-      toast.success(currentField === 'hospital_name' ? '병원을 수정했어요.' : '진료과를 수정했어요.')
+      toast.success(
+        currentField === 'hospital_name' ? '병원을 수정했어요.' : '진료과를 수정했어요.',
+      )
     } catch {
       showError('수정에 실패했어요.')
     } finally {
@@ -364,15 +366,20 @@ function PrescriptionGroupContent() {
                   maxLength={64}
                 />
                 <p className="text-[11px] text-muted pt-1">
-                  약 {group.medications?.length || 0}개 · 등록 경로 {SOURCE_LABEL[group.source] || group.source}
-                  {allInactive && <span className="ml-2 text-green-500 font-bold">· 복용 완료</span>}
+                  약 {group.medications?.length || 0}개 · 등록 경로{' '}
+                  {SOURCE_LABEL[group.source] || group.source}
+                  {allInactive && (
+                    <span className="ml-2 text-green-500 font-bold">· 복용 완료</span>
+                  )}
                 </p>
               </div>
 
               {/* 약 list */}
               <div className="space-y-2">
                 {(group.medications || []).length === 0 ? (
-                  <p className="text-sm text-muted text-center py-8">이 처방전엔 등록된 약이 없어요.</p>
+                  <p className="text-sm text-muted text-center py-8">
+                    이 처방전엔 등록된 약이 없어요.
+                  </p>
                 ) : (
                   group.medications.map((m) => (
                     <MedicationItem

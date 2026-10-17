@@ -1,7 +1,7 @@
-import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "react-hot-toast";
-import Script from "next/script";
-import "./globals.css";
+import { Geist, Geist_Mono } from 'next/font/google'
+import { Toaster } from 'react-hot-toast'
+import Script from 'next/script'
+import './globals.css'
 import Navigation from '@/components/layout/Navigation'
 import BottomNav from '@/components/layout/BottomNav'
 import GlobalAuthGuard from '@/components/auth/AuthGuard'
@@ -17,23 +17,23 @@ import { ChatSessionProvider } from '@/contexts/ChatSessionContext'
 
 // 폰트 최적화: preload와 display swap 적용
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
   display: 'swap', // 폰트 로딩 중 fallback 폰트 표시
   preload: true,
-});
+})
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
   display: 'swap',
   preload: true,
-});
+})
 
 export const metadata = {
-  title: "Doseph",
-  description: "AI 기반 지능형 복약 관리 시스템",
-};
+  title: 'Doseph',
+  description: 'AI 기반 지능형 복약 관리 시스템',
+}
 
 export default function RootLayout({ children }) {
   return (
@@ -57,25 +57,25 @@ export default function RootLayout({ children }) {
         </Script>
         <QueryProvider>
           <ConfirmProvider>
-          <GlobalAuthGuard>
-            <ProfileProvider>
-              <MedicationProvider>
-                <PrescriptionGroupProvider>
-                  <ChallengeProvider>
-                    <LifestyleGuideProvider>
-                      <OcrDraftProvider>
-                        <ChatSessionProvider>
-                          <Navigation />
-                          {children}
-                          <BottomNav />
-                        </ChatSessionProvider>
-                      </OcrDraftProvider>
-                    </LifestyleGuideProvider>
-                  </ChallengeProvider>
-                </PrescriptionGroupProvider>
-              </MedicationProvider>
-            </ProfileProvider>
-          </GlobalAuthGuard>
+            <GlobalAuthGuard>
+              <ProfileProvider>
+                <MedicationProvider>
+                  <PrescriptionGroupProvider>
+                    <ChallengeProvider>
+                      <LifestyleGuideProvider>
+                        <OcrDraftProvider>
+                          <ChatSessionProvider>
+                            <Navigation />
+                            {children}
+                            <BottomNav />
+                          </ChatSessionProvider>
+                        </OcrDraftProvider>
+                      </LifestyleGuideProvider>
+                    </ChallengeProvider>
+                  </PrescriptionGroupProvider>
+                </MedicationProvider>
+              </ProfileProvider>
+            </GlobalAuthGuard>
           </ConfirmProvider>
         </QueryProvider>
         <Toaster
@@ -83,8 +83,8 @@ export default function RootLayout({ children }) {
           toastOptions={{
             duration: 3000,
             style: {
-              background: "#333",
-              color: "#fff",
+              background: '#333',
+              color: '#fff',
             },
             error: {
               duration: 4000,
@@ -93,5 +93,5 @@ export default function RootLayout({ children }) {
         />
       </body>
     </html>
-  );
+  )
 }

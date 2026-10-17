@@ -8,11 +8,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import { PrescriptionGroupProvider, usePrescriptionGroup } from '@/contexts/PrescriptionGroupContext'
+import {
+  PrescriptionGroupProvider,
+  usePrescriptionGroup,
+} from '@/contexts/PrescriptionGroupContext'
 import api from '@/lib/api'
 
 vi.mock('@/lib/api', () => ({ default: { get: vi.fn() } }))
-vi.mock('@/contexts/ProfileContext', () => ({ useProfile: () => ({ selectedProfileId: 'prof-1' }) }))
+vi.mock('@/contexts/ProfileContext', () => ({
+  useProfile: () => ({ selectedProfileId: 'prof-1' }),
+}))
 vi.mock('@/contexts/MedicationContext', () => ({ useMedication: () => ({ medications: [] }) }))
 
 // 컨슈머가 렌더될 때마다 groups 참조를 기록한다(참조 안정성 관찰용).
@@ -71,7 +76,9 @@ describe('PrescriptionGroupContext 특성화', () => {
 
     // 로드 후 DATE_DESC -> new 가 앞
     expect(await screen.findByText('new,old')).toBeInTheDocument()
-    expect(api.get).toHaveBeenCalledWith(expect.stringContaining('/api/v1/prescription-groups?profile_id=prof-1'))
+    expect(api.get).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/prescription-groups?profile_id=prof-1'),
+    )
   })
 
   // 조회가 실패해 data 가 undefined 인 상태를 쓰는 이유:
@@ -92,7 +99,9 @@ describe('PrescriptionGroupContext 특성화', () => {
     //    'empty' 가 렌더되므로, 조회가 영원히 응답하지 않아도 통과한다(2026-09-15 실측).
     //    참조 비교는 data 가 undefined 로 **확정된 뒤**여야 하므로 isError 를 앵커로 쓴다.
     await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('true'))
-    expect(screen.getByTestId('ids'), '실패 상태에서도 빈 배열 계약은 유지한다').toHaveTextContent('empty')
+    expect(screen.getByTestId('ids'), '실패 상태에서도 빈 배열 계약은 유지한다').toHaveTextContent(
+      'empty',
+    )
 
     const before = renderedRefs.at(-1)
     await user.click(screen.getByRole('button', { name: '리렌더' }))

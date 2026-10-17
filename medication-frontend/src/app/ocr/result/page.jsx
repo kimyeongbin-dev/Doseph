@@ -29,8 +29,18 @@ const TERMINAL_ERROR_MESSAGES = {
 
 const ocrConfirmSchema = z.object({
   prescription_date: z.string().optional().or(z.literal('')),
-  prescription_hospital: z.string().max(128, '최대 128자까지 가능해요').optional().or(z.literal('')).nullable(),
-  prescription_department: z.string().max(64, '최대 64자까지 가능해요').optional().or(z.literal('')).nullable(),
+  prescription_hospital: z
+    .string()
+    .max(128, '최대 128자까지 가능해요')
+    .optional()
+    .or(z.literal(''))
+    .nullable(),
+  prescription_department: z
+    .string()
+    .max(64, '최대 64자까지 가능해요')
+    .optional()
+    .or(z.literal(''))
+    .nullable(),
   meds: z.array(medicationEditPatchSchema).min(1, '약품을 최소 1개 입력해주세요'),
 })
 
@@ -140,7 +150,11 @@ function OcrResultContent() {
 
     const consumeStream = async () => {
       try {
-        for await (const payload of watchDraftStatus(draftId, selectedProfileId, abortController.signal)) {
+        for await (const payload of watchDraftStatus(
+          draftId,
+          selectedProfileId,
+          abortController.signal,
+        )) {
           const { status, medicines } = payload
           if (status === 'ready') {
             const firstDept = medicines?.find?.((m) => m?.department)?.department || ''
@@ -244,9 +258,9 @@ function OcrResultContent() {
     }
 
     const toStrOrNull = (v) => {
-      if (v === null || v === undefined) return null;
-      if (typeof v === 'string' && v.trim() === '') return null;
-      return typeof v === 'string' ? v.trim() : v;
+      if (v === null || v === undefined) return null
+      if (typeof v === 'string' && v.trim() === '') return null
+      return typeof v === 'string' ? v.trim() : v
     }
 
     const confirmedMedicines = values.meds.map((med) => ({
@@ -334,10 +348,10 @@ function OcrResultContent() {
   }
 
   const handleCustomError = (key, message) => {
-    setCustomErrors(prev => ({ ...prev, [key]: message }))
+    setCustomErrors((prev) => ({ ...prev, [key]: message }))
   }
   const clearCustomError = (key) => {
-    setCustomErrors(prev => {
+    setCustomErrors((prev) => {
       const newErrors = { ...prev }
       delete newErrors[key]
       return newErrors
@@ -369,7 +383,9 @@ function OcrResultContent() {
             <span className="text-2xl">!</span>
             <div>
               <p className="font-semibold text-blue-800 text-sm">확인해주세요!</p>
-              <p className="text-blue-600 text-xs">AI가 인식한 결과입니다. 틀린 글자는 터치해서 고칠 수 있어요.</p>
+              <p className="text-blue-600 text-xs">
+                AI가 인식한 결과입니다. 틀린 글자는 터치해서 고칠 수 있어요.
+              </p>
             </div>
           </div>
 
@@ -388,25 +404,27 @@ function OcrResultContent() {
           <div className="bg-surface rounded-2xl p-5 border border-line flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-bold text-ink">병원</p>
-              <p className="text-xs text-muted mt-0.5">비워두면 &lsquo;미상&rsquo; 으로 등록됩니다</p>
+              <p className="text-xs text-muted mt-0.5">
+                비워두면 &lsquo;미상&rsquo; 으로 등록됩니다
+              </p>
             </div>
             <div>
               <input
                 type="text"
                 {...register('prescription_hospital')}
                 onChange={(e) => {
-                  const rawValue = e.target.value;
-                  const hasError = /[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/.test(rawValue);
+                  const rawValue = e.target.value
+                  const hasError = /[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/.test(rawValue)
 
                   if (hasError) {
-                    handleCustomError('prescription_hospital', '숫자와 특수문자는 불가합니다.');
+                    handleCustomError('prescription_hospital', '숫자와 특수문자는 불가합니다.')
                   } else {
-                    clearCustomError('prescription_hospital');
+                    clearCustomError('prescription_hospital')
                   }
 
-                  const sanitizedValue = rawValue.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, '');
-                  e.target.value = sanitizedValue;
-                  setValue('prescription_hospital', sanitizedValue, { shouldDirty: true });
+                  const sanitizedValue = rawValue.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, '')
+                  e.target.value = sanitizedValue
+                  setValue('prescription_hospital', sanitizedValue, { shouldDirty: true })
                 }}
                 placeholder="예: 서울내과의원"
                 maxLength={128}
@@ -414,9 +432,15 @@ function OcrResultContent() {
               />
               <div className="mt-1 h-4">
                 {customErrors['prescription_hospital'] ? (
-                  <p className="text-red-500 text-xs font-bold">{customErrors['prescription_hospital']}</p>
+                  <p className="text-red-500 text-xs font-bold">
+                    {customErrors['prescription_hospital']}
+                  </p>
                 ) : (
-                  <FormError name="prescription_hospital" errors={errors} className="text-red-500 text-xs font-bold" />
+                  <FormError
+                    name="prescription_hospital"
+                    errors={errors}
+                    className="text-red-500 text-xs font-bold"
+                  />
                 )}
               </div>
             </div>
@@ -425,25 +449,27 @@ function OcrResultContent() {
           <div className="bg-surface rounded-2xl p-5 border border-line flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-bold text-ink">진료과</p>
-              <p className="text-xs text-muted mt-0.5">비워두면 &lsquo;미상&rsquo; 으로 등록됩니다</p>
+              <p className="text-xs text-muted mt-0.5">
+                비워두면 &lsquo;미상&rsquo; 으로 등록됩니다
+              </p>
             </div>
             <div>
               <input
                 type="text"
                 {...register('prescription_department')}
                 onChange={(e) => {
-                  const rawValue = e.target.value;
-                  const hasError = /[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/.test(rawValue);
+                  const rawValue = e.target.value
+                  const hasError = /[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/.test(rawValue)
 
                   if (hasError) {
-                    handleCustomError('prescription_department', '숫자와 특수문자는 불가합니다.');
+                    handleCustomError('prescription_department', '숫자와 특수문자는 불가합니다.')
                   } else {
-                    clearCustomError('prescription_department');
+                    clearCustomError('prescription_department')
                   }
 
-                  const sanitizedValue = rawValue.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, '');
-                  e.target.value = sanitizedValue;
-                  setValue('prescription_department', sanitizedValue, { shouldDirty: true });
+                  const sanitizedValue = rawValue.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, '')
+                  e.target.value = sanitizedValue
+                  setValue('prescription_department', sanitizedValue, { shouldDirty: true })
                 }}
                 placeholder="예: 내과"
                 maxLength={64}
@@ -451,9 +477,15 @@ function OcrResultContent() {
               />
               <div className="mt-1 h-4">
                 {customErrors['prescription_department'] ? (
-                  <p className="text-red-500 text-xs font-bold">{customErrors['prescription_department']}</p>
+                  <p className="text-red-500 text-xs font-bold">
+                    {customErrors['prescription_department']}
+                  </p>
                 ) : (
-                  <FormError name="prescription_department" errors={errors} className="text-red-500 text-xs font-bold" />
+                  <FormError
+                    name="prescription_department"
+                    errors={errors}
+                    className="text-red-500 text-xs font-bold"
+                  />
                 )}
               </div>
             </div>
@@ -497,20 +529,20 @@ function OcrResultContent() {
                       type="text"
                       {...register(`meds.${i}.dose_per_intake`)}
                       onChange={(e) => {
-                        let val = e.target.value.replace(/[^0-9.]/g, '');
-                        const parts = val.split('.');
-                        if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+                        let val = e.target.value.replace(/[^0-9.]/g, '')
+                        const parts = val.split('.')
+                        if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('')
 
-                        const numVal = parseFloat(val);
+                        const numVal = parseFloat(val)
 
                         if (!isNaN(numVal) && numVal > 100) {
-                           e.target.value = '';
-                           setValue(`meds.${i}.dose_per_intake`, '', { shouldDirty: true });
-                           handleCustomError(`dose_${i}`, '최대 100까지 가능합니다.');
+                          e.target.value = ''
+                          setValue(`meds.${i}.dose_per_intake`, '', { shouldDirty: true })
+                          handleCustomError(`dose_${i}`, '최대 100까지 가능합니다.')
                         } else {
-                           clearCustomError(`dose_${i}`);
-                           e.target.value = val;
-                           setValue(`meds.${i}.dose_per_intake`, val, { shouldDirty: true });
+                          clearCustomError(`dose_${i}`)
+                          e.target.value = val
+                          setValue(`meds.${i}.dose_per_intake`, val, { shouldDirty: true })
                         }
                       }}
                       className="text-sm font-bold text-ink bg-transparent w-full focus:outline-none focus:text-blue-600 px-1"
@@ -518,9 +550,15 @@ function OcrResultContent() {
                     />
                     <div className="mt-1 px-1 h-4">
                       {customErrors[`dose_${i}`] ? (
-                        <p className="text-red-500 text-xs font-bold">{customErrors[`dose_${i}`]}</p>
+                        <p className="text-red-500 text-xs font-bold">
+                          {customErrors[`dose_${i}`]}
+                        </p>
                       ) : (
-                        <FormError name={`meds.${i}.dose_per_intake`} errors={errors} className="text-red-500 text-xs font-bold" />
+                        <FormError
+                          name={`meds.${i}.dose_per_intake`}
+                          errors={errors}
+                          className="text-red-500 text-xs font-bold"
+                        />
                       )}
                     </div>
                   </div>
@@ -532,17 +570,17 @@ function OcrResultContent() {
                       inputMode="numeric"
                       {...register(`meds.${i}.daily_intake_count`)}
                       onChange={(e) => {
-                        let val = e.target.value.replace(/[^0-9]/g, '');
-                        const numVal = parseInt(val, 10);
+                        let val = e.target.value.replace(/[^0-9]/g, '')
+                        const numVal = parseInt(val, 10)
 
                         if (!isNaN(numVal) && numVal > 24) {
-                          e.target.value = '';
-                          setValue(`meds.${i}.daily_intake_count`, '', { shouldDirty: true });
-                          handleCustomError(`freq_${i}`, '최대 24회까지 가능합니다.');
+                          e.target.value = ''
+                          setValue(`meds.${i}.daily_intake_count`, '', { shouldDirty: true })
+                          handleCustomError(`freq_${i}`, '최대 24회까지 가능합니다.')
                         } else {
-                          clearCustomError(`freq_${i}`);
-                          e.target.value = val;
-                          setValue(`meds.${i}.daily_intake_count`, val, { shouldDirty: true });
+                          clearCustomError(`freq_${i}`)
+                          e.target.value = val
+                          setValue(`meds.${i}.daily_intake_count`, val, { shouldDirty: true })
                         }
                       }}
                       className="text-sm font-bold text-ink bg-transparent w-full focus:outline-none focus:text-blue-600 px-1"
@@ -550,9 +588,15 @@ function OcrResultContent() {
                     />
                     <div className="mt-1 px-1 h-4">
                       {customErrors[`freq_${i}`] ? (
-                        <p className="text-red-500 text-xs font-bold">{customErrors[`freq_${i}`]}</p>
+                        <p className="text-red-500 text-xs font-bold">
+                          {customErrors[`freq_${i}`]}
+                        </p>
                       ) : (
-                        <FormError name={`meds.${i}.daily_intake_count`} errors={errors} className="text-red-500 text-xs font-bold" />
+                        <FormError
+                          name={`meds.${i}.daily_intake_count`}
+                          errors={errors}
+                          className="text-red-500 text-xs font-bold"
+                        />
                       )}
                     </div>
                   </div>
@@ -564,17 +608,17 @@ function OcrResultContent() {
                       inputMode="numeric"
                       {...register(`meds.${i}.total_intake_days`)}
                       onChange={(e) => {
-                        let val = e.target.value.replace(/[^0-9]/g, '');
-                        const numVal = parseInt(val, 10);
+                        let val = e.target.value.replace(/[^0-9]/g, '')
+                        const numVal = parseInt(val, 10)
 
                         if (!isNaN(numVal) && numVal > 365) {
-                          e.target.value = '';
-                          setValue(`meds.${i}.total_intake_days`, '', { shouldDirty: true });
-                          handleCustomError(`days_${i}`, '최대 365일까지 가능합니다.');
+                          e.target.value = ''
+                          setValue(`meds.${i}.total_intake_days`, '', { shouldDirty: true })
+                          handleCustomError(`days_${i}`, '최대 365일까지 가능합니다.')
                         } else {
-                          clearCustomError(`days_${i}`);
-                          e.target.value = val;
-                          setValue(`meds.${i}.total_intake_days`, val, { shouldDirty: true });
+                          clearCustomError(`days_${i}`)
+                          e.target.value = val
+                          setValue(`meds.${i}.total_intake_days`, val, { shouldDirty: true })
                         }
                       }}
                       className="text-sm font-bold text-ink bg-transparent w-full focus:outline-none focus:text-blue-600 px-1"
@@ -582,9 +626,15 @@ function OcrResultContent() {
                     />
                     <div className="mt-1 px-1 h-4">
                       {customErrors[`days_${i}`] ? (
-                        <p className="text-red-500 text-xs font-bold">{customErrors[`days_${i}`]}</p>
+                        <p className="text-red-500 text-xs font-bold">
+                          {customErrors[`days_${i}`]}
+                        </p>
                       ) : (
-                        <FormError name={`meds.${i}.total_intake_days`} errors={errors} className="text-red-500 text-xs font-bold" />
+                        <FormError
+                          name={`meds.${i}.total_intake_days`}
+                          errors={errors}
+                          className="text-red-500 text-xs font-bold"
+                        />
                       )}
                     </div>
                   </div>
@@ -595,7 +645,9 @@ function OcrResultContent() {
                       {...register(`meds.${i}.intake_instruction`)}
                       className="text-sm font-bold text-ink bg-transparent w-full focus:outline-none focus:text-blue-600 px-1 cursor-pointer"
                     >
-                      <option value="" disabled hidden>선택해주세요</option>
+                      <option value="" disabled hidden>
+                        선택해주세요
+                      </option>
                       <option value="식후 30분">식후 30분</option>
                       <option value="식전 30분">식전 30분</option>
                       <option value="식사 직후">식사 직후</option>
@@ -614,7 +666,9 @@ function OcrResultContent() {
               <div className="flex-1">
                 <p className="font-bold text-blue-800 text-sm mb-1">인식되지 않은 약이 있나요?</p>
                 <p className="text-blue-700 text-xs">
-                  누락된 약품이 있다면 아래의 <span className="font-bold text-blue-800">+ 직접 약품 추가하기</span> 버튼을 눌러 꼭 입력해 주세요!
+                  누락된 약품이 있다면 아래의{' '}
+                  <span className="font-bold text-blue-800">+ 직접 약품 추가하기</span> 버튼을 눌러
+                  꼭 입력해 주세요!
                 </p>
               </div>
             </div>

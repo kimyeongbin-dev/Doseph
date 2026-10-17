@@ -7,7 +7,6 @@ import api from '@/lib/api'
 import { markLoggedOut } from '@/lib/authStatus'
 import toast from 'react-hot-toast'
 
-
 export function useLogout() {
   const router = useRouter()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
@@ -57,16 +56,20 @@ export function DeleteAccountModal({ onClose, onConfirm }) {
         </div>
         <h3 className="text-xl font-black text-ink mb-2 text-center">회원 탈퇴</h3>
         <p className="text-muted text-sm text-center mb-2">정말로 탈퇴하시겠습니까?</p>
-        <p className="text-red-400 text-xs text-center mb-8">탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.</p>
+        <p className="text-red-400 text-xs text-center mb-8">
+          탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.
+        </p>
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 rounded-2xl bg-surface-2 text-muted font-bold hover:bg-surface-2 transition-all cursor-pointer">
+            className="flex-1 py-3 rounded-2xl bg-surface-2 text-muted font-bold hover:bg-surface-2 transition-all cursor-pointer"
+          >
             취소
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 py-3 rounded-2xl bg-red-500 text-accent-ink font-black hover:bg-red-600 transition-all cursor-pointer">
+            className="flex-1 py-3 rounded-2xl bg-red-500 text-accent-ink font-black hover:bg-red-600 transition-all cursor-pointer"
+          >
             탈퇴하기
           </button>
         </div>
@@ -77,7 +80,7 @@ export function DeleteAccountModal({ onClose, onConfirm }) {
 
 DeleteAccountModal.propTypes = {
   onClose: PropTypes.func.isRequired,
-  onConfirm: PropTypes.func.isRequired
+  onConfirm: PropTypes.func.isRequired,
 }
 
 export default function LogoutModal({ onClose, onConfirm }) {
@@ -92,12 +95,14 @@ export default function LogoutModal({ onClose, onConfirm }) {
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 rounded-2xl bg-surface-2 text-muted font-bold hover:bg-surface-2 transition-all cursor-pointer">
+            className="flex-1 py-3 rounded-2xl bg-surface-2 text-muted font-bold hover:bg-surface-2 transition-all cursor-pointer"
+          >
             취소
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 py-3 rounded-2xl bg-accent text-accent-ink font-black hover:brightness-110 transition-all cursor-pointer">
+            className="flex-1 py-3 rounded-2xl bg-accent text-accent-ink font-black hover:brightness-110 transition-all cursor-pointer"
+          >
             로그아웃
           </button>
         </div>
@@ -108,5 +113,5 @@ export default function LogoutModal({ onClose, onConfirm }) {
 
 LogoutModal.propTypes = {
   onClose: PropTypes.func.isRequired,
-  onConfirm: PropTypes.func.isRequired
+  onConfirm: PropTypes.func.isRequired,
 }

@@ -107,9 +107,7 @@ export function ConfirmProvider({ children }) {
                 autoFocus
                 onClick={() => close(true)}
                 className={`flex-1 py-3.5 text-sm font-bold cursor-pointer transition-colors border-l border-line ${
-                  opts.danger
-                    ? 'text-red-500 hover:bg-red-50'
-                    : 'text-ink hover:bg-surface-2'
+                  opts.danger ? 'text-red-500 hover:bg-red-50' : 'text-ink hover:bg-surface-2'
                 }`}
               >
                 {opts.confirmLabel}

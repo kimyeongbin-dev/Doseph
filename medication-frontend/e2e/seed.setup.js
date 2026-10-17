@@ -48,7 +48,12 @@ const SEED_MEDICATIONS = [
 // 2건 이상이어야 '선택'이라는 동작 자체가 관측 가능해진다.
 // LLM 가이드를 거치지 않는 수동 생성 경로(POST /challenges)라 결정적이다.
 const SEED_CHALLENGES = [
-  { title: 'E2E 물 2L 마시기', description: '하루 2L 물 마시기', target_days: 7, difficulty: '쉬움' },
+  {
+    title: 'E2E 물 2L 마시기',
+    description: '하루 2L 물 마시기',
+    target_days: 7,
+    difficulty: '쉬움',
+  },
   { title: 'E2E 가볍게 걷기', description: '하루 20분 걷기', target_days: 7, difficulty: '보통' },
 ]
 

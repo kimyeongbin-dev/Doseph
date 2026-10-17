@@ -55,7 +55,9 @@ describe('TimeSlotPicker 특성화', () => {
     expect(isSlotActive('아침')).toBe(true)
     expect(isSlotActive('저녁')).toBe(false)
 
-    rerender(<TimeSlotPicker medication={makeMedication({ id: 'med-B', intake_times: ['19:00'] })} />)
+    rerender(
+      <TimeSlotPicker medication={makeMedication({ id: 'med-B', intake_times: ['19:00'] })} />,
+    )
     expect(isSlotActive('아침')).toBe(false)
     expect(isSlotActive('저녁')).toBe(true)
   })

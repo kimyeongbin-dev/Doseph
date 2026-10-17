@@ -8,8 +8,8 @@ import LoadingSpinner from '@/components/common/LoadingSpinner'
 
 // 인증이 필요하지 않은 공개 경로들 (화이트리스트)
 const PUBLIC_ROUTES = [
-  '/',           // 랜딩 페이지
-  '/login'       // 로그인 페이지
+  '/', // 랜딩 페이지
+  '/login', // 로그인 페이지
 ]
 
 // 경로가 공개 경로인지 확인
@@ -56,7 +56,7 @@ export default function GlobalAuthGuard({ children }) {
       try {
         // 인증 확인 API 호출 (인터셉터 비활성화로 빠른 판정 — RTR 은 skip)
         await api.get('/api/v1/profiles', {
-          skipAuthInterceptor: true
+          skipAuthInterceptor: true,
         })
         setIsAuthenticated(true)
       } catch (error) {
@@ -97,5 +97,5 @@ export default function GlobalAuthGuard({ children }) {
 }
 
 GlobalAuthGuard.propTypes = {
-  children: PropTypes.node.isRequired
+  children: PropTypes.node.isRequired,
 }

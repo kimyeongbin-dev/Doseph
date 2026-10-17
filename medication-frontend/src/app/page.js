@@ -32,11 +32,7 @@ let isAutoScrolling = false
 let autoScrollTimeout = null
 
 // ← [추가] 배경 이미지 배열
-const backgroundImages = [
-  '/hero_bg_1.png',
-  '/hero_bg_2.png',
-  '/hero_bg_3.png',
-]
+const backgroundImages = ['/hero_bg_1.png', '/hero_bg_2.png', '/hero_bg_3.png']
 
 export default function LandingPage() {
   const router = useRouter()
@@ -49,7 +45,7 @@ export default function LandingPage() {
   useEffect(() => {
     const startSlideShow = () => {
       bgSlideShowTimeoutRef.current = setTimeout(() => {
-        setCurrentBgIndex(prevIndex => (prevIndex + 1) % backgroundImages.length)
+        setCurrentBgIndex((prevIndex) => (prevIndex + 1) % backgroundImages.length)
       }, 3000) // 5초마다 다음 이미지로 전환
     }
 
@@ -108,12 +104,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-bg"
-      onWheel={handleUserScroll}
-      onTouchMove={handleUserScroll}
-    >
-
+    <div className="min-h-screen bg-bg" onWheel={handleUserScroll} onTouchMove={handleUserScroll}>
       {/* ── 히어로 섹션 ── full-width 다크 */}
       <section
         className="relative w-full min-h-[620px] flex items-center justify-center overflow-hidden bg-black"
@@ -152,7 +143,8 @@ export default function LandingPage() {
             transform: 'translateX(-340px)',
             width: '580px',
             height: '400px',
-            background: 'radial-gradient(ellipse at center bottom, rgba(249,115,22,0.3) 0%, transparent 70%)',
+            background:
+              'radial-gradient(ellipse at center bottom, rgba(249,115,22,0.3) 0%, transparent 70%)',
           }}
         />
         <div
@@ -161,7 +153,8 @@ export default function LandingPage() {
             transform: 'translateX(-60px)',
             width: '580px',
             height: '400px',
-            background: 'radial-gradient(ellipse at center bottom, rgba(20,184,166,0.3) 0%, transparent 70%)',
+            background:
+              'radial-gradient(ellipse at center bottom, rgba(20,184,166,0.3) 0%, transparent 70%)',
           }}
         />
 
@@ -179,11 +172,11 @@ export default function LandingPage() {
           </p>
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white leading-[1.05] tracking-tighter mb-8">
             복약의 새로운
-
             <span className="text-white/40">기준</span>
           </h1>
           <p className="text-white/60 text-base md:text-lg mb-12 leading-relaxed max-w-xl mx-auto font-medium">
-            처방전 촬영으로 시작하는 스마트한 건강 관리.<br className="hidden md:block" />
+            처방전 촬영으로 시작하는 스마트한 건강 관리.
+            <br className="hidden md:block" />
             AI가 당신의 안전한 복약 파트너가 되어드립니다.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -219,7 +212,9 @@ export default function LandingPage() {
       {/* ── 기능 소개 ── */}
       <section id="features-section" className="max-w-6xl mx-auto px-6 py-32">
         <div className="text-center mb-20">
-          <p className="text-[11px] font-black text-muted tracking-[0.3em] uppercase mb-4">Core Value</p>
+          <p className="text-[11px] font-black text-muted tracking-[0.3em] uppercase mb-4">
+            Core Value
+          </p>
           <h2 className="text-4xl md:text-5xl font-black text-ink tracking-tighter">
             더 쉽고, 더 정확하게
           </h2>
@@ -244,14 +239,19 @@ export default function LandingPage() {
       <section id="usecases-section" className="bg-surface-2 py-32">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
-            <p className="text-[11px] font-black text-muted tracking-[0.3em] uppercase mb-4">Target</p>
+            <p className="text-[11px] font-black text-muted tracking-[0.3em] uppercase mb-4">
+              Target
+            </p>
             <h2 className="text-3xl md:text-4xl font-black text-ink tracking-tighter">
               모두를 위한 건강 관리
             </h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {useCases.map((u, i) => (
-              <div key={i} className="flex flex-col p-10 rounded-[40px] bg-surface border border-line hover:shadow-[var(--shadow-pop)] transition-all duration-300">
+              <div
+                key={i}
+                className="flex flex-col p-10 rounded-[40px] bg-surface border border-line hover:shadow-[var(--shadow-pop)] transition-all duration-300"
+              >
                 <div className="w-12 h-12 bg-accent-soft rounded-2xl flex items-center justify-center text-lg font-black text-accent mb-6">
                   0{i + 1}
                 </div>
@@ -269,7 +269,9 @@ export default function LandingPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent rounded-full blur-[120px]" />
         </div>
         <div className="relative z-10">
-          <p className="text-white/50 text-xs font-black mb-6 tracking-[0.3em] uppercase">Join us today</p>
+          <p className="text-white/50 text-xs font-black mb-6 tracking-[0.3em] uppercase">
+            Join us today
+          </p>
           <h2 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tighter">
             안전한 복약의 시작
           </h2>
@@ -282,7 +284,6 @@ export default function LandingPage() {
           </button>
         </div>
       </section>
-
     </div>
   )
 }

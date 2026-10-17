@@ -92,9 +92,7 @@ export function useRevealMoreChallenges() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (guideId) => {
-      const { data } = await api.post(
-        `/api/v1/lifestyle-guides/${guideId}/reveal-more-challenges`,
-      )
+      const { data } = await api.post(`/api/v1/lifestyle-guides/${guideId}/reveal-more-challenges`)
       return data
     },
     onSuccess: (updated, guideId) => {

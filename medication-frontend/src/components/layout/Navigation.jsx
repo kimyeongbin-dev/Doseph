@@ -30,28 +30,32 @@ export default function Navigation() {
   const { showLogoutModal, setShowLogoutModal, handleLogout } = useLogout()
 
   const menus = [
-    { label: '홈',            path: '/main',            icon: <Home size={18} /> },
-    { label: '처방전 등록',    path: '/ocr',             icon: <FileText size={18} /> },
-    { label: '복약 가이드',    path: '/medication',      icon: <Pill size={18} /> },
+    { label: '홈', path: '/main', icon: <Home size={18} /> },
+    { label: '처방전 등록', path: '/ocr', icon: <FileText size={18} /> },
+    { label: '복약 가이드', path: '/medication', icon: <Pill size={18} /> },
     { label: '생활습관 가이드', path: '/lifestyle-guide', icon: <Pill size={18} /> },
-    { label: '챌린지',        path: '/challenge',       icon: <Trophy size={18} /> },
-    { label: '마이페이지',     path: '/mypage',          icon: <User size={18} /> },
+    { label: '챌린지', path: '/challenge', icon: <Trophy size={18} /> },
+    { label: '마이페이지', path: '/mypage', icon: <User size={18} /> },
   ]
 
   return (
     <>
       {showChat && <ChatModal onClose={() => setShowChat(false)} profileId={selectedProfileId} />}
-      {showLogoutModal && <LogoutModal onClose={() => setShowLogoutModal(false)} onConfirm={handleLogout} />}
+      {showLogoutModal && (
+        <LogoutModal onClose={() => setShowLogoutModal(false)} onConfirm={handleLogout} />
+      )}
 
       <nav
         className={`fixed top-0 w-full z-50 transition-all duration-200 border-b
         ${scrolled ? 'bg-surface/90 backdrop-blur-xl border-line' : 'bg-surface border-line'}`}
       >
         <div className="max-w-[1400px] mx-auto px-6 flex justify-between items-center h-14">
-
           <div className="flex items-center gap-10">
             {/* 로고 */}
-            <Link href={isLanding ? '/' : '/main'} className="flex items-center gap-2 flex-shrink-0">
+            <Link
+              href={isLanding ? '/' : '/main'}
+              className="flex items-center gap-2 flex-shrink-0"
+            >
               <div className="w-7 h-7 bg-accent rounded-md flex items-center justify-center text-accent-ink">
                 <Pill size={14} />
               </div>
@@ -64,16 +68,21 @@ export default function Navigation() {
             {!isLanding && !isAuthPage && (
               <div className="hidden md:flex items-center gap-1">
                 {menus.map((menu) => {
-                  const isActive = menu.path === '/ocr'
-                    ? pathname.startsWith('/ocr')
-                    : pathname === menu.path
+                  const isActive =
+                    menu.path === '/ocr' ? pathname.startsWith('/ocr') : pathname === menu.path
                   const className = `px-4 py-1.5 text-[13px] rounded-lg transition-all
-                    ${isActive
-                      ? 'text-ink font-bold bg-surface-2'
-                      : 'text-muted hover:text-ink hover:bg-surface-2/60'}`
+                    ${
+                      isActive
+                        ? 'text-ink font-bold bg-surface-2'
+                        : 'text-muted hover:text-ink hover:bg-surface-2/60'
+                    }`
                   if (menu.path === '/ocr') {
                     return (
-                      <button key={menu.path} onClick={goToOcrEntry} className={`${className} cursor-pointer`}>
+                      <button
+                        key={menu.path}
+                        onClick={goToOcrEntry}
+                        className={`${className} cursor-pointer`}
+                      >
                         {menu.label}
                       </button>
                     )
@@ -95,12 +104,14 @@ export default function Navigation() {
                 <ThemeToggle />
                 <button
                   onClick={() => router.push('/login')}
-                  className="hidden sm:block text-sm text-muted hover:text-ink transition-colors cursor-pointer px-3.5 py-1.5 hover:bg-surface-2 rounded-md">
+                  className="hidden sm:block text-sm text-muted hover:text-ink transition-colors cursor-pointer px-3.5 py-1.5 hover:bg-surface-2 rounded-md"
+                >
                   로그인
                 </button>
                 <button
                   onClick={() => router.push('/login')}
-                  className="text-sm bg-accent text-accent-ink font-medium cursor-pointer px-4 py-1.5 rounded-lg hover:brightness-110 transition-all">
+                  className="text-sm bg-accent text-accent-ink font-medium cursor-pointer px-4 py-1.5 rounded-lg hover:brightness-110 transition-all"
+                >
                   시작하기
                 </button>
               </>
@@ -111,8 +122,10 @@ export default function Navigation() {
                 <div className="hidden md:flex items-center gap-2">
                   <ProfileSwitcher />
                   <div className="w-px h-4 bg-line" />
-                  <button onClick={() => setShowLogoutModal(true)}
-                    className="text-sm text-muted hover:text-ink transition-colors cursor-pointer px-3.5 py-1.5 hover:bg-surface-2 rounded-md flex items-center gap-1.5">
+                  <button
+                    onClick={() => setShowLogoutModal(true)}
+                    className="text-sm text-muted hover:text-ink transition-colors cursor-pointer px-3.5 py-1.5 hover:bg-surface-2 rounded-md flex items-center gap-1.5"
+                  >
                     <LogOut size={15} />
                     로그아웃
                   </button>
@@ -128,7 +141,8 @@ export default function Navigation() {
       {!isLanding && !isAuthPage && (
         <button
           onClick={() => setShowChat(true)}
-          className="fixed bottom-24 right-6 z-[60] w-12 h-12 bg-accent rounded-2xl shadow-lg flex items-center justify-center text-accent-ink cursor-pointer hover:brightness-110 hover:scale-105 transition-all active:scale-95">
+          className="fixed bottom-24 right-6 z-[60] w-12 h-12 bg-accent rounded-2xl shadow-lg flex items-center justify-center text-accent-ink cursor-pointer hover:brightness-110 hover:scale-105 transition-all active:scale-95"
+        >
           <MessageCircle size={20} />
         </button>
       )}

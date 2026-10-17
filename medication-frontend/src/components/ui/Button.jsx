@@ -8,7 +8,8 @@ const VARIANTS = {
   primary: 'bg-accent text-accent-ink hover:brightness-110 shadow-[var(--shadow-card)]',
   secondary: 'bg-surface text-ink border border-line hover:border-accent/40',
   ghost: 'bg-transparent text-accent hover:bg-accent-soft',
-  glass: 'bg-white/15 text-white border border-white/40 backdrop-blur-md hover:bg-white/25 hover:border-white/60',
+  glass:
+    'bg-white/15 text-white border border-white/40 backdrop-blur-md hover:bg-white/25 hover:border-white/60',
 }
 
 // 최소 터치 영역 44px 보장 (h-11 = 44px)
@@ -17,7 +18,13 @@ const SIZES = {
   lg: 'h-14 px-8 text-base',
 }
 
-export default function Button({ variant = 'primary', size = 'md', className = '', children, ...props }) {
+export default function Button({
+  variant = 'primary',
+  size = 'md',
+  className = '',
+  children,
+  ...props
+}) {
   const base =
     'inline-flex items-center justify-center gap-2 rounded-full font-bold tracking-tight ' +
     'transition-all cursor-pointer active:scale-[0.98] ' +

@@ -10,9 +10,18 @@ import { useState, useEffect } from 'react'
 
 const DIFFICULTIES = ['쉬움', '보통', '어려움']
 const DIFFICULTY_META = {
-  '쉬움': { color: 'bg-blue-500 text-accent-ink border-blue-500', idle: 'bg-surface text-blue-500 border-blue-200 hover:border-blue-400' },
-  '보통': { color: 'bg-green-500 text-accent-ink border-green-500', idle: 'bg-surface text-green-500 border-green-200 hover:border-green-400' },
-  '어려움': { color: 'bg-red-500 text-accent-ink border-red-500', idle: 'bg-surface text-red-500 border-red-200 hover:border-red-400' },
+  쉬움: {
+    color: 'bg-blue-500 text-accent-ink border-blue-500',
+    idle: 'bg-surface text-blue-500 border-blue-200 hover:border-blue-400',
+  },
+  보통: {
+    color: 'bg-green-500 text-accent-ink border-green-500',
+    idle: 'bg-surface text-green-500 border-green-200 hover:border-green-400',
+  },
+  어려움: {
+    color: 'bg-red-500 text-accent-ink border-red-500',
+    idle: 'bg-surface text-red-500 border-red-200 hover:border-red-400',
+  },
 }
 const BASE_DURATIONS = [7, 14, 21, 30]
 
@@ -34,7 +43,9 @@ export default function StartChallengeModal({ challenge, onConfirm, onClose, isL
   // 모달 열릴 때 body 스크롤 잠금
   useEffect(() => {
     document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = '' }
+    return () => {
+      document.body.style.overflow = ''
+    }
   }, [])
 
   const handleConfirm = () => {
@@ -45,7 +56,9 @@ export default function StartChallengeModal({ challenge, onConfirm, onClose, isL
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
     >
       {/* 딤 처리 오버레이 */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
@@ -57,7 +70,9 @@ export default function StartChallengeModal({ challenge, onConfirm, onClose, isL
 
         {/* 챌린지 정보 */}
         <div className="mb-5">
-          <p className="text-[10px] font-bold text-muted uppercase tracking-wide mb-1">시작할 챌린지</p>
+          <p className="text-[10px] font-bold text-muted uppercase tracking-wide mb-1">
+            시작할 챌린지
+          </p>
           <p className="text-base font-black text-ink leading-snug">{challenge.title}</p>
           {challenge.description && (
             <p className="text-xs text-muted mt-1 leading-relaxed">{challenge.description}</p>
@@ -138,9 +153,7 @@ export default function StartChallengeModal({ challenge, onConfirm, onClose, isL
               : 'bg-accent text-accent-ink hover:brightness-110 active:scale-[0.98] cursor-pointer'
           }`}
         >
-          {isLoading
-            ? '시작하는 중...'
-            : `${difficulty} · ${targetDays}일로 시작하기`}
+          {isLoading ? '시작하는 중...' : `${difficulty} · ${targetDays}일로 시작하기`}
         </button>
 
         {/* 취소 */}

@@ -183,7 +183,9 @@ test.describe('챗 모달 — 세션 초기화 / 메시지 로드', () => {
         ? route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify([{ id: SESSION_ID, title: 'x', created_at: '2026-09-14T00:00:00Z' }]),
+            body: JSON.stringify([
+              { id: SESSION_ID, title: 'x', created_at: '2026-09-14T00:00:00Z' },
+            ]),
           })
         : route.fallback(),
     )

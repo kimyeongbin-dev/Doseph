@@ -7,7 +7,19 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { AlertCircle, AlertTriangle, Ban, Calendar, ChevronDown, ChevronUp, Clock, PencilLine, Pill, Trash2, Utensils } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertTriangle,
+  Ban,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  PencilLine,
+  Pill,
+  Trash2,
+  Utensils,
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 import Markdown from 'react-markdown'
 
@@ -19,15 +31,23 @@ import TimeSlotPicker from '@/components/medication/TimeSlotPicker'
 // 가독성 확보). 약품 상세 panel 안에서 BE 응답의 plain text 또는 ** **, - 을
 // 자연스럽게 렌더.
 const MD_COMPONENTS = {
-  p: ({ children }) => <p className="text-sm text-muted leading-relaxed mb-2 last:mb-0">{children}</p>,
+  p: ({ children }) => (
+    <p className="text-sm text-muted leading-relaxed mb-2 last:mb-0">{children}</p>
+  ),
   ul: ({ children }) => <ul className="list-disc pl-5 mb-2 last:mb-0 space-y-1">{children}</ul>,
   ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 last:mb-0 space-y-1">{children}</ol>,
   li: ({ children }) => <li className="text-sm text-muted leading-relaxed">{children}</li>,
   strong: ({ children }) => <strong className="font-semibold text-ink">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
-  h1: ({ children }) => <h1 className="font-bold text-sm mt-2 mb-1 first:mt-0 text-ink">{children}</h1>,
-  h2: ({ children }) => <h2 className="font-bold text-sm mt-2 mb-1 first:mt-0 text-ink">{children}</h2>,
-  h3: ({ children }) => <h3 className="font-semibold text-xs mt-1.5 mb-1 first:mt-0 text-ink">{children}</h3>,
+  h1: ({ children }) => (
+    <h1 className="font-bold text-sm mt-2 mb-1 first:mt-0 text-ink">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="font-bold text-sm mt-2 mb-1 first:mt-0 text-ink">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="font-semibold text-xs mt-1.5 mb-1 first:mt-0 text-ink">{children}</h3>
+  ),
   a: ({ href, children }) => (
     <a
       href={href}
@@ -39,7 +59,9 @@ const MD_COMPONENTS = {
     </a>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="border-l-4 border-line pl-3 my-2 text-muted text-sm">{children}</blockquote>
+    <blockquote className="border-l-4 border-line pl-3 my-2 text-muted text-sm">
+      {children}
+    </blockquote>
   ),
 }
 
@@ -47,7 +69,12 @@ const MD_COMPONENTS = {
 //    개선을 위해 cap 자 이상이면 자동 collapsed 로 시작.
 const COLLAPSE_CHAR_THRESHOLD = 180
 
-function CollapsibleText({ children, initialCollapsed = true, label = '더 보기', collapseLabel = '접기' }) {
+function CollapsibleText({
+  children,
+  initialCollapsed = true,
+  label = '더 보기',
+  collapseLabel = '접기',
+}) {
   const [collapsed, setCollapsed] = useState(initialCollapsed)
   const text = typeof children === 'string' ? children : String(children ?? '')
   const needsCollapse = text.length > COLLAPSE_CHAR_THRESHOLD
@@ -101,7 +128,9 @@ function DeleteConfirmModal({ medicineName, onConfirm, onCancel, isDeleting }) {
           </div>
           <p className="font-bold text-ink">약품을 삭제할까요?</p>
           <p className="text-sm text-muted leading-relaxed">
-            <span className="font-bold text-ink">{medicineName}</span> 복용 기록이<br />영구적으로 삭제됩니다.
+            <span className="font-bold text-ink">{medicineName}</span> 복용 기록이
+            <br />
+            영구적으로 삭제됩니다.
           </p>
         </div>
         <div className="flex gap-2 pt-1">
@@ -133,7 +162,8 @@ function DeleteConfirmModal({ medicineName, onConfirm, onCancel, isDeleting }) {
 export default function MedicationDetailPanel({ medicationId, onDeleted }) {
   const id = medicationId
   const router = useRouter()
-  const { medications, deleteMedication, deactivateMedication, getDrugInfo, refetchMedications } = useMedication()
+  const { medications, deleteMedication, deactivateMedication, getDrugInfo, refetchMedications } =
+    useMedication()
   const [isLoading, setIsLoading] = useState(true)
   const [isDrugInfoLoading, setIsDrugInfoLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -349,7 +379,10 @@ export default function MedicationDetailPanel({ medicationId, onDeleted }) {
                 <>
                   {/* 1회 복용량 / 복용 방법 — 자유 텍스트라 full row */}
                   {fullRowItems.map(({ icon: Icon, label, value }) => (
-                    <div key={label} className="flex items-center gap-4 p-4 bg-surface-2 rounded-xl">
+                    <div
+                      key={label}
+                      className="flex items-center gap-4 p-4 bg-surface-2 rounded-xl"
+                    >
                       <div className="w-9 h-9 bg-surface rounded-xl flex items-center justify-center border border-line shrink-0">
                         <Icon size={16} className="text-muted" />
                       </div>
@@ -423,7 +456,9 @@ export default function MedicationDetailPanel({ medicationId, onDeleted }) {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted text-center py-6">주의사항 정보를 불러올 수 없습니다.</p>
+                <p className="text-sm text-muted text-center py-6">
+                  주의사항 정보를 불러올 수 없습니다.
+                </p>
               )}
             </div>
           )}
@@ -436,7 +471,10 @@ export default function MedicationDetailPanel({ medicationId, onDeleted }) {
                 <>
                   <div className="flex flex-wrap gap-2 mb-5">
                     {drugInfo.side_effects.map((s, i) => (
-                      <span key={i} className="bg-red-50 text-red-500 px-4 py-2 rounded-full text-sm font-bold">
+                      <span
+                        key={i}
+                        className="bg-red-50 text-red-500 px-4 py-2 rounded-full text-sm font-bold"
+                      >
                         {s}
                       </span>
                     ))}
@@ -450,7 +488,9 @@ export default function MedicationDetailPanel({ medicationId, onDeleted }) {
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-muted text-center py-6">부작용 정보를 불러올 수 없습니다.</p>
+                <p className="text-sm text-muted text-center py-6">
+                  부작용 정보를 불러올 수 없습니다.
+                </p>
               )}
             </div>
           )}
@@ -470,7 +510,9 @@ export default function MedicationDetailPanel({ medicationId, onDeleted }) {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted text-center py-6">상호작용 정보를 불러올 수 없습니다.</p>
+                <p className="text-sm text-muted text-center py-6">
+                  상호작용 정보를 불러올 수 없습니다.
+                </p>
               )}
             </div>
           )}
@@ -478,7 +520,8 @@ export default function MedicationDetailPanel({ medicationId, onDeleted }) {
       </div>
 
       <p className="text-xs text-muted text-center leading-relaxed px-2">
-        이 정보는 AI가 생성한 참고용 정보입니다. 정확한 복약 지도는 반드시 전문 의료인과 상의하십시오.
+        이 정보는 AI가 생성한 참고용 정보입니다. 정확한 복약 지도는 반드시 전문 의료인과
+        상의하십시오.
       </p>
 
       {showDeleteModal && (

@@ -36,8 +36,10 @@ async function* watchDraftStatus(draftId, profileId, signal) {
     let timedOut = false
     for await (const ev of streamSSE(path, { signal })) {
       if (ev.event === 'update') yield ev.data
-      else if (ev.event === 'timeout') { timedOut = true; break }
-      else if (ev.event === 'error') throw new Error(ev.data?.detail || 'sse error')
+      else if (ev.event === 'timeout') {
+        timedOut = true
+        break
+      } else if (ev.event === 'error') throw new Error(ev.data?.detail || 'sse error')
     }
     if (!timedOut) return // 정상 close (terminal 도달)
   }
@@ -96,7 +98,9 @@ function PrescriptionSkeleton({ step }) {
         <div className="max-w-3xl mx-auto">
           <div className="flex justify-between items-center mb-2">
             <p className="text-xs font-medium text-muted">{STEPS[step]}</p>
-            <p className="text-xs text-muted">{step + 1} / {STEPS.length}</p>
+            <p className="text-xs text-muted">
+              {step + 1} / {STEPS.length}
+            </p>
           </div>
           <div className="w-full bg-surface-2 rounded-full h-1 overflow-hidden">
             <div
@@ -150,7 +154,11 @@ export default function OcrLoadingPage() {
     // ready -> SuccessOverlay -> result push, terminal -> 안내 + /ocr 복귀.
     const consumeStream = async (draftId) => {
       try {
-        for await (const payload of watchDraftStatus(draftId, selectedProfileId, abortController.signal)) {
+        for await (const payload of watchDraftStatus(
+          draftId,
+          selectedProfileId,
+          abortController.signal,
+        )) {
           const status = payload.status
           if (status === 'ready') {
             clearInterval(stepTicker)
@@ -180,7 +188,10 @@ export default function OcrLoadingPage() {
         const fileData = sessionStorage.getItem('ocrFileData')
         const fileName = sessionStorage.getItem('ocrFileName')
         const fileType = sessionStorage.getItem('ocrFileType')
-        if (!fileData) { router.push('/ocr'); return }
+        if (!fileData) {
+          router.push('/ocr')
+          return
+        }
 
         const blob = await (await fetch(fileData)).blob()
         const file = new File([blob], fileName, { type: fileType })
@@ -202,8 +213,11 @@ export default function OcrLoadingPage() {
         await consumeStream(response.data.draft_id)
       } catch (err) {
         clearInterval(stepTicker)
-        const msg = err.parsed?.message || err.response?.data?.detail || '분석 중 오류가 발생했습니다.'
-        router.push(`/ocr?error=${encodeURIComponent(typeof msg === 'string' ? msg : JSON.stringify(msg))}`)
+        const msg =
+          err.parsed?.message || err.response?.data?.detail || '분석 중 오류가 발생했습니다.'
+        router.push(
+          `/ocr?error=${encodeURIComponent(typeof msg === 'string' ? msg : JSON.stringify(msg))}`,
+        )
       }
     }
 

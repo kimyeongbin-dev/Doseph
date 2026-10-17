@@ -36,10 +36,7 @@ function MedicationDetailContent() {
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <MedicationDetailPanel
-          medicationId={id}
-          onDeleted={() => router.push('/medication')}
-        />
+        <MedicationDetailPanel medicationId={id} onDeleted={() => router.push('/medication')} />
       </div>
 
       <BottomNav />

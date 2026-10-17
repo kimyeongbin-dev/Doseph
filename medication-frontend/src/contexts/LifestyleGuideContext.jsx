@@ -56,9 +56,7 @@ export function LifestyleGuideProvider({ children }) {
     queryKey: qk.lifestyleGuides.list(selectedProfileId),
     enabled: !!selectedProfileId,
     queryFn: async () => {
-      const { data } = await api.get(
-        `/api/v1/lifestyle-guides?profile_id=${selectedProfileId}`,
-      )
+      const { data } = await api.get(`/api/v1/lifestyle-guides?profile_id=${selectedProfileId}`)
       return data || []
     },
   })
@@ -107,10 +105,7 @@ export function LifestyleGuideProvider({ children }) {
         created_at: new Date().toISOString(),
         processed_at: null,
       }
-      qc.setQueryData(qk.lifestyleGuides.list(profileId), (prev = []) => [
-        pendingGuide,
-        ...prev,
-      ])
+      qc.setQueryData(qk.lifestyleGuides.list(profileId), (prev = []) => [pendingGuide, ...prev])
 
       try {
         for await (const payload of watchGuideStatus(pendingId, signal)) {
@@ -175,9 +170,7 @@ export function LifestyleGuideProvider({ children }) {
   // ── 4) reveal more challenges (LLM 호출 X, +5) ───────────────────
   const revealMoreMutation = useMutation({
     mutationFn: async (guideId) => {
-      const { data } = await api.post(
-        `/api/v1/lifestyle-guides/${guideId}/reveal-more-challenges`,
-      )
+      const { data } = await api.post(`/api/v1/lifestyle-guides/${guideId}/reveal-more-challenges`)
       return data
     },
     onSuccess: (updated) => {
@@ -230,9 +223,7 @@ export function LifestyleGuideProvider({ children }) {
     ],
   )
 
-  return (
-    <LifestyleGuideContext.Provider value={value}>{children}</LifestyleGuideContext.Provider>
-  )
+  return <LifestyleGuideContext.Provider value={value}>{children}</LifestyleGuideContext.Provider>
 }
 
 export function useLifestyleGuide() {

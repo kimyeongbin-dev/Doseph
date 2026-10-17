@@ -98,7 +98,9 @@ function PrescriptionCard({ group, onClick, onDelete, isDeleting }) {
           <span>{dept}</span>
         </div>
         <div className="flex items-center gap-2 pt-1">
-          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${statusStyle}`}>{statusLabel}</span>
+          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${statusStyle}`}>
+            {statusLabel}
+          </span>
           <span className="text-[11px] text-muted">
             {group.has_active_medication
               ? `복용 중 ${group.active_medications_count ?? 0}개 / 총 ${group.medications_count}개`
@@ -263,7 +265,8 @@ export default function MedicationPage() {
             </div>
             {search && (
               <p className="text-[11px] text-muted mt-1.5 px-1">
-                <span className="font-bold text-muted">{search}</span> 약품을 포함하는 처방전을 보여드려요.
+                <span className="font-bold text-muted">{search}</span> 약품을 포함하는 처방전을
+                보여드려요.
               </p>
             )}
           </div>
@@ -298,7 +301,9 @@ export default function MedicationPage() {
             className="text-xs font-bold border border-line rounded-lg px-2.5 py-1.5 bg-surface cursor-pointer"
           >
             {Object.entries(SORT_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
+              <option key={key} value={key}>
+                {label}
+              </option>
             ))}
           </select>
         </div>
@@ -311,7 +316,10 @@ export default function MedicationPage() {
             ))}
           </div>
         ) : !selectedProfileId ? (
-          <EmptyState title="프로필을 선택해주세요" message="프로필을 선택하면 처방전이 표시됩니다." />
+          <EmptyState
+            title="프로필을 선택해주세요"
+            message="프로필을 선택하면 처방전이 표시됩니다."
+          />
         ) : isError ? (
           // 실패를 EmptyState 로 그리면 "내 처방전이 사라졌다"로 읽힌다 — 실패는 실패로.
           <ErrorState
@@ -323,7 +331,11 @@ export default function MedicationPage() {
         ) : groups.length === 0 ? (
           <EmptyState
             title={search ? '검색 결과가 없어요' : '등록된 처방전이 없어요'}
-            message={search ? `'${search}' 약품을 포함하는 처방전을 찾지 못했어요.` : '처방전을 등록해 보세요.'}
+            message={
+              search
+                ? `'${search}' 약품을 포함하는 처방전을 찾지 못했어요.`
+                : '처방전을 등록해 보세요.'
+            }
           />
         ) : (
           <div className="space-y-3">

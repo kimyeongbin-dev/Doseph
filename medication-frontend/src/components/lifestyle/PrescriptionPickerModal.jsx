@@ -88,7 +88,8 @@ export default function PrescriptionPickerModal({ onConfirm, onClose, isLoading 
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-[11px] font-bold text-ink">
-                        복용 중 {g.active_medications_count ?? 0}건 / 약 {g.medications_count || 0}개
+                        복용 중 {g.active_medications_count ?? 0}건 / 약 {g.medications_count || 0}
+                        개
                       </p>
                     </div>
                   </div>
