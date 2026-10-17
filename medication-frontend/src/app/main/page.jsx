@@ -430,6 +430,7 @@ function MainPageContent() {
 
       <ActiveDraftsCard
         drafts={activeDrafts}
+        profileId={selectedProfileId}
         onSelect={(id) => router.push(`/ocr/result?draft_id=${id}`)}
         onDelete={handleDeleteDraft}
       />

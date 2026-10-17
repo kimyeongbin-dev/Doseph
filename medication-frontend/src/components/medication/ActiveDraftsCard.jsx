@@ -4,9 +4,11 @@ import { FileText, Loader2, X, Trash2 } from 'lucide-react'
 
 // 활성 OCR draft 카드 — main 우측하단 floating (챗봇 아이콘 위)
 // 사용자가 X 로 카드 전체를 숨길 수 있고 (새로고침 시 다시 표시),
+// 숨김은 그 프로필에만 걸린다 — 다른 프로필로 바꾸면 다시 보인다(QA-42).
 // 각 항목 좌측의 휴지통으로 개별 draft 를 폐기할 수도 있다.
-export default function ActiveDraftsCard({ drafts, onSelect, onDelete }) {
-  const [dismissed, setDismissed] = useState(false)
+export default function ActiveDraftsCard({ drafts, profileId, onSelect, onDelete }) {
+  const [dismissedFor, setDismissedFor] = useState(null)
+  const dismissed = dismissedFor !== null && dismissedFor === profileId
   if (!drafts || drafts.length === 0 || dismissed) return null
 
   const formatTime = (iso) => {
@@ -29,7 +31,7 @@ export default function ActiveDraftsCard({ drafts, onSelect, onDelete }) {
           <p className="font-bold text-sm text-ink">처방전 ({drafts.length}건)</p>
         </div>
         <button
-          onClick={() => setDismissed(true)}
+          onClick={() => setDismissedFor(profileId)}
           className="text-muted hover:text-ink cursor-pointer"
           aria-label="카드 숨기기"
         >
