@@ -10,13 +10,12 @@
 
 > **"기록했다"는 감각을 점검 근거로 삼지 않는다. 센다.**
 
-⚠️ 두 규약을 **동시에** 인정하는 과도기다 (2026-09-20 ~ 트랙 B-9 종료)
---------------------------------------------------------------------
-- **새 규약**: 완료기록 ``doc-meta`` 의 ``plan:`` 필드 → ``plan/<슬러그>.md`` (FILING §9)
-- **옛 규약**: 본문이 ``PLAN_XXX.md`` 를 언급 → ``_legacy/<날짜>_PLAN_XXX.snapshot.md``
-
-B-9(문서 정독·분류)가 PLAN 을 한 건씩 새 이름으로 옮기는 중이라 **둘이 공존한다.**
-옛 쪽 쌍이 **0 이 되면 그 분기를 제거**한다 — 성공 줄이 그 숫자를 인쇄하는 이유다.
+규약: 완료기록 ``doc-meta`` 의 ``plan:`` 필드 → ``plan/<슬러그>.md`` (FILING §9)
+------------------------------------------------------------------------------
+✏️ 2026-10-18 (`QA-43`): B-9 전환기 동안 함께 인정하던 **옛 규약**(본문의 ``PLAN_XXX.md`` →
+``_legacy/<날짜>_PLAN_XXX.snapshot.md``) 분기를 지웠다. 전환이 끝나 옛 쪽이 **0쌍**이 됐고,
+남겨 두면 다음 사람이 «두 규약이 공존한다» 고 읽는다. 지우기 전후로 센 값(완료기록 47 ·
+쌍 39 · 미연결 8)이 같았다.
 
 🔴 **이 게이트는 한 번 조용히 죽을 뻔했다.** 옛 정규식만 보고 있었기 때문에,
 정독 첫 건을 새 이름으로 옮기자 **18쌍 → 17쌍**이 되고도 *"빠진 스냅샷 0"* 으로 초록을 냈다.
@@ -29,7 +28,6 @@ B-9 를 끝까지 진행했으면 **0쌍이 되고도 초록**이었을 것이�
 ✅ **음성 대조 표본** — 이것들은 **통과해야** 한다:
   - ``_legacy/`` 안의 완료기록 (이미 닫힌 것이라 스냅샷을 다시 요구하지 않는다)
   - PLAN 을 어느 쪽으로도 가리키지 않는 완료기록 (🟡 보고이지 차단이 아니다)
-  - 전환기 동안 **새 규약·옛 규약이 공존**하는 상태 (합계가 줄지만 않으면 정상)
 """
 
 import re
@@ -49,56 +47,42 @@ LEGACY_DIR = PRIVATE_DIR / "_legacy"
 PLAN_DIR = PRIVATE_DIR / "plan"
 
 RECORD_GLOB = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_*-record.md"
-#: 옛 규약 — 본문이 대문자 PLAN 파일명을 언급한다.
-LEGACY_REFERENCE = re.compile(r"(PLAN_[A-Z0-9_]+)\.md")
-#: 새 규약 — ``doc-meta`` 의 ``plan:`` 필드. 값이 빈 필드가 다음 줄을 삼키지 않게 줄 안으로 가둔다.
+#: ``doc-meta`` 의 ``plan:`` 필드. 값이 빈 필드가 다음 줄을 삼키지 않게 줄 안으로 가둔다.
 PLAN_FIELD = re.compile(r"^[ \t]*plan:[ \t]*(\S+)[ \t]*$", re.MULTILINE)
 
-#: 바닥값 = **지금 세어지는 합계**. 이 아래로 떨어지면 *"누락이 없다"* 가 아니라 *"대상이 사라졌다"* 이다.
-#:
-#: 🔑 **왜 합계는 줄지 않는가**: B-9 는 PLAN 의 *이름만* 바꾼다. 옛 규약 1쌍이 빠지면
-#: 같은 문서가 새 규약 1쌍으로 들어오므로 **합계는 단조 비감소**다. 줄었다면 전환이 아니라
-#: **참조를 잃은 것**이다. 옛 쪽만 보는 바닥값(`>= 1`)으로는 옛 17쌍이 통째로 죽어도
-#: 새 2쌍이 남아 통과한다 — 실제로 결핍 주입에서 그렇게 뚫렸다.
-#:
-#: ⚠️ 이 값은 **손으로 올린다**. `unlinked` 기록이 `plan:` 을 얻어 합계가 늘면 그때 올린다.
-MIN_PAIRS = 26
+#: 바닥값 = **지금 세어지는 쌍 수**(`QUALITY_GATES` §2-10). 이 아래로 떨어지면
+#: *"누락이 없다"* 가 아니라 *"대상이 사라졌다"* 이다 — 완료기록은 지워지지 않으므로 쌍은 줄지 않는다.
+#: ⚠️ 이 값은 **손으로 올린다**. 새 완료기록이 쌍을 더하면 그때 올린다(2026-10-18 = 39).
+MIN_PAIRS = 39
 
 
 # ── 완료기록 ↔ PLAN 스냅샷 대조 ───────────────────────────────────────
-# 흐름: 완료기록 수집 -> 새 규약(plan: 필드)·옛 규약(본문 PLAN_XXX) 양쪽에서 짝 추출
+# 흐름: 완료기록 수집 -> plan: 필드에서 짝 추출
 #       -> 각 짝의 스냅샷 존재 확인 -> 없으면 보고하고 exit 1
 def collect_records() -> list:
   """`_legacy/` 밖의 완료기록 전부. 축 폴더로 흩어져 있어도 `rglob` 으로 모은다."""
   return sorted(r for r in PRIVATE_DIR.rglob(RECORD_GLOB) if LEGACY_DIR not in r.parents)
 
 
-def audit() -> tuple[list[tuple[str, str]], list[str], int, int]:
-  """(빠진 짝, PLAN 을 안 가리키는 기록, 새 규약 쌍 수, 옛 규약 쌍 수)."""
+def audit() -> tuple[list[tuple[str, str]], list[str], int]:
+  """(빠진 짝, PLAN 을 안 가리키는 기록, 쌍 수)."""
   missing: list[tuple[str, str]] = []
   unlinked: list[str] = []
-  new_pairs = old_pairs = 0
+  pairs = 0
 
   for record in collect_records():
     body = record.read_text(encoding="utf-8", errors="replace")
 
     for slug in sorted(set(PLAN_FIELD.findall(body))):
-      new_pairs += 1
+      pairs += 1
       target = PLAN_DIR / (slug if slug.endswith(".md") else f"{slug}.md")
       if not target.exists():
         missing.append((record.name, f"plan/{target.name}"))
 
-    date = record.name[:10]
-    for plan in sorted(set(LEGACY_REFERENCE.findall(body))):
-      old_pairs += 1
-      snapshot = LEGACY_DIR / f"{date}_{plan}.snapshot.md"
-      if not snapshot.exists():
-        missing.append((record.name, f"_legacy/{snapshot.name}"))
-
-    if not PLAN_FIELD.search(body) and not LEGACY_REFERENCE.search(body):
+    if not PLAN_FIELD.search(body):
       unlinked.append(record.name)
 
-  return missing, unlinked, new_pairs, old_pairs
+  return missing, unlinked, pairs
 
 
 def main() -> int:
@@ -116,7 +100,7 @@ def main() -> int:
     print("  경로 규약이 바뀌었거나 glob 이 어긋났다. 검사가 무력화된 상태다(fail-closed).\n", file=sys.stderr)
     return 1
 
-  missing, unlinked, new_pairs, old_pairs = audit()
+  missing, unlinked, pairs = audit()
 
   if missing:
     print("\n[거부] 완료기록은 있는데 PLAN 스냅샷이 없다 (대장 D27)\n", file=sys.stderr)
@@ -124,26 +108,20 @@ def main() -> int:
       print(f"  {record}\n    → 없음: docs-private/{target}", file=sys.stderr)
     print(
       "\n  완료기록과 PLAN 스냅샷은 한 동작이다."
-      "\n  새 규약: 기록의 `plan:` 필드가 가리키는 `plan/<슬러그>.md` 를 만든다(`mv`, 재작성 금지).\n",
+      "\n  기록의 `plan:` 필드가 가리키는 `plan/<슬러그>.md` 를 만든다(`mv`, 재작성 금지).\n",
       file=sys.stderr,
     )
     return 1
 
-  # 🔴 대상이 사라지면 "누락 0" 은 의미가 없다. 옛 규약이 B-9 로 소멸하는 중이라
-  #    합계로 세지 않으면 이 게이트는 조용히 0쌍이 된다.
-  if new_pairs + old_pairs < MIN_PAIRS:
-    print(f"\n[거부] PLAN 참조를 {new_pairs + old_pairs}쌍밖에 못 셌다 (기대 최소 {MIN_PAIRS}쌍).", file=sys.stderr)
-    print("  `plan:` 필드 파싱이 깨졌거나 경로 규약이 또 바뀌었다 — B-9 전환은 합계를 줄이지 않는다.", file=sys.stderr)
+  # 🔴 대상이 사라지면 "누락 0" 은 의미가 없다.
+  if pairs < MIN_PAIRS:
+    print(f"\n[거부] PLAN 참조를 {pairs}쌍밖에 못 셌다 (기대 최소 {MIN_PAIRS}쌍).", file=sys.stderr)
+    print("  `plan:` 필드 파싱이 깨졌거나 경로 규약이 또 바뀌었다.", file=sys.stderr)
     print("  0쌍은 '누락이 없다' 가 아니라 '아무것도 못 봤다' 이다(fail-closed).\n", file=sys.stderr)
     return 1
 
   # 침묵은 *"문제없음"* 과 *"안 돌았음"* 을 구분하지 못한다. 통과할 때도 **센 것**을 남긴다.
-  print(
-    f"✅ PLAN 스냅샷 정합 — 완료기록 {len(collect_records())}건 · "
-    f"새 규약 {new_pairs}쌍 · 옛 규약 {old_pairs}쌍 · 빠진 스냅샷 0."
-  )
-  if old_pairs == 0:
-    print("   ⭐ 옛 규약 0쌍 — B-9 전환이 끝났다. LEGACY_REFERENCE 분기를 제거할 때다.")
+  print(f"✅ PLAN 스냅샷 정합 — 완료기록 {len(collect_records())}건 · PLAN 참조 {pairs}쌍 · 빠진 스냅샷 0.")
   if unlinked:
     # 🟡 보고. B-9 가 끝나면 차단으로 승격한다 — 지금 막으면 옮기는 중인 20건이 전부 걸린다.
     print(f"   🟡 PLAN 을 가리키지 않는 완료기록 {len(unlinked)}건 (B-9 종료 후 차단으로 승격):")
