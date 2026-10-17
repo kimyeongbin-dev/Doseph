@@ -1,8 +1,8 @@
 r"""medicine_info → medicine_chunk 청킹 + 임베딩 1회성 batch.
 
-PLAN.md (feature/RAG) §4 Step 4-B — 32K medicine_info 의 raw XML 을
-ARTICLE 단위로 청킹하고, OpenAI text-embedding-3-large (3072d) 으로
-임베딩한 뒤 medicine_chunk 에 INSERT 한다.
+사라진 계획 «feature/RAG» §4 Step 4-B — medicine_info 의 raw XML 을
+ARTICLE 단위로 청킹하고, ``EMBEDDING_MODEL_NAME`` 으로 임베딩한 뒤
+medicine_chunk 에 INSERT 한다. 모델·차원의 정본 = ``app/services/rag/config.py``.
 
 흐름:
 1. Tortoise.init
@@ -10,8 +10,8 @@ ARTICLE 단위로 청킹하고, OpenAI text-embedding-3-large (3072d) 으로
 3. 각 row 의 ee_doc_data / ud_doc_data / nb_doc_data XML 파싱
 4. ARTICLE → classify_article_section → MedicineChunkSection
 5. content 조립 ([약: name] [section_kr]\\n{title}\\n{body})
-6. 토큰 길이 추정 (한국어 1.5자=1tok 단순) — 8000 초과 시 chunk_index 분할
-7. 한 medicine 의 모든 chunk 를 OpenAI Embedding API batch 호출
+6. 토큰 길이 추정 — ``MAX_TOKENS_PER_CHUNK`` 초과 시 chunk_index 분할
+7. 한 medicine 의 모든 chunk 를 임베딩 API batch 호출
 8. medicine_chunk INSERT (ON CONFLICT (medicine_info_id, section, chunk_index) DO NOTHING)
 9. progress 로그 (매 50 medicine 마다)
 
@@ -19,13 +19,12 @@ ARTICLE 단위로 청킹하고, OpenAI text-embedding-3-large (3072d) 으로
 - unique constraint 위반 시 SKIP — 재실행 시 이미 INSERT 된 row 영향 X
 - 중간 실패 시 그 medicine 부터 재시작 가능 (--resume-from)
 
-Usage (EC2 fastapi 컨테이너 안에서):
-    docker compose -f ~/AI_02_06/docker-compose.prod.yml exec -d fastapi \\
-      python -m scripts.embed_medicine_chunks --batch 50 --concurrency 5
+Usage (로컬 개발 컨테이너 안에서 — 운영 이미지에는 ``scripts/`` 가 없다, ``.dockerignore``):
+    docker compose exec -T fastapi sh -c 'cd /app && uv run --no-sync \\
+      python -m scripts.embed_medicine_chunks --curated --batch 50 --concurrency 5'
 
-Cost (estimate):
-    32K medicines x ~6 sections = ~192K chunks x ~500 tok = 96M tok
-    text-embedding-3-large @ $0.13/1M = ~$12.5
+Cost: 대상 범위·모델·차원은 v2.0 재배포 PLAN S4 에서 정한다.
+    옛 추정(OpenAI 단가 · 32K 건)은 2026-10-18 에 지웠다 — 문서-58·59·61.
 """
 
 import argparse
@@ -91,7 +90,7 @@ EMBED_BATCH_SIZE = 100
 MAX_RETRIES = 4
 INITIAL_BACKOFF = 1.0  # sec
 
-# ── 큐레이션: 한국 외래 처방 빈도 상위 활성성분 86종 (수동 큐레이션) ─────
+# ── 큐레이션: 한국 외래 처방 빈도 상위 활성성분 (수동 큐레이션) ─────────
 # 진통/항생/고혈압/고지혈증/당뇨/위장/항히스타민/항응고/갑상선/정신건강/비뇨/호흡기/기타
 # 식약처 의약품안전나라 + DUR + 국민건강보험 진료비 통계 + 일반 임상 가이드 기반.
 # 임베딩 비용 최소화 — 옵션 B (성분당 top-N brand 만) 의 source.
@@ -270,7 +269,7 @@ def _build_base_header(
 ) -> str:
   """청크 base 헤더 - sub-chunk 마다 동일하게 prepend.
 
-  PLAN.md (RAG 재설계) §A — 성분 단위 검색 정확도를 위해 brand 이름과 함께
+  plan/2026-08-11_rag-query-rewriter-plan.md §10 — 성분 단위 검색 정확도를 위해 brand 이름과 함께
   [성분: ...] 헤더도 prepend. query 측 임베딩이 성분명을 포함하면 chunk
   측과 cosine 매칭이 ↑ (메타필터로 후보 좁힌 후 ranking 정확도 ↑).
   """
@@ -457,7 +456,7 @@ async def _load_existing_chunk_hashes(medicine_info_id: int) -> dict[tuple[str, 
 
 
 async def _load_curated_medicine_ids(top_n: int) -> list[int]:
-  """큐레이션 86 활성성분 x 성분당 top-N brand 의 medicine_info.id list.
+  """큐레이션 활성성분 x 성분당 top-N brand 의 medicine_info.id list.
 
   raw doc 풍부 (≥1000 chars) + 일반인 사용 가능 (주사·수출·수의·진단 제외).
   같은 ingredient 안에서는 doc_total_len DESC 로 ranking, top-N 만.
@@ -999,7 +998,7 @@ def parse_args() -> argparse.Namespace:
   parser.add_argument(
     "--curated",
     action="store_true",
-    help="큐레이션 모드 — CORE_PRESCRIPTION_INGREDIENTS 86종 x 성분당 top-N brand 만 임베딩 "
+    help="큐레이션 모드 — CORE_PRESCRIPTION_INGREDIENTS x 성분당 top-N brand 만 임베딩 "
     "(일반인 사용 가능 + 처방 빈도 높은 brand 우선). 비용 최소화 (옵션 B).",
   )
   parser.add_argument(
@@ -1025,7 +1024,8 @@ async def main_async(args: argparse.Namespace) -> None:
     if args.curated:
       ids = await _load_curated_medicine_ids(args.top_n_per_ingredient)
       logger.info(
-        "큐레이션 모드 — 86 활성성분 x top-%d brand = %d medicines",
+        "큐레이션 모드 — %d 활성성분 x top-%d brand = %d medicines",
+        len(CORE_PRESCRIPTION_INGREDIENTS),
         args.top_n_per_ingredient,
         len(ids),
       )
