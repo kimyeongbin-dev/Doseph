@@ -110,8 +110,8 @@ LEDGERS = (
     prefix="QA",
     declare=re.compile(r"^\| \*\*총 등재\*\*[^\n|]*\|[^\n|]*다음 신규 = `QA-(?P<n>\d+)`", re.MULTILINE),
     # 원장 «자신» 의 행만 센다(배출분으로 채우면 파서 고장을 가린다, `문서-49`).
-    # 2026-10-18: 41 -> 37 — 7건 배출(`record/2026-10-18_qa-quick-wins-record.md`) + QA-66 신규.
-    floor=37,
+    # 2026-10-18: 41 -> 36 — 8건 배출(`record/2026-10-18_qa-quick-wins-record.md`) + QA-66 신규.
+    floor=36,
     # 🔴 §C 배출분은 `record/` 로 나간다 — 세지 않으면 그 번호를 다시 내준다(`문서-49`).
     archives=("record",),
   ),
