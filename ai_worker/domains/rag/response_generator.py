@@ -17,7 +17,8 @@ from app.dtos.rag import ChatCompletion, TokenUsage
 
 logger = logging.getLogger(__name__)
 
-_TEMPERATURE = 0.7
+# 🔑 temperature 는 보내지 않는다 — Gemini 3 공식 권장은 기본값(1.0) 유지다
+#    (낮추면 루프·성능 저하, 2026-10-16 확인 · v2.0 재배포 PLAN S1 · 대장 D86).
 _MAX_TOKENS = 800
 _FALLBACK_ANSWER = "현재 AI 응답을 생성할 수 있는 설정이 준비되지 않았어요."
 
@@ -45,7 +46,6 @@ async def generate_response(
     response = await client.chat.completions.create(
       model=RAG_RESPONSE_MODEL,
       messages=[{"role": "system", "content": instruction}, *messages],
-      temperature=_TEMPERATURE,
       max_tokens=_MAX_TOKENS,
     )
   return _to_chat_completion(response)

@@ -195,7 +195,6 @@ async def _extract_medicines_with_llm(raw_text: str) -> list[dict]:
         model=MEDICINE_MATCHER_MODEL,
         messages=[{"role": "user", "content": prompt}],
         response_format=OcrLlmExtraction,
-        temperature=0.0,
       )
     parsed = response.choices[0].message.parsed
     if parsed is None:

@@ -4,12 +4,10 @@ Pulled out of ``app.services.lifestyle_guide_service`` so the heavy LLM call
 runs in ai-worker (not the FastAPI request loop). Imports of ``app.*`` are
 type/data only — no FastAPI / HTTPException dependencies live here.
 
-v3 시점부터 약물 + 사용자 건강정보 조합으로 prompt 와 seed 를 함께 산출 →
-같은 (처방전 + 건강정보) 입력엔 거의 동일한 LLM 출력 (deterministic decoding).
+«같은 (처방전 + 건강정보) → 같은 가이드» 는 여기가 아니라 서비스의 **입력 fingerprint
+재사용**이 맡는다(같으면 LLM 을 다시 부르지 않는다). 2026-10-16 Gemini 전환 때 seed 와
+temperature 0 을 뺐다 — 호환 엔드포인트가 seed 를 거부하고, Gemini 3 은 기본 temperature 를 권한다.
 """
-
-import hashlib
-import json
 
 from openai import AsyncOpenAI, OpenAIError
 from pydantic import ValidationError
@@ -22,42 +20,17 @@ from app.services.lifestyle_guide_prompt_builder import build_guide_prompt
 
 logger = get_logger(__name__)
 
-# 일관성 우선 — 같은 처방전+건강정보 조합엔 거의 동일 출력.
-_LLM_TEMPERATURE = 0.0
+# 🔑 temperature 는 보내지 않는다 — Gemini 3 공식 권장은 기본값(1.0) 유지다
+#    (낮추면 루프·성능 저하, 2026-10-16 확인 · v2.0 재배포 PLAN S1 · 대장 D86).
 
 # LLM 응답이 recommended_challenges len != 15 인 경우 자동 재시도 횟수.
 # Pydantic schema 가 min/max=15 강제 -> ValidationError 시 본 retry 가 동작.
 _MAX_GENERATE_RETRIES = 3
 
 
-def _seed_for(medication_dicts: list[dict], health_profile: dict | None) -> int:
-  """약물 + 건강정보 조합 기반 OpenAI seed 계산.
-
-  같은 (약물 set + 건강정보) 면 항상 같은 정수 seed. OpenAI 의 ``seed`` 는
-  best-effort deterministic decoding — 동일 (model, prompt, temperature,
-  seed, system_fingerprint) 에서 거의 동일한 출력. 캐싱이 아니므로 매 호출
-  비용은 그대로 발생, dedupe 는 fingerprint (FastAPI 측) 가 담당.
-
-  Args:
-      medication_dicts: 활성 약물 dict 목록.
-      health_profile: ``Profile.health_survey`` 의 dict 또는 None.
-
-  Returns:
-      2^31-1 이하의 양의 정수 (OpenAI 권장 범위).
-  """
-  names = sorted((m.get("medicine_name") or "") for m in medication_dicts)
-  payload = json.dumps(
-    {"medications": names, "health": health_profile or {}},
-    ensure_ascii=False,
-    sort_keys=True,
-  )
-  digest = hashlib.sha256(payload.encode("utf-8")).digest()
-  return int.from_bytes(digest[:4], "big") & 0x7FFFFFFF
-
-
 # ── 라이프스타일 가이드 LLM 호출 ──────────────────────────────────────────
-# 흐름: (활성 약물 + 건강정보) -> seed 계산 -> 프롬프트 빌드
-#       -> GPT 호출 (json_object, temperature=0, seed) -> JSON 검증
+# 흐름: (활성 약물 + 건강정보) -> 프롬프트 빌드
+#       -> LLM 호출 (Structured Output) -> 스키마 검증 (위반 시 재호출)
 #       -> LlmGuideResponse 반환
 async def generate_guide_payload(
   medication_dicts: list[dict],
@@ -80,27 +53,24 @@ async def generate_guide_payload(
       ValueError: LLM call or JSON parse failure (caller decides terminal status).
   """
   prompt = build_guide_prompt(medication_dicts, health_profile)
-  base_seed = _seed_for(medication_dicts, health_profile)
 
   # ── retry loop — LLM 이 recommended_challenges 15개 룰을 위반하면 (5개만
   #    또는 12개 등) Pydantic schema (min/max=15) 가 ValidationError 발생.
-  #    seed 를 +1 씩 변동해 다른 sample 유도. 최대 _MAX_GENERATE_RETRIES 회.
+  #    다시 부르면 기본 temperature 라 다른 표본이 나온다. 최대 _MAX_GENERATE_RETRIES 회.
   last_error: ValueError | None = None
   for attempt in range(_MAX_GENERATE_RETRIES):
-    seed = (base_seed + attempt) & 0x7FFFFFFF
     # 🔑 재시도 대상은 **스키마 위반(ValidationError)** 만이다.
     #    `OpenAIError` 는 `_call_llm` 이 `ValueError` 로 정규화해 **즉시 전파**한다 —
-    #    호출 자체가 실패한 것을 seed 를 바꿔 다시 불러도 같다(승격 전 동작 보존).
+    #    호출 자체가 실패한 것을 다시 불러도 같다(승격 전 동작 보존).
     try:
-      parsed = await _call_llm(prompt, client, seed=seed)
+      parsed = await _call_llm(prompt, client)
     except ValidationError as exc:
       last_error = ValueError(f"가이드 생성 실패: LLM 응답 파싱 오류 — {exc}")
       logger.warning(
-        "[GUIDE] attempt %d/%d 실패 — %s. 재시도 (seed=%d).",
+        "[GUIDE] attempt %d/%d 실패 — %s. 재시도.",
         attempt + 1,
         _MAX_GENERATE_RETRIES,
         last_error,
-        seed,
       )
       continue
     if attempt > 0:
@@ -111,8 +81,8 @@ async def generate_guide_payload(
   raise last_error
 
 
-async def _call_llm(prompt: str, client: AsyncOpenAI, *, seed: int) -> LlmGuideResponse:
-  """OpenAI ``chat.completions`` **Structured Output** 호출 (deterministic 강화).
+async def _call_llm(prompt: str, client: AsyncOpenAI) -> LlmGuideResponse:
+  """``chat.completions`` **Structured Output** 호출.
 
   🔑 `json_object` 에서 승격했다(`QA-07` ②, 2026-10-07) — 전자는 *«JSON 이기만 하면
   된다»* 라 필드 이름·타입을 모델이 지킬 의무가 없었다. 이제 스키마를 보내므로 모델이
@@ -124,29 +94,20 @@ async def _call_llm(prompt: str, client: AsyncOpenAI, *, seed: int) -> LlmGuideR
   Args:
       prompt: 빌드된 프롬프트.
       client: 호출자가 소유하는 AsyncOpenAI 클라이언트.
-      seed: 결정성 seed.
 
   Returns:
       검증된 ``LlmGuideResponse``.
 
   Raises:
       ValueError: OpenAI 호출 실패 — 재시도 대상이 **아니다**.
-      ValidationError: 응답이 스키마를 어김 — 호출자가 seed 를 바꿔 재시도한다.
+      ValidationError: 응답이 스키마를 어김 — 호출자가 다시 부른다.
   """
   try:
-    async with log_boundary(logger, "openai_lifestyle_guide", model=LIFESTYLE_GUIDE_MODEL, seed=seed):
+    async with log_boundary(logger, "openai_lifestyle_guide", model=LIFESTYLE_GUIDE_MODEL):
       response = await client.beta.chat.completions.parse(
         model=LIFESTYLE_GUIDE_MODEL,
         messages=[{"role": "user", "content": prompt}],
         response_format=LlmGuideResponse,
-        temperature=_LLM_TEMPERATURE,
-        seed=seed,
-      )
-    if response.system_fingerprint:
-      logger.info(
-        "[GUIDE] LLM 호출 seed=%d fingerprint=%s",
-        seed,
-        response.system_fingerprint,
       )
     parsed = response.choices[0].message.parsed
     if parsed is None:
