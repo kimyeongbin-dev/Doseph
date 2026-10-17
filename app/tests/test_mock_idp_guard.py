@@ -19,6 +19,7 @@ from httpx import ASGITransport, AsyncClient
 import pytest
 
 from app.apis.v1 import mock_oauth_routers
+from app.core import config
 from app.core.config import Env
 
 _AUTHORIZE = "/mock/kakao/authorize?client_id=FAKE_client&redirect_uri=http://localhost/cb"
@@ -78,12 +79,12 @@ class TestHandlerGuard:
   @pytest.mark.asyncio
   @pytest.mark.parametrize("env", [Env.DEV, Env.PROD])
   async def test_the_guard_answers_404_outside_local(self, monkeypatch: pytest.MonkeyPatch, env: Env) -> None:
-    # 🔑 가드가 읽는 것은 `app.core` 패키지의 config 인스턴스다(`app.core.config.config` 와 다른 객체)
-    monkeypatch.setattr(mock_oauth_routers.config, "ENV", env)
+    # 🔑 가드가 읽는 것은 `app.core` 패키지의 config 인스턴스다(`app.core.config.config` 와 다른 객체 — QA-66)
+    monkeypatch.setattr(config, "ENV", env)
     assert await _get_authorize() == 404
 
   @pytest.mark.asyncio
   async def test_the_guard_lets_local_through(self, monkeypatch: pytest.MonkeyPatch) -> None:
     """음성 대조 — local 에서는 가드를 지난다(404 가 아니다)."""
-    monkeypatch.setattr(mock_oauth_routers.config, "ENV", Env.LOCAL)
+    monkeypatch.setattr(config, "ENV", Env.LOCAL)
     assert await _get_authorize() != 404
