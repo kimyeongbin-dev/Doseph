@@ -152,20 +152,23 @@ class TestHappyPath:
 
   @pytest.mark.asyncio
   @respx.mock
-  async def test_fence_plus_quote_leaves_the_quote_behind(self) -> None:
-    """🔴 **지금 동작을 잠근다 — 두 겹이면 한 겹이 남는다**(`QA-65` 로 등재).
+  @pytest.mark.parametrize(
+    "raw",
+    [
+      '```\n"사용자는 복약 상담을 했다."\n```',  # 펜스 안에 인용부호
+      '"```\n사용자는 복약 상담을 했다.\n```"',  # 인용부호 안에 펜스
+    ],
+  )
+  async def test_two_layers_of_wrapping_are_both_removed(self, raw: str) -> None:
+    """두 겹으로 감싸도 둘 다 벗겨진다(`QA-65`).
 
-    호출 순서가 ``strip_code_fence(strip_quote_wrapping(raw))`` 다. 바깥이 펜스면
-    **먼저 도는 quote 벗기기가 아무것도 못 하고**, 펜스를 벗긴 뒤에는 다시 돌지 않는다
-    ⇒ 인용부호가 요약 본문에 **그대로 남는다.**
-
-    🔑 이 단언은 *«이게 옳다»* 가 아니라 *«지금 이렇다»* 다(`CLAUDE.md` §6-2).
-    순서를 바꾸면 고쳐지지만 **행동 변경**이라 별건으로 보냈다.
+    예전에는 ``strip_code_fence(strip_quote_wrapping(raw))`` 를 한 번만 불러,
+    바깥이 펜스면 안쪽 인용부호가 요약 본문에 남았다. 순서만 바꾸면 반대 중첩이
+    남으므로 두 중첩을 모두 단언한다.
     """
-    _route('```\n"사용자는 복약 상담을 했다."\n```')
+    _route(raw)
     result = await summarize_session_messages(_MESSAGES)
-    assert "```" not in result.summary
-    assert result.summary == '"사용자는 복약 상담을 했다."', "두 겹 중 인용부호가 남는 것이 현재 계약이다"
+    assert result.summary == "사용자는 복약 상담을 했다."
 
 
 class TestFallbackPaths:
