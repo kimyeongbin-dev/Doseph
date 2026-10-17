@@ -11,6 +11,7 @@ mock 라우터는 카카오 대신 «이 사용자는 정상» 이라고 우리 
 """
 
 import os
+import re
 import subprocess
 import sys
 
@@ -28,8 +29,10 @@ _AUTHORIZE = "/mock/kakao/authorize?client_id=FAKE_client&redirect_uri=http://lo
 _PROBE = (
   "from app.apis.v1 import v1_routers;"
   "paths = [r.path for r in v1_routers.routes];"
-  "print(len(paths), sum('/mock/' in p for p in paths))"
+  "print('ROUTE_PROBE', len(paths), sum('/mock/' in p for p in paths))"
 )
+#: 🔑 import 중 로그가 stdout 에 섞일 수 있다(CI 에서 실제로 섞였다) — 표식이 붙은 줄만 읽는다.
+_PROBE_LINE = re.compile(r"^ROUTE_PROBE (\d+) (\d+)$", re.MULTILINE)
 
 
 def _registered_routes(env: str) -> tuple[int, int]:
@@ -41,8 +44,9 @@ def _registered_routes(env: str) -> tuple[int, int]:
     text=True,
     check=True,
   )
-  total, mock = result.stdout.split()
-  return int(total), int(mock)
+  found = _PROBE_LINE.search(result.stdout)
+  assert found, f"측정 줄이 없다 — stdout 꼬리: {result.stdout[-300:]!r}"
+  return int(found.group(1)), int(found.group(2))
 
 
 class TestRegistrationGate:
