@@ -67,7 +67,7 @@ Claude AI-specific guide for the medication management system frontend.
 8. **SEO**: mandatory page-specific metadata.
 9. **Error Handling**: user-friendly handling on all API calls.
 10. **Loading state**: `LoadingSpinner` or a page-local skeleton (no shared `Skeleton.jsx`).
-11. **Code Quality**: ESLint + Prettier via pre-commit.
+11. **Code Quality**: ESLint via pre-commit. There is no formatter (Prettier was listed here but never installed — removed 2026-10-18, `문서-63`).
 12. **Emoji Prohibition**: no emoji in any code or comments.
 13. **JavaScript Only**: do not create `.ts` / `.tsx` files (measured 2026-09-28 — `src/` holds **0** TypeScript files, so the policy is actually being kept).
 
