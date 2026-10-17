@@ -141,6 +141,10 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      # 형식 검사 — 로컬 pre-commit 훅과 같은 명령. 설정 = .prettierrc.json (2026-10-18 도입)
+      - name: Prettier
+        run: npm run format:check
+
       # 컴포넌트/유닛 테스트 (Vitest + RTL) — jsdom 위 격리 렌더, 백엔드 불필요.
       - name: Unit tests (Vitest)
         run: npm run test:unit

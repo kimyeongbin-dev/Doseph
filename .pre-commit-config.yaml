@@ -99,6 +99,19 @@ repos:
         pass_filenames: false
         stages: [pre-commit, pre-push]
 
+      # Frontend Prettier (CI 와 동일 명령: npm run format:check)
+      # 고치지 않고 «검사만» 한다 — 어긋나면 막고, 고치는 것은 `npm run format` 이다.
+      # 🔑 자동 수정 훅으로 두면 커밋이 «수정됨» 으로 멈춰 다시 add 해야 하는데, 검사만 하면
+      #    무엇이 틀렸는지 출력이 바로 말한다. 설정 정본 = medication-frontend/.prettierrc.json
+      - id: prettier-frontend
+        name: 🎨 Prettier (Frontend)
+        entry: npm --prefix medication-frontend run format:check
+        language: system
+        files: ^medication-frontend/.*\.(jsx?|mjs)$
+        require_serial: true
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+
       # AI attribution 트레일러 차단 (commit-msg 스테이지)
       # 이 규칙은 기억이 아니라 **층(layer)** 문제라 두 번 실패했다(대장 D30).
       # 하네스가 세션마다 "트레일러를 붙여라 — this replaces any earlier attribution
