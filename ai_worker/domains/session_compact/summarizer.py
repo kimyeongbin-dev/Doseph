@@ -93,10 +93,27 @@ async def _call_llm(client: AsyncOpenAI, user_prompt: str) -> tuple[OpenAIChatCo
   return response, int((time.perf_counter() - start) * 1000)
 
 
+#: 감싸기를 벗기는 최대 횟수 — 펜스·인용부호가 몇 겹이든 수렴하지만 무한 루프는 막는다.
+_MAX_UNWRAP_PASSES = 4
+
+
+# ── 감싸기 벗기기 (펜스·인용부호가 어떤 순서로 겹쳐도) ─────────────────
+# 흐름: 인용부호 벗김 -> 펜스 벗김 -> 바뀌었으면 다시 (변화가 없을 때까지)
+# 한 번만 부르면 바깥이 펜스일 때 안쪽 인용부호가 남는다(QA-65).
+def _unwrap(raw: str) -> str:
+  text = raw
+  for _ in range(_MAX_UNWRAP_PASSES):
+    stripped = strip_code_fence(strip_quote_wrapping(text))
+    if stripped == text:
+      break
+    text = stripped
+  return text
+
+
 def _parse_response(response: OpenAIChatCompletion, elapsed_ms: int, message_count: int) -> SummaryResult:
   """LLM 응답을 파싱해 SummaryResult 로 변환."""
   raw = response.choices[0].message.content or ""
-  cleaned = strip_code_fence(strip_quote_wrapping(raw))
+  cleaned = _unwrap(raw)
   token_usage = _extract_token_usage(response)
 
   if not cleaned:
