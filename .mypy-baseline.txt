@@ -8,7 +8,6 @@ ai_worker/core/redis_retry.py:0: error: Missing type arguments for generic type 
 ai_worker/core/redis_retry.py:0: error: Missing type arguments for generic type "Callable"  [type-arg]
 ai_worker/domains/lifestyle/guide_generator.py:0: error: Missing type arguments for generic type "dict"  [type-arg]
 ai_worker/domains/lifestyle/guide_generator.py:0: error: Missing type arguments for generic type "dict"  [type-arg]
-ai_worker/domains/lifestyle/guide_generator.py:0: error: Missing type arguments for generic type "dict"  [type-arg]
 ai_worker/domains/lifestyle/jobs.py:0: error: Argument "guide_id" to "bulk_create_from_guide" of "ChallengeRepository" has incompatible type "str"; expected "UUID"  [arg-type]
 ai_worker/domains/lifestyle/jobs.py:0: error: Argument "profile_id" to "bulk_create_from_guide" of "ChallengeRepository" has incompatible type "str"; expected "UUID"  [arg-type]
 ai_worker/domains/lifestyle/jobs.py:0: error: Missing type arguments for generic type "dict"  [type-arg]
