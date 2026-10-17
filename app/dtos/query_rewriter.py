@@ -160,7 +160,7 @@ class QueryMetadata(BaseModel):
 
 
 class QueryRewriterOutput(BaseModel):
-  """1st LLM (gpt-4o-mini Structured Output) 의 통합 결과 schema.
+  """1st LLM (``QUERY_REWRITER_MODEL`` Structured Output) 의 통합 결과 schema.
 
   Structured Outputs 강제 — schema 위반 자체 차단. fanout_queries (cap=10)
   대신 단일 rewritten_query + metadata 로 hybrid retrieval 입력 단순화.

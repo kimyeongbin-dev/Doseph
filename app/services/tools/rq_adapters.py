@@ -9,7 +9,7 @@ Entry points (RAG 4단 파이프라인 진입 후 Router LLM 폐기):
 - ``run_tool_calls_via_rq(calls, queue)`` → ``{tool_call_id: result}``
     fan-out 으로 만든 search_medicine_knowledge_base tool_calls 를 병렬 실행.
 - ``generate_chat_response_via_rq(messages, system_prompt, queue)``
-    2nd LLM (4o) 호출.
+    2nd LLM 호출.
 
 Failures map to two dedicated exceptions — ``ToolTimeoutError`` (poll
 deadline exceeded) and ``ToolJobError`` (RQ status transitioned to

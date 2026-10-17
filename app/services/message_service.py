@@ -314,12 +314,12 @@ class MessageService:
     return await self.repository.create_assistant_message(session_id, content)
 
   # ── 채팅 턴 진입점 (RAG 4단 + 위치 검색 + 회수 조회) ────────────────
-  # 흐름: ownership -> history+summary -> Query Rewriter (4o-mini)
+  # 흐름: ownership -> history+summary -> Query Rewriter
   #       -> intent 분기:
   #          (1) direct_answer (greeting/out_of_scope/ambiguous) 즉시 응답
-  #          (2) location_search -> _handle_location_search (카카오 + 4o)
-  #          (3) recall_check -> _handle_recall_check (식약처 회수 + 4o)
-  #          (4) domain_question -> _finalize_rag_turn (RAG 4단 retrieval + 4o)
+  #          (2) location_search -> _handle_location_search (카카오 + 2nd LLM)
+  #          (3) recall_check -> _handle_recall_check (식약처 회수 + 2nd LLM)
+  #          (4) domain_question -> _finalize_rag_turn (RAG 4단 retrieval + 2nd LLM)
   async def ask_with_tools(
     self,
     *,
@@ -333,7 +333,7 @@ class MessageService:
     - **greeting / out_of_scope / ambiguous** — ``direct_answer`` 를 그대로
       응답으로 영속화 후 종료.
     - **domain_question** — ``_finalize_rag_turn`` 으로 hybrid metadata
-      retrieval + 2nd LLM (4o) 답변 생성.
+      retrieval + 2nd LLM 답변 생성.
     - **location_search** — (예정) 카카오 Local API + 2nd LLM 답변. 핫픽스
       PR 의 Step 3 에서 분기 추가.
 
@@ -367,7 +367,7 @@ class MessageService:
     # ★ user 메시지 영속화 - 실패 시 그 행을 삭제해 rollback
     user_msg = await self.repository.create_user_message(session_id, content)
     try:
-      # Step 1: medical_context + ingredient_mapping + Query Rewriter (4o-mini)
+      # Step 1: medical_context + ingredient_mapping + Query Rewriter
       classify_messages = [*history, {"role": "user", "content": content}]
       medical_context, ingredient_mapping_section, rewriter_output = await classify_user_turn(
         profile_id,
@@ -419,7 +419,7 @@ class MessageService:
           recall_query=rewriter_output.recall_query,
         )
 
-      # 분기 4: domain_question (RAG 4단 retrieval + 4o)
+      # 분기 4: domain_question (RAG 4단 retrieval + 2nd LLM)
       if (
         rewriter_output.intent != IntentType.DOMAIN_QUESTION
         or not rewriter_output.rewritten_query
@@ -513,7 +513,7 @@ class MessageService:
       4. assemble_rag_section - chunk dict list 평탄화/dedup
       5. _compose_system_prompt - persona + medical_context + 용어 매핑 +
          세션요약 + 명확화 + RAG 검색 결과
-      6. generate_chat_response_via_rq - 2nd LLM (4o)
+      6. generate_chat_response_via_rq - 2nd LLM
     """
     meta = rewriter_output.metadata
     ingredient_filter = list({*meta.target_ingredients, *meta.interaction_concerns})
@@ -585,7 +585,7 @@ class MessageService:
   # ── 위치 검색 분기 (카카오 Local API + 2nd LLM) ─────────────────────
   # 흐름: mode 분기
   #       (keyword) ToolCall 생성 -> run_tool_calls_via_rq 즉시 호출
-  #                 -> tool 결과를 messages 에 prepend -> 2nd LLM (4o)
+  #                 -> tool 결과를 messages 에 prepend -> 2nd LLM
   #                 -> assistant message persist
   #       (gps)     ToolCall 생성 (needs_geolocation=True) -> PendingTurn 저장
   #                 -> AskPending(turn_id, ttl_sec) 반환 -> FE 좌표 콜백 대기
@@ -773,7 +773,7 @@ class MessageService:
   # 흐름: mode 분기
   #       (user)         ToolCall(check_user_medications_recall) +
   #                      profile_id top-level 주입 -> run_tool_calls_via_rq
-  #                      -> 결과를 messages 에 prepend -> 2nd LLM (4o)
+  #                      -> 결과를 messages 에 prepend -> 2nd LLM
   #       (manufacturer) ToolCall(check_manufacturer_recalls) + profile_id +
   #                      arguments.manufacturer (선택) -> 동일 흐름
   async def _handle_recall_check(
@@ -1118,7 +1118,7 @@ def _compose_system_prompt(
   medical_context: str = "",
   ingredient_mapping_section: str = "",
 ) -> str:
-  """2nd LLM (4o) 의 system prompt 를 안전장치 포함 섹션 순서로 조립."""
+  """2nd LLM 의 system prompt 를 안전장치 포함 섹션 순서로 조립."""
   parts: list[str] = [_PERSONA_AND_RULES]
 
   if medical_context:

@@ -7,7 +7,7 @@
 폐기 (PR-D RAG 재설계):
 - ``search_medicine_knowledge_base`` tool 분기 폐기 — fastapi 측에서
   ``retrieve_with_metadata`` 직접 호출 (RAG hybrid metadata retrieval).
-- ``Router LLM`` (route_intent_job) 폐기 — Query Rewriter (gpt-4o-mini) 가
+- ``Router LLM`` (route_intent_job) 폐기 — Query Rewriter 가
   fastapi 측 직접 호출.
 - batch 임베딩 / Tortoise lifecycle / RAG dispatch 분기 모두 제거.
 

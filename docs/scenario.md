@@ -300,7 +300,7 @@ docker logs ai-worker -f
 - [x] fastapi `[ToolCalling] route kind=text calls=0`: **Y** (Phase Y Router 가 정확히 tool 미선택)
 - [x] fastapi `[RAG] intent=weather` + `path=tool` + `Tool stub executed for intent: weather`: **Y**
 - [x] ai-worker 의 LLM/embed 호출 없음: **Y** (자원 절약)
-- 비고: 기대는 `intent=out_of_scope` 였으나 실제로는 `intent=weather` 전용 stub 분기로 처리. PLAN.md §11 Y-8-E 에서 둘 다 허용 범위로 명시. 의료 외 질문 거절이라는 본질은 달성. Router LLM 과 IntentClassifier 가 2단 레이어로 정확 작동 확인.
+- 비고: 기대는 `intent=out_of_scope` 였으나 실제로는 `intent=weather` 전용 stub 분기로 처리. 당시 로컬 `PLAN.md` §11 Y-8-E(저장소에 없다) 에서 둘 다 허용 범위로 명시. 의료 외 질문 거절이라는 본질은 달성. Router LLM 과 IntentClassifier 가 2단 레이어로 정확 작동 확인.
 
 ---
 
@@ -770,7 +770,7 @@ RAG 의 `_build_system_prompt` 에 명시된 "# Rule — 반드시 참고 문서
 
 | 구분 | 시나리오 | 증상 | 원인 | 대응 |
 |---|---|---|---|---|
-| 관찰 | S-5 | 기대했던 `intent=out_of_scope` 가 아닌 `intent=weather` → stub 응답 | RAG `IntentClassifier` 가 "날씨" 키워드 매칭 | PLAN.md §11 Y-8-E 에서 두 경로 모두 허용. 시나리오 의도(의료 외 거절) 달성 — **PASS 처리** |
+| 관찰 | S-5 | 기대했던 `intent=out_of_scope` 가 아닌 `intent=weather` → stub 응답 | RAG `IntentClassifier` 가 "날씨" 키워드 매칭 | 당시 로컬 `PLAN.md` §11 Y-8-E(저장소에 없다) 에서 두 경로 모두 허용. 시나리오 의도(의료 외 거절) 달성 — **PASS 처리** |
 | 관찰 | S-6 | LLM 답변의 섹션 제목이 "강남역 주변 병원" 으로 오표기 (실제 내용은 내 GPS 기준 병원) | 2nd LLM 프롬프트에 툴별 의미 구분 명시 안 됨 | 기능 정상. 프롬프트 튜닝 여지는 있으나 **현재 범위 밖**. 후속 작업 |
 | 제한 | S-8 | 순수 UI 경로로 60초 대기 → 410 재현 불가 | FE `navigator.geolocation.timeout=15000` 이 먼저 `denied` 로 전환 | 수동 curl via DevTools 로 검증. 의도한 경로는 정상 동작. 다층 방어로 설계적 OK |
 | 테스트 환경 | S-10 | PowerShell 작은따옴표가 JSON body 전달 시 escape 문제로 400 (body parsing fail) 로 먼저 막힘 | PowerShell 의 쉘 인용 한계 | `GET /profiles` 로 우회 검증. 팀 가이드에 Git Bash or 임시 파일 (`-d @file`) 추천 |

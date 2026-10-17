@@ -30,7 +30,7 @@ reason = "QA-01 에서 드롭된 컬럼. 이 이름을 쓰는 질의가 컬럼 �
 
 [[banned]]
 word = "ko-sroberta"
-reason = "feature/RAG 재설계에서 폐기된 임베딩 모델. 정본은 app/services/rag/config.py (text-embedding-3-large, 3072d). 2026-09-23 까지 medicine_chunk.py 8곳이 이 모델을 설명하고 있었다(문서-5)."
+reason = "feature/RAG 재설계에서 폐기된 임베딩 모델. 정본은 app/services/rag/config.py. 2026-09-23 까지 medicine_chunk.py 8곳이 이 모델을 설명하고 있었다(문서-5)."
 
 [[banned]]
 word = "VECTOR(768)"

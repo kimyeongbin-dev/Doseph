@@ -1,4 +1,4 @@
-"""모델이 **우리 스키마를 실제로 지키는가** — 실제 OpenAI 호출 (`QA-64` ⓶).
+"""모델이 **우리 스키마를 실제로 지키는가** — 실제 LLM 호출 (`QA-64` ⓶).
 
 왜 이 파일이 필요한가 — respx 가 못 보는 것
 -------------------------------------------
@@ -6,7 +6,7 @@ B-8 3구간이 OpenAI 경계 6곳을 `respx` 로 덮었다. 그런데 respx 는 
 돌려주므로 다음은 **원리적으로 미검증**이다:
 
 - 모델이 ``response_format`` 스키마를 **실제로 지키는가**
-- OpenAI 가 우리 ``strict`` 스키마를 **받아들이는가**(거부하면 400 이고 respx 는 못 본다)
+- API 가 우리 ``strict`` 스키마를 **받아들이는가**(거부하면 400 이고 respx 는 못 본다)
 - 🔴 **챌린지 15개** — 3구간이 `minItems` 를 스키마에서 **뺐다**(strict 모드 미지원).
   그래서 그 개수는 **프롬프트와 재시도에만** 의존하고 **아무도 검증하지 않는다.**
 
@@ -16,9 +16,10 @@ B-8 3구간이 OpenAI 경계 6곳을 `respx` 로 덮었다. 그런데 respx 는 
 
 운용 (`QA-64` ⓶ 판정, 2026-10-07)
 ---------------------------------
-- **언제**: DTO·프롬프트가 바뀐 PR 에서만(CI 가 경로로 판정)
+- **언제**: 사람이 ``RUN_LLM_CONTRACT=1`` 로 켤 때만 돈다 — 🔴 CI 잡은 **아직 없다**
+  (계획은 DTO·프롬프트가 바뀐 PR 에서 경로로 판정해 돌리는 것 · `QA-64` ⓶ 보류 · `문서-62`)
 - **어떻게**: 🔴 **막지 않고 보고** — 외부 장애가 우리 PR 을 막지 않게
-- **비용**: 호출 **3회**. 가장 큰 것이 가이드(`gpt-4o` · `max_tokens=800`)다
+- **비용**: 호출 **3회**. 가장 큰 것이 가이드(`LIFESTYLE_GUIDE_MODEL`)다
 - **평소**: 🔴 수집조차 되지 않는다(`conftest.py` — skip 이 아니다, `D16`)
 """
 
@@ -45,7 +46,7 @@ def _require_api_key() -> None:
 
 
 class TestOcrExtractionContract:
-  """OCR 약품 추출 — `OcrLlmExtraction` (`gpt-4o-mini`)."""
+  """OCR 약품 추출 — `OcrLlmExtraction` (`MEDICINE_MATCHER_MODEL`)."""
 
   @pytest.mark.asyncio
   async def test_the_model_returns_items_matching_our_schema(self) -> None:
@@ -64,7 +65,7 @@ class TestOcrExtractionContract:
 
 
 class TestGuideContract:
-  """생활습관 가이드 — `LlmGuideResponse` (`gpt-4o`)."""
+  """생활습관 가이드 — `LlmGuideResponse` (`LIFESTYLE_GUIDE_MODEL`)."""
 
   @pytest.mark.asyncio
   async def test_the_model_returns_exactly_the_required_challenge_count(self) -> None:
@@ -94,7 +95,7 @@ class TestGuideContract:
 
 
 class TestQueryRewriterContract:
-  """1st LLM 의도 분류 — `QueryRewriterOutput` (`gpt-4o-mini`)."""
+  """1st LLM 의도 분류 — `QueryRewriterOutput` (`QUERY_REWRITER_MODEL`)."""
 
   @pytest.mark.asyncio
   async def test_the_model_classifies_a_medical_question_as_domain(self) -> None:

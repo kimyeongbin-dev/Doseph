@@ -2,7 +2,7 @@
 
 This module defines the MedicineChunk model storing section-level
 text chunks and their dense vector embeddings (pgvector `halfvec(3072)`,
-using OpenAI `text-embedding-3-large`) for RAG similarity search.
+model = ``app.services.rag.config.EMBEDDING_MODEL_NAME``) for RAG similarity search.
 
 The actual `halfvec(3072)` column type is applied via manual SQL inside
 the Aerich migration because Tortoise ORM does not natively understand

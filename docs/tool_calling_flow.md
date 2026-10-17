@@ -289,7 +289,7 @@ Phase Y 범위에서는 `assistant_message.content` 는 **순수 자연어**만 
 
 ## 6. 참고
 
-- **백엔드 설계 상세**: `PLAN.md` §0-§11 (Phase Y 전체 설계)
+- **백엔드 설계 상세**: `PLAN.md` §0-§11 (Phase Y 전체 설계 · 당시 로컬 작업 계획 — 저장소에 커밋되지 않아 지금은 없다)
 - **서비스 계약 테스트**: `app/tests/test_message_service_pending_callback.py` ·
   `app/tests/test_tool_schemas.py` · `app/tests/test_recall_checker_tool.py`
   > ⚠️ 2026-09-23 정정 — `test_message_service_tool_branching.py` 와
