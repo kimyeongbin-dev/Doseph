@@ -28,9 +28,10 @@ import respx
 from ai_worker.core import openai_client as oc_module
 from ai_worker.core.config import config
 from ai_worker.domains.ocr.medicine_matcher import _extract_medicines_with_llm
+from app.core.llm_client import LLM_BASE_URL
 from app.core.llm_models import MEDICINE_MATCHER_MODEL
 
-_URL = "https://api.openai.com/v1/chat/completions"
+_URL = f"{LLM_BASE_URL}chat/completions"
 
 #: 프롬프트가 요구하는 항목 모양 — 이름/용량/유형 + 복용 3종 + 지시
 _ITEM = {
@@ -83,7 +84,7 @@ def _client_ready(monkeypatch: pytest.MonkeyPatch) -> None:
   """
   monkeypatch.setattr(oc_module, "_client", None)
   monkeypatch.setattr(oc_module, "_initialised", False)
-  monkeypatch.setattr(config, "OPENAI_API_KEY", "sk-test-not-a-real-key")
+  monkeypatch.setattr(config, "GEMINI_API_KEY", "FAKE_gemini_key")
 
 
 class TestRequestContract:
@@ -96,6 +97,7 @@ class TestRequestContract:
     route = _route({"items": [_ITEM]})
     await _extract_medicines_with_llm("타이레놀정 500mg")
     assert _sent(route)["model"] == MEDICINE_MATCHER_MODEL
+    assert "temperature" not in _sent(route), "Gemini 3 공식 권장 — temperature 는 기본값"
 
   @pytest.mark.asyncio
   @respx.mock
@@ -203,7 +205,7 @@ class TestEmptyPaths:
   @respx.mock
   async def test_no_api_key_returns_empty_without_calling(self, monkeypatch: pytest.MonkeyPatch) -> None:
     """API key 없음 → 호출 없이 빈 리스트. `get_openai_client` 분기가 실제로 돈다."""
-    monkeypatch.setattr(config, "OPENAI_API_KEY", None)
+    monkeypatch.setattr(config, "GEMINI_API_KEY", None)
     route = _route({"items": [_ITEM]})
     assert await _extract_medicines_with_llm("타이레놀") == []
     assert not route.called

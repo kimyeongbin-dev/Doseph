@@ -11,30 +11,34 @@
 - 선례: ``app/services/rag/config.py`` 가 임베딩 모델명을 같은 방식으로 들고 있고
   docstring 에 *«정본은 이 파일이다»* 를 적어 두었다.
 
-🔑 **용도별 이름 + 티어 값**으로 둔 이유
+🔑 **용도별 이름 + 모델 값**으로 둔 이유
 ----------------------------------------
-*«어느 용도가 어느 티어인가»* 가 한 화면에 보이고, 티어를 바꿀 때 **고칠 곳이 한 줄**이다.
-용도 이름이 없으면 호출처에서 `_MINI` 를 보고 *«왜 mini 인가»* 를 알 수 없다.
+*«어느 용도가 어느 모델인가»* 가 한 화면에 보이고, 모델을 바꿀 때 **고칠 곳이 한 줄**이다.
+용도 이름이 없으면 호출처에서 모델 값만 보고 *«왜 이 모델인가»* 를 알 수 없다.
 
 🔴 **여기서만 문자열을 쓴다.** 호출처는 이 이름을 import 한다 —
 `QA-07` 이 *«모델명 5곳 하드코딩»* 으로 등재한 자리가 그것이다.
+
+🔀 **2026-10-16 Gemini 무료 등급으로 전환**(v2.0 재배포 PLAN 결정 ⓝ-1).
+무료 한도가 **모델별**이라(Flash Lite 각 RPD 500) 챗봇 한 턴의 두 호출을 서로 다른 모델에 둔다.
+그래서 «티어» 가 아니라 «짧은 구조화 출력 / 긴 생성» 으로 나눈다.
 """
 
-#: 티어 — 실제 모델 문자열은 이 두 줄에만 있다.
-_FULL = "gpt-4o"
-_MINI = "gpt-4o-mini"
+#: 실제 모델 문자열은 이 두 줄에만 있다.
+_LIGHT = "gemini-3.1-flash-lite"  # 짧은 구조화 출력 — 재작성·매칭·요약
+_LONG = "gemini-3.5-flash-lite"  # 긴 생성 — 챗봇 응답·생활 가이드
 
 #: 1st LLM — 의도 분류 + 질의 재작성 (Structured Output `parse`)
-QUERY_REWRITER_MODEL = _MINI
+QUERY_REWRITER_MODEL = _LIGHT
 
 #: OCR 약품명 매칭 — 퍼지 매칭을 대체한 LLM 추출
-MEDICINE_MATCHER_MODEL = _MINI
+MEDICINE_MATCHER_MODEL = _LIGHT
 
 #: RAG 최종 응답 생성 (2nd LLM)
-RAG_RESPONSE_MODEL = _FULL
+RAG_RESPONSE_MODEL = _LONG
 
 #: 생활습관 가이드 생성
-LIFESTYLE_GUIDE_MODEL = _FULL
+LIFESTYLE_GUIDE_MODEL = _LONG
 
 #: 세션 대화 요약 (컴팩트)
-SESSION_SUMMARY_MODEL = _FULL
+SESSION_SUMMARY_MODEL = _LIGHT

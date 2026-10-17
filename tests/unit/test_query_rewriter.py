@@ -27,12 +27,13 @@ import pytest
 import respx
 
 from app.core.config import config
+from app.core.llm_client import LLM_BASE_URL
 from app.core.llm_models import QUERY_REWRITER_MODEL
 from app.dtos.query_rewriter import IntentType
 from app.services.intent import query_rewriter as rewriter_module
 from app.services.intent.query_rewriter import rewrite_query
 
-_URL = "https://api.openai.com/v1/chat/completions"
+_URL = f"{LLM_BASE_URL}chat/completions"
 
 
 # ── 공용 헬퍼 ──────────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ def _client_ready(monkeypatch: pytest.MonkeyPatch) -> None:
   """싱글톤 초기화 + API key 주입 — `_get_client` 가 **실제로 돌게** 한다."""
   monkeypatch.setattr(rewriter_module, "_client", None)
   monkeypatch.setattr(rewriter_module, "_initialised", False)
-  monkeypatch.setattr(config, "OPENAI_API_KEY", "sk-test-not-a-real-key")
+  monkeypatch.setattr(config, "GEMINI_API_KEY", "FAKE_gemini_key")
 
 
 class TestRequestContract:
@@ -103,6 +104,7 @@ class TestRequestContract:
     route = _route(_GREETING)
     await rewrite_query(messages=[{"role": "user", "content": "안녕"}])
     assert _sent(route)["model"] == QUERY_REWRITER_MODEL
+    assert "temperature" not in _sent(route), "Gemini 3 공식 권장 — temperature 는 기본값"
 
   @pytest.mark.asyncio
   @respx.mock
@@ -172,7 +174,7 @@ class TestFallback:
   @respx.mock
   async def test_no_api_key_returns_ambiguous_without_calling(self, monkeypatch: pytest.MonkeyPatch) -> None:
     """API key 없음 → 호출 없이 fallback. 🔑 `_get_client` 분기가 **실제로** 돈다."""
-    monkeypatch.setattr(config, "OPENAI_API_KEY", None)
+    monkeypatch.setattr(config, "GEMINI_API_KEY", None)
     route = _route(_GREETING)
     result = await rewrite_query(messages=[{"role": "user", "content": "안녕"}])
     assert not route.called

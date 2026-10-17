@@ -19,6 +19,7 @@ import pytest
 import respx
 
 from app.core.config import config
+from app.core.llm_client import LLM_BASE_URL
 from app.core.llm_models import QUERY_REWRITER_MODEL
 from app.dtos.query_rewriter import (
   IntentType,
@@ -28,7 +29,7 @@ from app.dtos.query_rewriter import (
 )
 from app.services.intent import query_rewriter
 
-_URL = "https://api.openai.com/v1/chat/completions"
+_URL = f"{LLM_BASE_URL}chat/completions"
 
 
 def _route(payload: dict[str, Any]) -> respx.Route:
@@ -59,7 +60,7 @@ def _client_ready(monkeypatch: pytest.MonkeyPatch) -> None:
   """싱글톤 초기화 + API key 주입 — `_get_client` 가 **실제로 돌게** 한다."""
   monkeypatch.setattr(query_rewriter, "_client", None)
   monkeypatch.setattr(query_rewriter, "_initialised", False)
-  monkeypatch.setattr(config, "OPENAI_API_KEY", "sk-test-not-a-real-key")
+  monkeypatch.setattr(config, "GEMINI_API_KEY", "FAKE_gemini_key")
 
 
 # ── DTO round-trip ─────────────────────────────────────────────

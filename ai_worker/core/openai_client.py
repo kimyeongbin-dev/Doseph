@@ -15,6 +15,7 @@ import logging
 from openai import AsyncOpenAI
 
 from ai_worker.core.config import config
+from app.core.llm_client import build_llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def get_openai_client() -> AsyncOpenAI | None:
   """프로세스 전역 AsyncOpenAI 클라이언트를 반환한다.
 
   Returns:
-      설정된 ``OPENAI_API_KEY`` 가 있으면 AsyncOpenAI 인스턴스,
+      설정된 ``GEMINI_API_KEY`` 가 있으면 AsyncOpenAI 인스턴스,
       없으면 ``None`` (호출자가 fallback 처리).
   """
   global _client, _initialised
@@ -35,13 +36,13 @@ def get_openai_client() -> AsyncOpenAI | None:
   if _initialised:
     return _client
 
-  api_key = config.OPENAI_API_KEY
+  api_key = config.GEMINI_API_KEY
   if not api_key:
-    logger.warning("OPENAI_API_KEY 미설정 — AsyncOpenAI 클라이언트 비활성")
+    logger.warning("GEMINI_API_KEY 미설정 — AsyncOpenAI 클라이언트 비활성")
     _initialised = True
     return None
 
-  _client = AsyncOpenAI(api_key=api_key)
+  _client = build_llm_client(api_key)
   _initialised = True
   logger.info("AsyncOpenAI 클라이언트 초기화 완료")
   return _client

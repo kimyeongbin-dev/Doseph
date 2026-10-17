@@ -1,4 +1,4 @@
-"""Query Rewriter — 1st LLM (gpt-4o-mini) Structured Output 단일 호출.
+"""Query Rewriter — 1st LLM (``QUERY_REWRITER_MODEL``) Structured Output 단일 호출.
 
 `plan/2026-08-11_rag-query-rewriter-plan.md` (PR-B) — 사용자 raw 질의 + medical_context (DB prepend)
 를 입력받아 의도 분류 + 재작성 질의 + 메타데이터 + 대명사 풀이를 한번에.
@@ -8,7 +8,7 @@ brand→ingredient 매핑 통합 + 환자상태 추론 추가.
 
 흐름:
   raw_query + medical_context + history
-    → gpt-4o-mini.beta.chat.completions.parse(response_format=QueryRewriterOutput)
+    → client.beta.chat.completions.parse(response_format=QueryRewriterOutput)
     → QueryRewriterOutput (intent + direct_answer | rewritten_query + metadata)
 """
 
@@ -17,6 +17,7 @@ import logging
 from openai import AsyncOpenAI
 
 from app.core.config import config
+from app.core.llm_client import build_llm_client
 from app.core.llm_models import QUERY_REWRITER_MODEL
 from app.core.logger import log_boundary
 from app.dtos.query_rewriter import IntentType, QueryRewriterOutput
@@ -155,16 +156,16 @@ SYSTEM_PROMPT = """당신은 'Doseph' 약사 챗봇의 Query Rewriter 입니다.
 
 
 def _get_client() -> AsyncOpenAI | None:
-  """AsyncOpenAI 싱글톤. config.OPENAI_API_KEY 미설정 시 None."""
+  """AsyncOpenAI 싱글톤. config.GEMINI_API_KEY 미설정 시 None."""
   global _client, _initialised
   if _initialised:
     return _client
-  api_key = config.OPENAI_API_KEY
+  api_key = config.GEMINI_API_KEY
   if not api_key:
-    logger.warning("OPENAI_API_KEY 미설정 — QueryRewriter 비활성")
+    logger.warning("GEMINI_API_KEY 미설정 — QueryRewriter 비활성")
     _initialised = True
     return None
-  _client = AsyncOpenAI(api_key=api_key)
+  _client = build_llm_client(api_key)
   _initialised = True
   return _client
 

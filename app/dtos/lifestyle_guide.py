@@ -84,7 +84,7 @@ class LlmGuideResponse(BaseModel):
     OpenAI Structured Output 의 `strict` 모드는 `minItems`/`maxItems` 를 **지원하지 않는다.**
     `Field` 제약은 JSON Schema 에 그 키워드를 남기므로 승격 시 요청이 거부될 수 있다.
     validator 는 **스키마에 나타나지 않고** 검증은 그대로 한다 — 길이 위반은
-    `generate_guide_payload` 의 **재시도 루프**가 받아 seed 를 바꿔 다시 부른다.
+    `generate_guide_payload` 의 **재시도 루프**가 받아 다시 부른다.
 
     Args:
         value: 모델이 돌려준 챌린지 목록.

@@ -151,7 +151,7 @@ async def _extract_medicines_with_llm(raw_text: str) -> list[dict]:
   """LLM을 호출하여 이름, 용량, 유형을 정밀하게 분리 추출한다."""
   client = get_openai_client()
   if not client:
-    logger.error("OPENAI_API_KEY 미설정. LLM 동작 불가.")
+    logger.error("GEMINI_API_KEY 미설정. LLM 동작 불가.")
     return []
 
   # 프롬프트 재진화: 이름과 용량을 강제로 분리시킨다.
@@ -195,7 +195,6 @@ async def _extract_medicines_with_llm(raw_text: str) -> list[dict]:
         model=MEDICINE_MATCHER_MODEL,
         messages=[{"role": "user", "content": prompt}],
         response_format=OcrLlmExtraction,
-        temperature=0.0,
       )
     parsed = response.choices[0].message.parsed
     if parsed is None:

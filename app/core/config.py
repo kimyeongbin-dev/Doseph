@@ -128,7 +128,7 @@ class Config(BaseSettings):
   MEDICATION_PURGE_GRACE_DAYS: int = 7
 
   # External API settings
-  OPENAI_API_KEY: str | None = None
+  GEMINI_API_KEY: str | None = None
   DATA_GO_KR_API_KEY: str | None = None
 
   # 식약처 회수·판매중지 API (Phase 7) ────────────────────────────────

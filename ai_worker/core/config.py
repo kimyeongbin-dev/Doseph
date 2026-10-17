@@ -30,7 +30,7 @@ class Config(BaseSettings):
   LOG_LEVEL: str = "INFO"
 
   # External API settings
-  OPENAI_API_KEY: str | None = None
+  GEMINI_API_KEY: str | None = None
 
   # CLOVA OCR settings — 환경변수 이름과 정확히 일치 (.env 와 호환)
   CLOVA_OCR_INVOKE_URL: str | None = None

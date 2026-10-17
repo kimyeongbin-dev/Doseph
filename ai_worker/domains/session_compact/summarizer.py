@@ -28,7 +28,8 @@ from app.dtos.rag import SummaryResult, SummaryStatus, TokenUsage
 
 logger = logging.getLogger(__name__)
 
-_TEMPERATURE = 0.2
+# 🔑 temperature 는 보내지 않는다 — Gemini 3 공식 권장은 기본값(1.0) 유지다
+#    (낮추면 루프·성능 저하, 2026-10-16 확인 · v2.0 재배포 PLAN S1 · 대장 D86).
 _MAX_TOKENS = 400
 _MIN_MESSAGES = 2
 
@@ -75,7 +76,6 @@ async def _call_llm(client: AsyncOpenAI, user_prompt: str) -> tuple[OpenAIChatCo
           {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
           {"role": "user", "content": user_prompt},
         ],
-        temperature=_TEMPERATURE,
         max_tokens=_MAX_TOKENS,
       )
   # 🟠 QA-51: BLE001 은 부채다 — openai 예외로 좁힐 수 있으나 행동 변경이라 미뤘다.

@@ -30,13 +30,13 @@ from ai_worker.core.config import config
 from ai_worker.domains.session_compact.summarizer import (
   _MAX_TOKENS,
   _MIN_MESSAGES,
-  _TEMPERATURE,
   summarize_session_messages,
 )
+from app.core.llm_client import LLM_BASE_URL
 from app.core.llm_models import SESSION_SUMMARY_MODEL
 from app.dtos.rag import SummaryStatus
 
-_URL = "https://api.openai.com/v1/chat/completions"
+_URL = f"{LLM_BASE_URL}chat/completions"
 _MESSAGES = [
   {"role": "user", "content": "타이레놀 먹어도 돼?"},
   {"role": "assistant", "content": "아세트아미노펜 계열입니다."},
@@ -79,7 +79,7 @@ def _client_ready(monkeypatch: pytest.MonkeyPatch) -> None:
   """싱글톤 초기화 + API key 주입 — `get_openai_client` 가 **실제로 돌게** 한다."""
   monkeypatch.setattr(oc_module, "_client", None)
   monkeypatch.setattr(oc_module, "_initialised", False)
-  monkeypatch.setattr(config, "OPENAI_API_KEY", "sk-test-not-a-real-key")
+  monkeypatch.setattr(config, "GEMINI_API_KEY", "FAKE_gemini_key")
 
 
 class TestRequestContract:
@@ -88,12 +88,12 @@ class TestRequestContract:
   @pytest.mark.asyncio
   @respx.mock
   async def test_request_carries_the_canonical_model_and_knobs(self) -> None:
-    """🔴 `QA-07` ① 의 계약 + 요약은 **보수적 설정**(낮은 temperature)이다."""
+    """🔴 `QA-07` ① 의 계약 + temperature 는 **보내지 않는다**(Gemini 3 기본값)."""
     route = _route()
     await summarize_session_messages(_MESSAGES)
     sent = _sent(route)
     assert sent["model"] == SESSION_SUMMARY_MODEL
-    assert sent["temperature"] == _TEMPERATURE
+    assert "temperature" not in sent, "Gemini 3 공식 권장 — temperature 는 기본값"
     assert sent["max_tokens"] == _MAX_TOKENS
 
   @pytest.mark.asyncio
@@ -184,7 +184,7 @@ class TestFallbackPaths:
   @respx.mock
   async def test_no_api_key_returns_fallback_without_calling(self, monkeypatch: pytest.MonkeyPatch) -> None:
     """🔑 `get_openai_client` 분기가 **실제로** 돈다."""
-    monkeypatch.setattr(config, "OPENAI_API_KEY", None)
+    monkeypatch.setattr(config, "GEMINI_API_KEY", None)
     route = _route()
     result = await summarize_session_messages(_MESSAGES)
     assert not route.called
