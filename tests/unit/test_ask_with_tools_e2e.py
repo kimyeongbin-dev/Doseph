@@ -207,10 +207,10 @@ class TestAskWithToolsRollback:
     monkeypatch: pytest.MonkeyPatch,
   ) -> None:
     async def _fake_classify(_pid, _msgs):
-      raise RuntimeError("4o-mini API down")
+      raise RuntimeError("LLM API down")
 
     monkeypatch.setattr(ms_module, "classify_user_turn", _fake_classify)
 
-    with pytest.raises(RuntimeError, match="4o-mini API down"):
+    with pytest.raises(RuntimeError, match="LLM API down"):
       await service.ask_with_tools(session_id=SESSION_ID, account_id=ACCOUNT_ID, content="타이레놀")
     service.repository.soft_delete.assert_awaited_once()

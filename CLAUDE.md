@@ -180,9 +180,9 @@ All feature development and session tasks MUST follow this loop. This project fo
 * **Canonical Example** (🔑 실재하는 코드에서 가져온다 — 예시가 없는 파이프라인을 들면 «그게 있다» 는 인상을 남긴다. 실제로 그렇게 읽고 없는 전처리를 찾은 적이 있다, `문서-26`):
     ```python
     # ── 채팅 턴 진입점 (RAG 4단 + 위치 검색 + 회수 조회) ────────────────
-    # 흐름: ownership -> history+summary -> Query Rewriter (4o-mini)
+    # 흐름: ownership -> history+summary -> Query Rewriter
     #       -> intent 분기 -> (1) 즉시 응답 (2) 위치 검색 (3) 회수 조회
-    #                        (4) RAG 4단 retrieval -> 4o 응답
+    #                        (4) RAG 4단 retrieval -> 2nd LLM 응답
     async def ask_with_tools(...):
         ...
     ```

@@ -11,7 +11,7 @@ dataset), this script collects a small sample and populates the RAG stack:
      matches the team's production path.
   3. For each upserted medicine, generates section-level chunks from the
      non-null text fields and embeds them with the canonical model
-     (``app.services.rag.config`` — OpenAI text-embedding-3-large, 3072d).
+     (``app.services.rag.config`` — ``EMBEDDING_MODEL_NAME`` · ``EMBEDDING_DIMENSIONS``).
      Embeddings are L2-normalized for cosine similarity in pgvector.
      ⚠️ 모델·차원을 여기 다시 적지 않는다 — 정본은 그 모듈이다(2026-09-23, 문서-5).
 

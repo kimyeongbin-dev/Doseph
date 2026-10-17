@@ -5,7 +5,7 @@
 흐름:
   profile_id -> build_medical_context (medication + survey)
             -> map_brands_to_ingredients (사용자 medication brand -> 활성성분)
-            -> rewrite_query (gpt-4o-mini Structured Output 단일 호출)
+            -> rewrite_query (Structured Output 단일 호출)
             -> (medical_context, ingredient_mapping_section, QueryRewriterOutput)
 
 호출자 (message_service) 가 medical_context + ingredient_mapping_section 을

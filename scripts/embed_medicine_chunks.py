@@ -74,15 +74,16 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 # ── 상수 ───────────────────────────────────────────────────────────
 EMBEDDING_PRICE_PER_1M = 0.13  # USD
 
-# OpenAI text-embedding-3-large input 한도 = 8192 tok. 분할 한도는 더 보수적
-# 으로 4000 tok (한국어 토큰화는 char/tok 비율이 변동 커서 안전 마진 필요).
+# 분할 한도는 OpenAI 임베딩 시절(input 한도 8192 tok)에 보수적으로 잡은 값이다
+# (한국어 토큰화는 char/tok 비율이 변동 커서 안전 마진 필요). Gemini 임베딩 한도와의
+# 대조는 v2.0 재배포 PLAN S4 에서 한다.
 MAX_TOKENS_PER_CHUNK = 4000
 
 # 한국어 평균 0.5~1자 = 1 token (cl100k_base 기준). tiktoken 미설치 환경에선
 # 0.5 로 보수적 추정 (실제 토큰 수보다 *많이* 잡혀 분할이 적극적으로 일어남).
 CHARS_PER_TOKEN = 0.5
 
-# OpenAI Embedding batch input 한도는 매우 크지만 (지금은 메모리/네트워크
+# 임베딩 batch input 한도는 매우 크지만 (지금은 메모리/네트워크
 # 제약 위주) 안전하게 100 chunks per call.
 EMBED_BATCH_SIZE = 100
 
