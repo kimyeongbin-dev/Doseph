@@ -75,6 +75,12 @@ export default function LoginPage() {
       const { client_id, redirect_uri, authorize_url, state } = data
 
       // 2. BE에서 받은 state 저장 (CSRF 방지)
+      // 왜 localStorage 인가 (QA-36, 2026-10-18 판정):
+      // - 모바일 웹은 카카오톡 앱을 거쳐 새 탭으로 돌아올 수 있다. sessionStorage 는 탭 단위라
+      //   그때 값이 사라져 정상 로그인이 실패한다.
+      // - HttpOnly 쿠키로 서버가 묶는 방식은 브라우저 전용이라, 앱 클라이언트와 콜백 검증이 두 갈래가 된다.
+      //   "서버 서명 state + 클라이언트 비교" 는 클라이언트 종류와 무관한 한 흐름이다.
+      // - 이 값은 세션 식별자가 아니라 5분짜리 일회용 nonce 다(서버 HMAC 서명·만료 검증, 콜백에서 즉시 삭제).
       localStorage.setItem('oauth_state', state)
 
       // 3. 카카오(Mock) 인증 페이지로 리다이렉트

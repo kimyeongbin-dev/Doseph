@@ -84,7 +84,9 @@ function KakaoCallbackContent() {
         return
       }
 
-      // 2. state 검증 (CSRF 방지) - localStorage 사용 (모든 탭에서 공유)
+      // 2. state 검증 (CSRF 방지) - localStorage 사용 (모든 탭에서 공유 — 이유는 login/page.jsx, QA-36)
+      // 이 비교가 "이 브라우저가 로그인을 시작했다" 를 묶는 유일한 자리다.
+      // 서버의 HMAC 검증은 "우리가 최근에 발급했다" 까지만 증명한다(공격자도 자기 몫의 state 를 받을 수 있다).
       const savedState = localStorage.getItem('oauth_state')
       if (!savedState || savedState !== state) {
         localStorage.removeItem('oauth_state')
