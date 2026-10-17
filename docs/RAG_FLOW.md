@@ -2,7 +2,7 @@
 
 > **범위**: 사용자 질의 입력 → 최종 응답까지의 전체 파이프라인.
 > **PR**: `feature/RAG` (2026-05-02). 본 문서는 5-1 시나리오 (`"타이레놀 먹어도 돼?"`) 를 기준으로 한다.
-> **연관 문서**: `PLAN.md`, `app/CLAUDE.md`, `ai_worker/CLAUDE.md`
+> **연관 문서**: `PLAN.md`(당시 로컬 작업 계획 — 저장소에 커밋되지 않아 지금은 없다), `app/CLAUDE.md`, `ai_worker/CLAUDE.md`
 
 ---
 

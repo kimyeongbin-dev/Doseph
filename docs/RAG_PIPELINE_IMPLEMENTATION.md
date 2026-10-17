@@ -1,7 +1,7 @@
 # RAG 4단 파이프라인 구현 문서
 
 > **PR**: `feature/rag-pipeline` (main `ef4a390` 기준 분기, 2026-05-02)
-> **연관 문서**: `docs/RAG_FLOW.md` (데이터 흐름), `PLAN.md` (결정 매트릭스), `docs/MIGRATIONS_NORMALIZATION.md` (마이그 정상화 — 별도 PR)
+> **연관 문서**: `docs/RAG_FLOW.md` (데이터 흐름), `PLAN.md` (결정 매트릭스 · 당시 로컬 작업 계획 — 저장소에 커밋되지 않아 지금은 없다), `docs/MIGRATIONS_NORMALIZATION.md` (마이그 정상화 — 별도 PR)
 > **작성**: 본 PR 의 8 commits 산출물 정리
 > **목적**: 팀원이 본 PR 을 이해하고 다음 PR 작성/머지/검증 시 참고
 
@@ -250,7 +250,7 @@ app/tests/test_rq_rag_generator.py
 
 ---
 
-## 5. 폐기된 결정 + 최종 결정 매트릭스 (PLAN.md §0 정리)
+## 5. 폐기된 결정 + 최종 결정 매트릭스 (당시 로컬 `PLAN.md` §0 정리 — 그 파일은 저장소에 없다)
 
 | 항목 | 최종 결정 | 사유 |
 |---|---|---|

@@ -298,7 +298,7 @@ flowchart TD
 
 **구현.**
 
-- `docker-compose.yml` / `docker-compose.prod.yml` (dev 88% · prod 100% 본인)
+- `docker-compose.yml` / `docker-compose.prod.yml` (dev 88% · prod 100% 본인 — prod 파일은 GCP 이전 뒤 2026-09-08 정리로 삭제)
 - `.github/workflows/deploy.yml` — `concurrency: cancel-in-progress`
 - aerich migration 자동 적용 (deploy 단계 `aerich upgrade`)
 - pre-commit (ruff lint/format)
