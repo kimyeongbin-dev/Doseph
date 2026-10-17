@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { FileText, Loader2, X, Trash2 } from 'lucide-react'
+import PropTypes from 'prop-types'
 
 // 활성 OCR draft 카드 — main 우측하단 floating (챗봇 아이콘 위)
 // 사용자가 X 로 카드 전체를 숨길 수 있고 (새로고침 시 다시 표시),
@@ -71,4 +72,17 @@ export default function ActiveDraftsCard({ drafts, profileId, onSelect, onDelete
       </ul>
     </div>
   )
+}
+
+ActiveDraftsCard.propTypes = {
+  drafts: PropTypes.arrayOf(
+    PropTypes.shape({
+      draft_id: PropTypes.string.isRequired,
+      status: PropTypes.string.isRequired,
+      created_at: PropTypes.string.isRequired,
+    }),
+  ),
+  profileId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  onSelect: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
 }
