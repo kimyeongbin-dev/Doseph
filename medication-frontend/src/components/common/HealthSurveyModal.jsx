@@ -16,8 +16,16 @@ import { healthSurveySchema } from '@/schemas'
 // 기저질환·알레르기 칩 옵션 — 두 진입점에서 동일하게 사용.
 // 각 칩은 BE 에서 free-form 문자열로 health_survey.conditions/allergies JSONField 에 저장.
 const CONDITION_OPTIONS = [
-  '고혈압', '당뇨', '고지혈증', '심장질환', '뇌졸중',
-  '천식', '신장질환', '간질환', '갑상선질환', '없음',
+  '고혈압',
+  '당뇨',
+  '고지혈증',
+  '심장질환',
+  '뇌졸중',
+  '천식',
+  '신장질환',
+  '간질환',
+  '갑상선질환',
+  '없음',
 ]
 const ALLERGY_OPTIONS = ['페니실린', '아스피린', '항생제', '소염제', '없음']
 

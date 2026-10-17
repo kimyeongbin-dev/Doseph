@@ -92,7 +92,12 @@ describe('ChallengeContext 특성화', () => {
     api.get.mockResolvedValue({
       data: [
         makeChallenge({ id: 'a', title: '활성', is_active: true, challenge_status: 'IN_PROGRESS' }),
-        makeChallenge({ id: 'b', title: '미시작', is_active: false, challenge_status: 'IN_PROGRESS' }),
+        makeChallenge({
+          id: 'b',
+          title: '미시작',
+          is_active: false,
+          challenge_status: 'IN_PROGRESS',
+        }),
         makeChallenge({ id: 'c', title: '완료', is_active: true, challenge_status: 'COMPLETED' }),
       ],
     })
@@ -100,7 +105,9 @@ describe('ChallengeContext 특성화', () => {
     renderHarness()
 
     expect(await screen.findByText('활성')).toBeInTheDocument()
-    expect(api.get).toHaveBeenCalledWith(expect.stringContaining('/api/v1/challenges?profile_id=prof-1'))
+    expect(api.get).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/challenges?profile_id=prof-1'),
+    )
   })
 
   // ── 추천 탭의 "미시작" 계약 ────────────────────────────────────────
@@ -182,6 +189,8 @@ describe('ChallengeContext 특성화', () => {
         'isError 가 없으면 조회 실패가 "아직 추천 챌린지가 없어요"로 보인다',
       ).toHaveTextContent('true'),
     )
-    expect(screen.getByTestId('titles'), '실패해도 빈 배열 계약은 유지한다').toHaveTextContent('empty')
+    expect(screen.getByTestId('titles'), '실패해도 빈 배열 계약은 유지한다').toHaveTextContent(
+      'empty',
+    )
   })
 })

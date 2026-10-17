@@ -12,7 +12,15 @@ import { healthSurveySchema } from '@/schemas'
 import FormError from '@/components/form/FormError'
 
 const CONDITION_OPTIONS = [
-  '고혈압', '당뇨', '고지혈증', '심장질환', '뇌졸중', '천식', '신장질환', '갑상선질환', '없음',
+  '고혈압',
+  '당뇨',
+  '고지혈증',
+  '심장질환',
+  '뇌졸중',
+  '천식',
+  '신장질환',
+  '갑상선질환',
+  '없음',
 ]
 const ALLERGY_OPTIONS = ['페니실린', '아스피린', '항생제', '소염제', '없음']
 
@@ -109,9 +117,15 @@ export default function SurveyPage() {
         <div className="flex justify-between items-center p-8 border-b border-line">
           <div>
             <h3 className="text-xl font-black text-ink">건강 정보 입력</h3>
-            <p className="text-xs font-bold text-muted mt-1">맞춤형 관리를 위해 정보를 입력해주세요</p>
+            <p className="text-xs font-bold text-muted mt-1">
+              맞춤형 관리를 위해 정보를 입력해주세요
+            </p>
           </div>
-          <button type="button" onClick={handleSkip} className="flex items-center gap-1 text-xs font-black text-muted hover:text-ink transition-all">
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="flex items-center gap-1 text-xs font-black text-muted hover:text-ink transition-all"
+          >
             건너뛰기 <X size={14} />
           </button>
         </div>
@@ -168,7 +182,9 @@ export default function SurveyPage() {
             </h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] font-black text-muted mb-1.5 block ml-1">키 (cm)</label>
+                <label className="text-[10px] font-black text-muted mb-1.5 block ml-1">
+                  키 (cm)
+                </label>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -179,7 +195,9 @@ export default function SurveyPage() {
                 <FormError name="height" errors={errors} />
               </div>
               <div>
-                <label className="text-[10px] font-black text-muted mb-1.5 block ml-1">몸무게 (kg)</label>
+                <label className="text-[10px] font-black text-muted mb-1.5 block ml-1">
+                  몸무게 (kg)
+                </label>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -199,7 +217,9 @@ export default function SurveyPage() {
             </h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] font-black text-muted mb-1.5 block ml-1">흡연 여부</label>
+                <label className="text-[10px] font-black text-muted mb-1.5 block ml-1">
+                  흡연 여부
+                </label>
                 <Controller
                   control={control}
                   name="is_smoking"
@@ -222,7 +242,9 @@ export default function SurveyPage() {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-black text-muted mb-1.5 block ml-1">음주 여부</label>
+                <label className="text-[10px] font-black text-muted mb-1.5 block ml-1">
+                  음주 여부
+                </label>
                 <Controller
                   control={control}
                   name="is_drinking"
@@ -306,9 +328,13 @@ export default function SurveyPage() {
             className="w-full py-5 rounded-2xl bg-accent text-accent-ink font-black hover:brightness-110 transition-all shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isSubmitting ? (
-              <div className="flex items-center gap-2"><Loader2 className="animate-spin" size={20} /> 처리 중...</div>
+              <div className="flex items-center gap-2">
+                <Loader2 className="animate-spin" size={20} /> 처리 중...
+              </div>
             ) : (
-              <div className="flex items-center gap-2 text-lg">시작하기 <Check size={22} /></div>
+              <div className="flex items-center gap-2 text-lg">
+                시작하기 <Check size={22} />
+              </div>
             )}
           </button>
         </div>

@@ -15,10 +15,7 @@ test.describe('복약 목록 -> 그룹 상세', () => {
     await page.goto('/medication')
 
     const cards = page.getByTestId('prescription-card')
-    await expect(
-      cards.first(),
-      '시드된 처방전이 있으므로 카드가 렌더돼야 한다',
-    ).toBeVisible()
+    await expect(cards.first(), '시드된 처방전이 있으므로 카드가 렌더돼야 한다').toBeVisible()
     expect(await cards.count()).toBeGreaterThan(0)
   })
 
@@ -99,7 +96,9 @@ test.describe('복약 목록 -> 그룹 상세', () => {
     await expect(page.getByText('약을 선택하면 상세 정보가 표시됩니다.')).toBeHidden()
   })
 
-  test('존재하지 않는 group_id 로 진입하면 에러 문구를 보여준다 (C1 에러 경로)', async ({ page }) => {
+  test('존재하지 않는 group_id 로 진입하면 에러 문구를 보여준다 (C1 에러 경로)', async ({
+    page,
+  }) => {
     const pageErrors = []
     page.on('pageerror', (err) => pageErrors.push(err.message))
 

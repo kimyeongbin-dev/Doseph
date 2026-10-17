@@ -23,7 +23,8 @@ export default function AuthGuard({ children }) {
     if (isPublic) return
 
     let cancelled = false
-    api.get('/api/v1/auth/me')
+    api
+      .get('/api/v1/auth/me')
       .then(() => {
         if (!cancelled) setAuthResult('ok')
       })

@@ -60,7 +60,10 @@ describe('ErrorState', () => {
 
   it('4xx 의 서버 detail 원문을 화면에 노출하지 않는다', () => {
     render(
-      <ErrorState error={makeAxiosError(400, 'medication_repo.py:88 invalid uuid')} onRetry={() => {}} />,
+      <ErrorState
+        error={makeAxiosError(400, 'medication_repo.py:88 invalid uuid')}
+        onRetry={() => {}}
+      />,
     )
 
     expect(

@@ -12,7 +12,9 @@ import { useChatSession } from '@/contexts/ChatSessionContext'
 const MARKDOWN_COMPONENTS = {
   p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
   ul: ({ children }) => <ul className="list-disc pl-5 mb-2 last:mb-0 space-y-0.5">{children}</ul>,
-  ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 last:mb-0 space-y-0.5">{children}</ol>,
+  ol: ({ children }) => (
+    <ol className="list-decimal pl-5 mb-2 last:mb-0 space-y-0.5">{children}</ol>
+  ),
   li: ({ children }) => <li className="leading-relaxed">{children}</li>,
   strong: ({ children }) => <strong className="font-semibold text-ink">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
@@ -33,7 +35,9 @@ const MARKDOWN_COMPONENTS = {
     <code className="bg-surface-2 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
   ),
   pre: ({ children }) => (
-    <pre className="bg-surface-2 rounded-md p-2 my-2 text-xs font-mono overflow-x-auto">{children}</pre>
+    <pre className="bg-surface-2 rounded-md p-2 my-2 text-xs font-mono overflow-x-auto">
+      {children}
+    </pre>
   ),
   hr: () => <hr className="my-3 border-line" />,
   blockquote: ({ children }) => (
@@ -43,7 +47,10 @@ const MARKDOWN_COMPONENTS = {
 
 // 빈 세션/새 세션에서 보여줄 인사말. 5곳에 같은 문자열이 흩어져 있어 상수로 모은다
 // (문구를 고칠 때 한 곳만 바뀌어 세션마다 다른 인사말이 나오는 것을 막는다).
-const WELCOME_MESSAGE = { role: 'assistant', content: '안녕하세요! 복약 관련 궁금한 것을 물어보세요.' }
+const WELCOME_MESSAGE = {
+  role: 'assistant',
+  content: '안녕하세요! 복약 관련 궁금한 것을 물어보세요.',
+}
 const NO_PROFILE_MESSAGE = { role: 'assistant', content: '프로필 정보를 불러올 수 없습니다.' }
 const INIT_FAILED_MESSAGE = {
   role: 'assistant',
@@ -110,10 +117,12 @@ export default function ChatModal({ onClose, profileId }) {
   const loadMessagesForSession = useCallback(async (sessionId) => {
     const res = await api.get(`/api/v1/messages/session/${sessionId}`)
     if (res.data?.length > 0) {
-      setMessages(res.data.map(m => ({
-        role: m.sender_type === 'USER' ? 'user' : 'assistant',
-        content: m.content,
-      })))
+      setMessages(
+        res.data.map((m) => ({
+          role: m.sender_type === 'USER' ? 'user' : 'assistant',
+          content: m.content,
+        })),
+      )
     } else {
       setMessages([WELCOME_MESSAGE])
     }
@@ -126,7 +135,7 @@ export default function ChatModal({ onClose, profileId }) {
   // 목록에 없는 활성 id(삭제·프로필 전환 등)는 렌더 중에 걸러 첫 세션으로 물러난다.
   // effect 로 state 를 되돌리지 않으므로 Context 에 남은 낡은 id 는 무해하게 버려진다.
   const effectiveSessionId =
-    sessions.find(s => s.id === activeSessionId)?.id ?? sessions[0]?.id ?? null
+    sessions.find((s) => s.id === activeSessionId)?.id ?? sessions[0]?.id ?? null
 
   // ── 세션 전환 시 GPS 토글 리셋 (렌더 중 조정) ───────────────────────
   // 흐름: 직전 세션 id 와 비교 -> 달라졌으면 숨김 + OFF + pending 폐기
@@ -162,7 +171,7 @@ export default function ChatModal({ onClose, profileId }) {
     refetchSessions()
       .then(async (latest) => {
         if (cancelled) return
-        const nextId = latest.find(s => s.id === sessionIdAtOpen)?.id ?? latest[0]?.id ?? null
+        const nextId = latest.find((s) => s.id === sessionIdAtOpen)?.id ?? latest[0]?.id ?? null
         setActiveSessionId(nextId)
         if (!nextId) {
           setMessages([WELCOME_MESSAGE])
@@ -197,7 +206,7 @@ export default function ChatModal({ onClose, profileId }) {
   const retryInit = () => {
     setInitError(false)
     setIsSyncingSessions(true)
-    setInitAttempt(n => n + 1)
+    setInitAttempt((n) => n + 1)
   }
 
   useEffect(() => {
@@ -264,7 +273,7 @@ export default function ChatModal({ onClose, profileId }) {
       cancelEditing()
       return
     }
-    const original = sessions.find(s => s.id === sessionId)
+    const original = sessions.find((s) => s.id === sessionId)
     if (original && original.title === trimmed) {
       cancelEditing()
       return
@@ -294,7 +303,7 @@ export default function ChatModal({ onClose, profileId }) {
       // 활성 세션을 지운 경우: 남은 첫 세션으로 자동 전환 (sessions 변동 effect 처리)
       // 단, 메시지 로드는 여기서 직접 호출 (effect 가 동기화 한 turn 늦을 수 있음)
       if (wasActive) {
-        const remaining = sessions.filter(s => s.id !== sessionId)
+        const remaining = sessions.filter((s) => s.id !== sessionId)
         if (remaining.length > 0) {
           const nextId = remaining[0].id
           setActiveSessionId(nextId)
@@ -351,17 +360,26 @@ export default function ChatModal({ onClose, profileId }) {
         finalRes = await resolveAsDenied()
       } catch (denyErr) {
         if (denyErr.response?.status === 410) {
-          setMessages(prev => [...prev, { role: 'assistant', content: '시간이 너무 지나서 요청이 만료되었어요. 다시 질문해 주세요.' }])
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: 'assistant',
+              content: '시간이 너무 지나서 요청이 만료되었어요. 다시 질문해 주세요.',
+            },
+          ])
           return
         }
         console.error('[ToolCalling] tool-result denied 전달 실패:', denyErr)
-        setMessages(prev => [...prev, { role: 'assistant', content: '요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.' }])
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: '요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.' },
+        ])
         return
       }
     }
 
     const content = finalRes?.data?.assistant_message?.content || '응답을 받지 못했습니다.'
-    setMessages(prev => [...prev, { role: 'assistant', content }])
+    setMessages((prev) => [...prev, { role: 'assistant', content }])
   }, [])
 
   // GPS 토글 클릭 — OFF→ON 전환 시 대기 중인 pending turn 이 있으면 즉시 진행
@@ -390,7 +408,7 @@ export default function ChatModal({ onClose, profileId }) {
     if (!message || isLoading || isInitializing || isPendingResponse) return
 
     setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: message }])
+    setMessages((prev) => [...prev, { role: 'user', content: message }])
     setIsLoading(true)
 
     try {
@@ -420,25 +438,35 @@ export default function ChatModal({ onClose, profileId }) {
           setPendingGpsTurnId(res.data.turn_id)
           if (!gpsToggleVisible) {
             setGpsToggleVisible(true)
-            setMessages(prev => [...prev, {
-              role: 'assistant',
-              content: '이 검색은 위치 정보가 필요해요. 아래 위치 토글을 켜주시면 검색을 진행할게요. (60초 안에 결정해 주세요)'
-            }])
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content:
+                  '이 검색은 위치 정보가 필요해요. 아래 위치 토글을 켜주시면 검색을 진행할게요. (60초 안에 결정해 주세요)',
+              },
+            ])
           } else {
-            setMessages(prev => [...prev, {
-              role: 'assistant',
-              content: '위치 토글이 꺼져있어요. 아래 토글을 켜주시면 검색을 진행할게요.'
-            }])
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: '위치 토글이 꺼져있어요. 아래 토글을 켜주시면 검색을 진행할게요.',
+              },
+            ])
           }
         }
         return
       }
 
       const assistantContent = res.data.assistant_message?.content || '응답을 받지 못했습니다.'
-      setMessages(prev => [...prev, { role: 'assistant', content: assistantContent }])
+      setMessages((prev) => [...prev, { role: 'assistant', content: assistantContent }])
     } catch (err) {
       console.error('메시지 전송 실패:', err)
-      setMessages(prev => [...prev, { role: 'assistant', content: '죄송합니다. 응답을 처리하는 중 오류가 발생했습니다.' }])
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: '죄송합니다. 응답을 처리하는 중 오류가 발생했습니다.' },
+      ])
     } finally {
       setIsLoading(false)
     }
@@ -462,8 +490,7 @@ export default function ChatModal({ onClose, profileId }) {
               disabled={isInitializing}
               className="w-full flex items-center justify-center gap-2 bg-accent text-accent-ink rounded-lg px-3 py-2 text-sm font-medium hover:brightness-110 disabled:bg-surface-2 active:scale-95 transition-all cursor-pointer"
             >
-              <Plus size={16} />
-              새 채팅
+              <Plus size={16} />새 채팅
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -471,7 +498,7 @@ export default function ChatModal({ onClose, profileId }) {
               <div className="p-4 text-xs text-muted text-center">사용 중인 채팅창이 없습니다.</div>
             )}
             <ul>
-              {sessions.map(session => {
+              {sessions.map((session) => {
                 const isActive = session.id === effectiveSessionId
                 const isEditing = session.id === editingSessionId
                 const isConfirmingDelete = session.id === confirmDeleteId
@@ -501,7 +528,10 @@ export default function ChatModal({ onClose, profileId }) {
                       ) : (
                         <div
                           className="flex-1 min-w-0 text-sm truncate"
-                          onDoubleClick={(e) => { e.stopPropagation(); startEditing(session) }}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation()
+                            startEditing(session)
+                          }}
                           title={session.title || '제목 없음'}
                         >
                           <span className={isActive ? 'font-semibold text-ink' : 'text-ink'}>
@@ -512,14 +542,20 @@ export default function ChatModal({ onClose, profileId }) {
                       {!isEditing && (
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            onClick={(e) => { e.stopPropagation(); startEditing(session) }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              startEditing(session)
+                            }}
                             className="p-1 text-muted hover:text-ink rounded"
                             aria-label="이름 변경"
                           >
                             <Pencil size={13} />
                           </button>
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(session.id) }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteClick(session.id)
+                            }}
                             className={`p-1 rounded transition-colors
                               ${isConfirmingDelete ? 'text-red-600 bg-red-50' : 'text-muted hover:text-red-600'}`}
                             aria-label={isConfirmingDelete ? '삭제 확정' : '삭제'}
@@ -529,7 +565,9 @@ export default function ChatModal({ onClose, profileId }) {
                         </div>
                       )}
                     </div>
-                    <div className="text-[10px] text-muted mt-0.5">{formatSessionDate(session.created_at)}</div>
+                    <div className="text-[10px] text-muted mt-0.5">
+                      {formatSessionDate(session.created_at)}
+                    </div>
                   </li>
                 )
               })}
@@ -545,7 +583,10 @@ export default function ChatModal({ onClose, profileId }) {
               <h2 className="font-bold text-lg text-ink">복약 AI 상담</h2>
               <p className="text-xs text-muted truncate">약 복용 방법 등 무엇이든 물어보세요</p>
             </div>
-            <button onClick={onClose} className="text-muted hover:text-black cursor-pointer p-2 transition-colors">
+            <button
+              onClick={onClose}
+              className="text-muted hover:text-black cursor-pointer p-2 transition-colors"
+            >
               <X size={20} />
             </button>
           </div>
@@ -553,21 +594,25 @@ export default function ChatModal({ onClose, profileId }) {
           {/* 채팅 영역 */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-surface-2">
             {displayMessages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm
-                  ${msg.role === 'user'
-                    ? 'bg-accent text-accent-ink rounded-br-none whitespace-pre-wrap break-words'
-                    : 'bg-surface text-ink rounded-bl-none border border-line'
-                  }`}>
+              <div
+                key={i}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm
+                  ${
+                    msg.role === 'user'
+                      ? 'bg-accent text-accent-ink rounded-br-none whitespace-pre-wrap break-words'
+                      : 'bg-surface text-ink rounded-bl-none border border-line'
+                  }`}
+                >
                   {msg.role === 'user' ? (
                     msg.content
                   ) : (
                     // react-markdown 은 기본적으로 raw HTML 렌더링을 차단한다
                     // (rehype-raw 등 플러그인 미추가). 따라서 사용자나 LLM 이 <script>
                     // 를 포함해도 텍스트 노드로만 삽입되어 XSS 가 차단된다.
-                    <Markdown components={MARKDOWN_COMPONENTS}>
-                      {msg.content}
-                    </Markdown>
+                    <Markdown components={MARKDOWN_COMPONENTS}>{msg.content}</Markdown>
                   )}
                 </div>
               </div>
@@ -575,12 +620,22 @@ export default function ChatModal({ onClose, profileId }) {
 
             {(isInitializing || isLoading || isPendingResponse) && (
               <div className="flex justify-start">
-                  <div className="bg-surface border border-line px-4 py-3 rounded-2xl rounded-bl-none shadow-sm flex gap-1.5">
-                    <div className="w-1.5 h-1.5 bg-surface-2 rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
-                    <div className="w-1.5 h-1.5 bg-surface-2 rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
-                    <div className="w-1.5 h-1.5 bg-surface-2 rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
-                  </div>
-              </div>)}
+                <div className="bg-surface border border-line px-4 py-3 rounded-2xl rounded-bl-none shadow-sm flex gap-1.5">
+                  <div
+                    className="w-1.5 h-1.5 bg-surface-2 rounded-full animate-bounce"
+                    style={{ animationDelay: '0ms' }}
+                  />
+                  <div
+                    className="w-1.5 h-1.5 bg-surface-2 rounded-full animate-bounce"
+                    style={{ animationDelay: '150ms' }}
+                  />
+                  <div
+                    className="w-1.5 h-1.5 bg-surface-2 rounded-full animate-bounce"
+                    style={{ animationDelay: '300ms' }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* GPS 권한 토글 (JIT — 첫 위치 검색 후 등장, 이후 같은 세션 동안 유지) */}
@@ -623,7 +678,9 @@ export default function ChatModal({ onClose, profileId }) {
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyUp={(e) => { if (e.key === 'Enter') handleSend() }}
+                  onKeyUp={(e) => {
+                    if (e.key === 'Enter') handleSend()
+                  }}
                   disabled={isInitializing || isPendingResponse}
                   placeholder={
                     isInitializing
@@ -652,8 +709,5 @@ export default function ChatModal({ onClose, profileId }) {
 
 ChatModal.propTypes = {
   onClose: PropTypes.func.isRequired,
-  profileId: PropTypes.oneOfType([
-    PropTypes.string,
-    PropTypes.number
-  ]).isRequired
+  profileId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
 }

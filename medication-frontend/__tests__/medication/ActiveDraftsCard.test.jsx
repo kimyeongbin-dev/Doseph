@@ -16,7 +16,12 @@ const DRAFTS = [{ draft_id: 'd1', status: 'ready', created_at: '2026-10-18T09:00
 
 function card(profileId) {
   return (
-    <ActiveDraftsCard drafts={DRAFTS} profileId={profileId} onSelect={() => {}} onDelete={() => {}} />
+    <ActiveDraftsCard
+      drafts={DRAFTS}
+      profileId={profileId}
+      onSelect={() => {}}
+      onDelete={() => {}}
+    />
   )
 }
 
@@ -25,7 +30,10 @@ describe('ActiveDraftsCard', () => {
     render(card('profile-a'))
     await userEvent.click(screen.getByRole('button', { name: '카드 숨기기' }))
 
-    expect(screen.queryByText('처방전 (1건)'), '숨긴 카드는 보이지 않아야 한다').not.toBeInTheDocument()
+    expect(
+      screen.queryByText('처방전 (1건)'),
+      '숨긴 카드는 보이지 않아야 한다',
+    ).not.toBeInTheDocument()
   })
 
   it('한 프로필에서 숨겨도 다른 프로필로 바꾸면 다시 보인다', async () => {

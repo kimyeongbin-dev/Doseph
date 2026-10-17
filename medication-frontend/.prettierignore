@@ -1,0 +1,11 @@
+# Prettier 대상은 JS 계열(.js·.jsx·.mjs)뿐이다 — 훅·CI 가 그 확장자만 넘긴다.
+# 아래는 혹시 디렉터리째 넘겨도 건드리지 않을 생성물·외부물이다.
+node_modules/
+.next/
+out/
+build/
+coverage/
+playwright-report/
+test-results/
+public/
+package-lock.json

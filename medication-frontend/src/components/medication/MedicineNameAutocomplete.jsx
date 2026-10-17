@@ -150,9 +150,7 @@ export default function MedicineNameAutocomplete({
           className="absolute left-0 right-0 top-full mt-1 z-50 bg-surface border border-line rounded-xl shadow-lg max-h-72 overflow-y-auto"
           role="listbox"
         >
-          {isLoading && (
-            <li className="px-4 py-2 text-xs text-muted">검색 중…</li>
-          )}
+          {isLoading && <li className="px-4 py-2 text-xs text-muted">검색 중…</li>}
           {suggestions.map((item, idx) => {
             const isActive = idx === highlightIndex
             return (

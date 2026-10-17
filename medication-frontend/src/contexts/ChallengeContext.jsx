@@ -28,9 +28,7 @@ export function ChallengeProvider({ children }) {
     queryKey: qk.challenges.list(selectedProfileId),
     enabled: !!selectedProfileId,
     queryFn: async () => {
-      const { data } = await api.get(
-        `/api/v1/challenges?profile_id=${selectedProfileId}`,
-      )
+      const { data } = await api.get(`/api/v1/challenges?profile_id=${selectedProfileId}`)
       return data || []
     },
   })

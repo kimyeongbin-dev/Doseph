@@ -7,7 +7,8 @@ import { useProfile } from '@/contexts/ProfileContext'
 
 export default function ProfileSwitcher() {
   const router = useRouter()
-  const { profiles, selectedProfile, selectedProfileId, setSelectedProfileId, RELATION_LABELS } = useProfile()
+  const { profiles, selectedProfile, selectedProfileId, setSelectedProfileId, RELATION_LABELS } =
+    useProfile()
   const [isOpen, setIsOpen] = useState(false)
   const ref = useRef(null)
 
@@ -27,7 +28,9 @@ export default function ProfileSwitcher() {
         <User size={14} className="text-muted" />
         <span className="font-medium">{selectedProfile?.name || ''}</span>
         <span className="text-[11px] text-muted">
-          {selectedProfile ? RELATION_LABELS[selectedProfile.relation_type] || selectedProfile.relation_type : ''}
+          {selectedProfile
+            ? RELATION_LABELS[selectedProfile.relation_type] || selectedProfile.relation_type
+            : ''}
         </span>
       </div>
     )
@@ -36,7 +39,7 @@ export default function ProfileSwitcher() {
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setIsOpen(prev => !prev)}
+        onClick={() => setIsOpen((prev) => !prev)}
         className="flex items-center gap-1.5 text-[13px] text-ink px-2.5 py-1.5 rounded-lg hover:bg-surface-2 transition-colors"
       >
         <User size={14} className="text-muted" />
@@ -44,16 +47,21 @@ export default function ProfileSwitcher() {
         <span className="text-[11px] text-muted">
           {RELATION_LABELS[selectedProfile.relation_type] || selectedProfile.relation_type}
         </span>
-        <ChevronDown size={13} className={`text-muted transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          size={13}
+          className={`text-muted transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
       </button>
 
       {isOpen && (
         <div className="absolute top-full left-0 mt-1.5 w-52 bg-surface border border-line rounded-xl shadow-lg z-[100] overflow-hidden">
           <div className="px-3 py-2 border-b border-line">
-            <p className="text-[11px] text-muted font-medium tracking-wide uppercase">프로필 전환</p>
+            <p className="text-[11px] text-muted font-medium tracking-wide uppercase">
+              프로필 전환
+            </p>
           </div>
           <ul className="py-1">
-            {profiles.map(profile => (
+            {profiles.map((profile) => (
               <li key={profile.id}>
                 <button
                   onClick={() => {
@@ -82,7 +90,10 @@ export default function ProfileSwitcher() {
           </ul>
           <div className="px-3 py-2 border-t border-line">
             <button
-              onClick={() => { router.push('/mypage?tab=family'); setIsOpen(false) }}
+              onClick={() => {
+                router.push('/mypage?tab=family')
+                setIsOpen(false)
+              }}
               className="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface-2 rounded-lg transition-colors text-left"
             >
               <Plus size={13} className="text-muted" />

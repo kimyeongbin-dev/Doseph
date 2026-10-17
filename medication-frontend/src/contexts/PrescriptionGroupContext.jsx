@@ -290,7 +290,9 @@ export function PrescriptionGroupProvider({ children }) {
     ],
   )
 
-  return <PrescriptionGroupContext.Provider value={value}>{children}</PrescriptionGroupContext.Provider>
+  return (
+    <PrescriptionGroupContext.Provider value={value}>{children}</PrescriptionGroupContext.Provider>
+  )
 }
 
 export function usePrescriptionGroup() {

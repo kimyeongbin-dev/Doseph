@@ -27,7 +27,9 @@ function Consumer() {
   return (
     <div>
       <span data-testid="error">{String(isError)}</span>
-      <span data-testid="names">{medications.map((m) => m.medicine_name).join(',') || 'empty'}</span>
+      <span data-testid="names">
+        {medications.map((m) => m.medicine_name).join(',') || 'empty'}
+      </span>
     </div>
   )
 }
@@ -54,7 +56,9 @@ describe('MedicationContext 조회 실패 표면화', () => {
     renderProvider()
 
     expect(await screen.findByText('타이레놀')).toBeInTheDocument()
-    expect(screen.getByTestId('error'), '성공했는데 에러로 보이면 안 된다').toHaveTextContent('false')
+    expect(screen.getByTestId('error'), '성공했는데 에러로 보이면 안 된다').toHaveTextContent(
+      'false',
+    )
   })
 
   it('조회에 실패하면 isError 로 실패를 전파한다', async () => {

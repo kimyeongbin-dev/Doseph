@@ -6,10 +6,10 @@ import { useMedication } from '@/contexts/MedicationContext'
 // ── 복약 시간대 슬롯 정의 ─────────────────────────────────────────────────────
 // 각 슬롯은 canonical time 값으로 저장 (DB intake_times 배열과 1:1 대응)
 const TIME_SLOTS = [
-  { key: 'morning',   label: '아침', time: '08:00' },
+  { key: 'morning', label: '아침', time: '08:00' },
   { key: 'afternoon', label: '점심', time: '13:00' },
-  { key: 'evening',   label: '저녁', time: '19:00' },
-  { key: 'bedtime',   label: '취침', time: '21:00' },
+  { key: 'evening', label: '저녁', time: '19:00' },
+  { key: 'bedtime', label: '취침', time: '21:00' },
 ]
 
 // HH:MM 또는 HH:MM:SS 형식을 HH:MM으로 정규화

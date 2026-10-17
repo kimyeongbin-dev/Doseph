@@ -117,9 +117,7 @@ export default function LoginPage() {
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-bg px-4">
-
       <div className="bg-surface p-10 rounded-2xl shadow-[var(--shadow-card)] border border-line w-96 max-w-full text-center">
-
         {/* 로고 */}
         <div className="w-16 h-16 bg-accent-soft rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Pill size={32} className="text-accent" />
@@ -149,12 +147,8 @@ export default function LoginPage() {
         </button>
 
         {/* 하단 약관 */}
-        <p className="text-muted text-sm mt-8">
-          로그인 시 서비스 이용약관에 동의하게 됩니다
-        </p>
-
+        <p className="text-muted text-sm mt-8">로그인 시 서비스 이용약관에 동의하게 됩니다</p>
       </div>
-
     </main>
   )
 }

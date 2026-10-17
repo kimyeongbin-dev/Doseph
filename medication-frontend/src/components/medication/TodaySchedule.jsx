@@ -1,20 +1,26 @@
 'use client'
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sunrise, Sun, Sunset, Moon, Clock, CheckCircle2, Circle, XCircle, Pill } from 'lucide-react'
-import api from '@/lib/api'
 import {
-  getTodayKey,
-  useInvalidateTodayIntakeLogs,
-  useTodayIntakeLogs,
-} from '@/queries/intakeLogs'
+  Sunrise,
+  Sun,
+  Sunset,
+  Moon,
+  Clock,
+  CheckCircle2,
+  Circle,
+  XCircle,
+  Pill,
+} from 'lucide-react'
+import api from '@/lib/api'
+import { getTodayKey, useInvalidateTodayIntakeLogs, useTodayIntakeLogs } from '@/queries/intakeLogs'
 
 // ── 시간대 블록 정의 ─────────────────────────────────────────────────────────
 const TIME_BLOCKS = [
-  { key: 'morning',   label: '아침', Icon: Sunrise, startH: 0,  endH: 10 },
-  { key: 'afternoon', label: '점심', Icon: Sun,     startH: 10, endH: 14 },
-  { key: 'evening',   label: '저녁', Icon: Sunset,  startH: 14, endH: 20 },
-  { key: 'bedtime',   label: '취침', Icon: Moon,    startH: 20, endH: 24 },
+  { key: 'morning', label: '아침', Icon: Sunrise, startH: 0, endH: 10 },
+  { key: 'afternoon', label: '점심', Icon: Sun, startH: 10, endH: 14 },
+  { key: 'evening', label: '저녁', Icon: Sunset, startH: 14, endH: 20 },
+  { key: 'bedtime', label: '취침', Icon: Moon, startH: 20, endH: 24 },
 ]
 
 function getBlockKey(timeStr) {
@@ -36,7 +42,7 @@ function getCurrentBlockKey() {
 function classifyMedications(medications) {
   const blocks = { morning: [], afternoon: [], evening: [], bedtime: [] }
   const unset = []
-  if (!Array.isArray(medications)) return { blocks, unset };
+  if (!Array.isArray(medications)) return { blocks, unset }
   for (const med of medications) {
     if (!med.intake_times || med.intake_times.length === 0) {
       unset.push(med)
@@ -99,7 +105,9 @@ export default function TodaySchedule({ medications, profileId }) {
       try {
         await api.delete(`/api/v1/intake-logs/${logId}`)
         await refetchTodayLogs()
-      } catch { /* silent */ } finally {
+      } catch {
+        /* silent */
+      } finally {
         setTakingKeys((prev) => {
           const s = new Set(prev)
           s.delete(key)
@@ -125,7 +133,9 @@ export default function TodaySchedule({ medications, profileId }) {
         })
         await api.post(`/api/v1/intake-logs/${logRes.data.id}/take`)
         await refetchTodayLogs()
-      } catch { /* silent */ } finally {
+      } catch {
+        /* silent */
+      } finally {
         setTakingKeys((prev) => {
           const s = new Set(prev)
           s.delete(key)
@@ -156,7 +166,9 @@ export default function TodaySchedule({ medications, profileId }) {
           }),
         )
         await refetchTodayLogs()
-      } catch { /* silent */ } finally {
+      } catch {
+        /* silent */
+      } finally {
         setTakingKeys((prev) => {
           const s = new Set(prev)
           keys.forEach((k) => s.delete(k))
@@ -172,7 +184,7 @@ export default function TodaySchedule({ medications, profileId }) {
 
   // 3. 로딩 및 빈 데이터 처리 (Hook 호출 이후에 위치해야 함)
   if (!medications || !Array.isArray(medications)) {
-    return <div className="py-10 text-center text-muted">복약 정보를 불러오는 중...</div>;
+    return <div className="py-10 text-center text-muted">복약 정보를 불러오는 중...</div>
   }
 
   if (medications.length === 0) {
@@ -180,11 +192,14 @@ export default function TodaySchedule({ medications, profileId }) {
       <div className="py-12 text-center bg-surface-2 rounded-card border border-dashed border-line">
         <Pill size={32} className="mx-auto text-muted mb-3" />
         <p className="text-muted text-sm font-bold">오늘 등록된 복약 정보가 없습니다.</p>
-        <button onClick={() => router.push('/medication')} className="mt-4 text-xs font-black text-accent hover:underline">
+        <button
+          onClick={() => router.push('/medication')}
+          className="mt-4 text-xs font-black text-accent hover:underline"
+        >
           약 등록하러 가기 →
         </button>
       </div>
-    );
+    )
   }
 
   const totalItems = Object.values(blocks).reduce((acc, items) => acc + items.length, 0)
@@ -230,11 +245,17 @@ export default function TodaySchedule({ medications, profileId }) {
           return (
             // data-testid: 약품명은 어느 블록에 있어도 화면 어딘가에서는 보이므로,
             // "시간대에 분류됐다"를 단언하려면 블록 경계가 선택 가능해야 한다.
-            <div key={key} data-testid={`time-block-${key}`} className={`rounded-2xl p-4 border transition-all ${isActive ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}>
+            <div
+              key={key}
+              data-testid={`time-block-${key}`}
+              className={`rounded-2xl p-4 border transition-all ${isActive ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Icon size={16} className={isActive ? 'text-accent' : 'text-muted'} />
-                  <span className={`text-sm font-bold ${isActive ? 'text-ink' : 'text-muted'}`}>{label}</span>
+                  <span className={`text-sm font-bold ${isActive ? 'text-ink' : 'text-muted'}`}>
+                    {label}
+                  </span>
                 </div>
                 {items.length > 0 && (
                   <button
@@ -257,20 +278,36 @@ export default function TodaySchedule({ medications, profileId }) {
                     return (
                       <li key={`${med.id}__${time}`} className="flex items-start gap-2">
                         <button
-                          onClick={() => taken ? handleUncheck(med, time) : handleCheck(med, time)}
+                          onClick={() =>
+                            taken ? handleUncheck(med, time) : handleCheck(med, time)
+                          }
                           disabled={loading}
                           className={`mt-0.5 shrink-0 transition-all cursor-pointer disabled:cursor-not-allowed group/btn ${taken ? 'text-accent hover:text-critical' : 'text-muted hover:text-ink'}`}
                         >
                           {taken ? (
-                            <><CheckCircle2 size={16} className="group-hover/btn:hidden" /><XCircle size={16} className="hidden group-hover/btn:block" /></>
+                            <>
+                              <CheckCircle2 size={16} className="group-hover/btn:hidden" />
+                              <XCircle size={16} className="hidden group-hover/btn:block" />
+                            </>
                           ) : (
                             <Circle size={16} />
                           )}
                         </button>
                         <div className="min-w-0">
-                          <p className={`text-sm font-bold leading-snug truncate transition-all ${taken ? 'text-muted line-through' : 'text-ink'}`}>{med.medicine_name}</p>
+                          <p
+                            className={`text-sm font-bold leading-snug truncate transition-all ${taken ? 'text-muted line-through' : 'text-ink'}`}
+                          >
+                            {med.medicine_name}
+                          </p>
                           {(med.dose_per_intake || med.intake_instruction) && (
-                            <p className="text-xs text-muted mt-0.5">{[med.dose_per_intake && `1회 ${med.dose_per_intake}`, med.intake_instruction].filter(Boolean).join(' · ')}</p>
+                            <p className="text-xs text-muted mt-0.5">
+                              {[
+                                med.dose_per_intake && `1회 ${med.dose_per_intake}`,
+                                med.intake_instruction,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </p>
                           )}
                         </div>
                       </li>
@@ -290,11 +327,21 @@ export default function TodaySchedule({ medications, profileId }) {
               <Clock size={15} className="text-muted" />
               <span className="text-sm font-bold text-muted">복약 시간 미설정</span>
             </div>
-            <button onClick={() => router.push('/medication')} className="text-xs font-bold text-muted hover:text-ink transition-colors cursor-pointer">설정하기 →</button>
+            <button
+              onClick={() => router.push('/medication')}
+              className="text-xs font-bold text-muted hover:text-ink transition-colors cursor-pointer"
+            >
+              설정하기 →
+            </button>
           </div>
           <div className="flex flex-wrap gap-2">
             {unset.map((med) => (
-              <span key={med.id} className="text-sm text-muted bg-surface border border-line px-3 py-1.5 rounded-xl font-bold">{med.medicine_name}</span>
+              <span
+                key={med.id}
+                className="text-sm text-muted bg-surface border border-line px-3 py-1.5 rounded-xl font-bold"
+              >
+                {med.medicine_name}
+              </span>
             ))}
           </div>
         </div>

@@ -2,7 +2,7 @@
  * API 에러 처리 모듈 (JavaScript 복구 버전)
  */
 
-import toast from 'react-hot-toast';
+import toast from 'react-hot-toast'
 
 export const HTTP_STATUS_MESSAGES = {
   400: '잘못된 요청입니다.',
@@ -11,9 +11,9 @@ export const HTTP_STATUS_MESSAGES = {
   404: '요청한 리소스를 찾을 수 없습니다.',
   422: '입력값이 올바르지 않습니다.',
   429: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
-};
+}
 
-const SERVER_ERROR_MESSAGE = '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+const SERVER_ERROR_MESSAGE = '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
 
 export const ERROR_CODE_MESSAGES = {
   invalid_request: '잘못된 요청입니다.',
@@ -29,17 +29,17 @@ export const ERROR_CODE_MESSAGES = {
   invalid_input: '허용되지 않는 입력입니다.',
   KOE010: '인증 정보가 올바르지 않습니다.',
   KOE320: '인가 코드가 만료되었거나 유효하지 않습니다.',
-};
+}
 
 export const ERROR_ACTIONS = {
   REDIRECT_TO_LOGIN: ['token_expired', 'invalid_token', 'missing_token', 'token_compromised'],
   RETRYABLE: ['network_error', 'rate_limit_exceeded'],
-};
+}
 
 export function parseApiError(error) {
-  const response = error.response;
-  const status = response?.status;
-  const data = response?.data;
+  const response = error.response
+  const status = response?.status
+  const data = response?.data
 
   const result = {
     status: status || 0,
@@ -48,72 +48,70 @@ export function parseApiError(error) {
     shouldRedirectToLogin: false,
     isRetryable: false,
     raw: data,
-  };
+  }
 
   if (!response) {
-    result.code = 'network_error';
-    result.message = ERROR_CODE_MESSAGES.network_error;
-    result.isRetryable = true;
-    return result;
+    result.code = 'network_error'
+    result.message = ERROR_CODE_MESSAGES.network_error
+    result.isRetryable = true
+    return result
   }
 
   if (status >= 500) {
-    result.code = 'server_error';
-    result.message = SERVER_ERROR_MESSAGE;
-    result.isRetryable = true;
-    return result;
+    result.code = 'server_error'
+    result.message = SERVER_ERROR_MESSAGE
+    result.isRetryable = true
+    return result
   }
 
-  const detail = data?.detail;
+  const detail = data?.detail
   if (detail) {
     if (typeof detail === 'object') {
-      result.code = detail.error || detail.error_code;
-      result.message = detail.error_description
-        || ERROR_CODE_MESSAGES[result.code]
-        || detail.msg
-        || HTTP_STATUS_MESSAGES[status]
-        || result.message;
+      result.code = detail.error || detail.error_code
+      result.message =
+        detail.error_description ||
+        ERROR_CODE_MESSAGES[result.code] ||
+        detail.msg ||
+        HTTP_STATUS_MESSAGES[status] ||
+        result.message
     } else if (typeof detail === 'string') {
-      result.message = detail;
+      result.message = detail
     }
   } else {
-    result.message = HTTP_STATUS_MESSAGES[status] || result.message;
+    result.message = HTTP_STATUS_MESSAGES[status] || result.message
   }
 
   if (result.code) {
-    result.shouldRedirectToLogin = ERROR_ACTIONS.REDIRECT_TO_LOGIN.includes(result.code);
-    result.isRetryable = ERROR_ACTIONS.RETRYABLE.includes(result.code);
+    result.shouldRedirectToLogin = ERROR_ACTIONS.REDIRECT_TO_LOGIN.includes(result.code)
+    result.isRetryable = ERROR_ACTIONS.RETRYABLE.includes(result.code)
   }
 
   if (status === 401) {
-    result.shouldRedirectToLogin = true;
+    result.shouldRedirectToLogin = true
   }
 
-  return result;
+  return result
 }
 
 export function showError(message) {
-  toast.error(message);
+  toast.error(message)
 }
 
 export function handleApiError(error, options = {}) {
-  const {
-    showMessage = true,
-    redirectOnAuth = true,
-  } = options;
+  const { showMessage = true, redirectOnAuth = true } = options
 
-  const parsed = parseApiError(error);
+  const parsed = parseApiError(error)
 
   if (showMessage) {
-    showError(parsed.message);
+    showError(parsed.message)
   }
 
   if (redirectOnAuth && parsed.shouldRedirectToLogin) {
     if (typeof window !== 'undefined') {
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 비컴포넌트(lib): router 훅 불가 + 401 시 전체 리로드로 상태 초기화
-      window.location.href = '/login';
+      window.location.href = '/login'
     }
   }
 
-  return parsed;
+  return parsed
 }

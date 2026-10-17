@@ -20,11 +20,7 @@ import SectionHeader from '@/components/ui/SectionHeader'
 
 // ── 히어로 배경 이미지 슬라이드쇼 ────────────────────────────────────────────
 // 흐름: 3초 타이머 → 다음 이미지 인덱스로 순환 → CSS transition으로 페이드
-const HERO_BG_IMAGES = [
-  '/hero_bg_1.png',
-  '/hero_bg_2.png',
-  '/hero_bg_3.png',
-]
+const HERO_BG_IMAGES = ['/hero_bg_1.png', '/hero_bg_2.png', '/hero_bg_3.png']
 
 // 스켈레톤은 main의 레이아웃을 따름
 function MainSkeleton() {
@@ -91,13 +87,17 @@ function MainPageContent() {
   const [showChat, setShowChat] = useState(false)
   // 챌린지 랜덤 선택용 시드 — 마운트당 1회만 뽑아 렌더 중 파생을 순수하게 유지한다.
   const [challengePickSeed] = useState(() => Math.random())
-  const [greeting, setGreeting] = useState({ msg: '반가워요', sub: '오늘 하루도 건강하게 시작해봐요' })
+  const [greeting, setGreeting] = useState({
+    msg: '반가워요',
+    sub: '오늘 하루도 건강하게 시작해봐요',
+  })
 
   // [추가] 오늘의 증상 관련 상태 관리
   const [todaySymptoms, setTodaySymptoms] = useState([])
   const [todayNote, setTodayNote] = useState('')
 
-  const { profiles, selectedProfileId, selectedProfile, createProfile, updateProfile } = useProfile()
+  const { profiles, selectedProfileId, selectedProfile, createProfile, updateProfile } =
+    useProfile()
   const [isSurveySubmitting, setIsSurveySubmitting] = useState(false)
   // 4 Context 가 모든 server state 를 단일 진실로 관리 — 자체 fetch 0
   const {
@@ -155,11 +155,11 @@ function MainPageContent() {
         const response = await api.get(`/api/v1/daily-logs`, {
           params: {
             profile_id: selectedProfileId,
-            days: 1
-          }
+            days: 1,
+          },
         })
         if (response.data && response.data.length > 0) {
-          const todayLogs = response.data.find(log => log.log_date === today)
+          const todayLogs = response.data.find((log) => log.log_date === today)
           setTodaySymptoms(todayLogs?.symptoms || [])
           setTodayNote(todayLogs?.note || '')
         } else {
@@ -197,16 +197,19 @@ function MainPageContent() {
   }, [selectedProfileId, refetchDrafts])
 
   // 카드에서 개별 draft 폐기 — 백엔드 DELETE 후 즉시 목록에서 제외.
-  const handleDeleteDraft = useCallback(async (draftId) => {
-    try {
-      await api.delete(`/api/v1/ocr/draft/${draftId}`, {
-        params: selectedProfileId ? { profile_id: selectedProfileId } : undefined,
-      })
-    } catch {
-      // ignore
-    }
-    removeDraftLocally(draftId)
-  }, [removeDraftLocally, selectedProfileId])
+  const handleDeleteDraft = useCallback(
+    async (draftId) => {
+      try {
+        await api.delete(`/api/v1/ocr/draft/${draftId}`, {
+          params: selectedProfileId ? { profile_id: selectedProfileId } : undefined,
+        })
+      } catch {
+        // ignore
+      }
+      removeDraftLocally(draftId)
+    },
+    [removeDraftLocally, selectedProfileId],
+  )
 
   // ── 첫 로그인 설문 모달 핸들러 (createProfile / updateProfile 분기) ────────
   // 흐름: 사용자가 본인 프로필 (relation_type='SELF') 미등록이면 createProfile,
@@ -263,7 +266,9 @@ function MainPageContent() {
   if (isLoading) return <MainSkeleton />
 
   return (
-    <div className={`transition-opacity duration-200 ${isRefreshing ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+    <div
+      className={`transition-opacity duration-200 ${isRefreshing ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
+    >
       {showSurvey && (
         <HealthSurveyModal
           info={existingSelfProfile?.health_survey}
@@ -291,15 +296,26 @@ function MainPageContent() {
         {/* 다크 그라데이션 오버레이 — 깊이감 + 텍스트 가독성 */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/35" />
         {/* 그리드 패턴 */}
-        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+        <div
+          className="absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
 
         <div className="relative z-10 text-center px-6 max-w-3xl mx-auto py-24">
-          <p className="text-white/55 text-xs sm:text-sm font-bold mb-5 tracking-[0.22em] uppercase">{greeting.sub}</p>
+          <p className="text-white/55 text-xs sm:text-sm font-bold mb-5 tracking-[0.22em] uppercase">
+            {greeting.sub}
+          </p>
           <h1 className="text-5xl md:text-7xl font-black text-white leading-[1.05] tracking-tight text-balance mb-9">
-            {greeting.msg},<br /><span className="text-white/50">{userName} 님</span>
+            {greeting.msg},<br />
+            <span className="text-white/50">{userName} 님</span>
           </h1>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button variant="primary" size="lg" onClick={goToOcrFlow}>처방전 등록하기</Button>
+            <Button variant="primary" size="lg" onClick={goToOcrFlow}>
+              처방전 등록하기
+            </Button>
             <Button variant="glass" size="lg" onClick={() => setShowChat(true)}>
               <MessageCircle size={20} /> AI 상담하기
             </Button>
@@ -315,7 +331,9 @@ function MainPageContent() {
                 aria-label={`배경 이미지 ${i + 1}`}
                 className="h-11 w-11 cursor-pointer flex items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
               >
-                <span className={`block h-2 rounded-full transition-all ${currentBgIndex === i ? 'w-8 bg-white' : 'w-2 bg-white/35'}`} />
+                <span
+                  className={`block h-2 rounded-full transition-all ${currentBgIndex === i ? 'w-8 bg-white' : 'w-2 bg-white/35'}`}
+                />
               </button>
             ))}
           </div>
@@ -325,7 +343,6 @@ function MainPageContent() {
       <main className="max-w-7xl mx-auto w-full px-6 py-14">
         <div className="grid md:grid-cols-12 gap-8">
           <div className="md:col-span-8 space-y-8">
-
             {/* ── 오늘의 증상 ── */}
             <Card>
               <SectionHeader
@@ -344,7 +361,10 @@ function MainPageContent() {
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-2">
                     {todaySymptoms.map((s, idx) => (
-                      <span key={idx} className="px-4 py-2 bg-surface-2 text-ink rounded-full text-sm font-bold border border-line">
+                      <span
+                        key={idx}
+                        className="px-4 py-2 bg-surface-2 text-ink rounded-full text-sm font-bold border border-line"
+                      >
                         {s}
                       </span>
                     ))}
@@ -358,7 +378,9 @@ function MainPageContent() {
               ) : (
                 <div className="py-4 text-center">
                   <p className="text-muted text-sm mb-4">오늘 기록된 증상이 없습니다.</p>
-                  <Button onClick={() => router.push('/lifestyle-guide?tab=symptom')}>지금 기록하기</Button>
+                  <Button onClick={() => router.push('/lifestyle-guide?tab=symptom')}>
+                    지금 기록하기
+                  </Button>
                 </div>
               )}
             </Card>
@@ -386,19 +408,37 @@ function MainPageContent() {
               </div>
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-6">
-                  <span className="px-3 py-1 bg-accent-ink/15 rounded-full text-[10px] font-bold tracking-wider uppercase">Active Challenge</span>
+                  <span className="px-3 py-1 bg-accent-ink/15 rounded-full text-[10px] font-bold tracking-wider uppercase">
+                    Active Challenge
+                  </span>
                 </div>
                 {activeChallenge ? (
                   <>
                     <h3 className="text-2xl font-black mb-2">{activeChallenge.title}</h3>
-                    <p className="text-sm mb-8 leading-relaxed opacity-75">{activeChallenge.description}</p>
-                    <button onClick={() => router.push('/challenge')} className="w-full py-4 bg-accent-ink text-accent font-bold rounded-2xl hover:brightness-105 transition-all">진행 상황 보기</button>
+                    <p className="text-sm mb-8 leading-relaxed opacity-75">
+                      {activeChallenge.description}
+                    </p>
+                    <button
+                      onClick={() => router.push('/challenge')}
+                      className="w-full py-4 bg-accent-ink text-accent font-bold rounded-2xl hover:brightness-105 transition-all"
+                    >
+                      진행 상황 보기
+                    </button>
                   </>
                 ) : (
                   <>
-                    <h3 className="text-2xl font-black mb-2">새로운 도전을<br />시작해보세요</h3>
+                    <h3 className="text-2xl font-black mb-2">
+                      새로운 도전을
+                      <br />
+                      시작해보세요
+                    </h3>
                     <p className="text-sm mb-8 opacity-75">건강한 습관을 만드는 가장 쉬운 방법</p>
-                    <button onClick={() => router.push('/challenge')} className="w-full py-4 bg-accent-ink text-accent font-bold rounded-2xl hover:brightness-105 transition-all">챌린지 둘러보기</button>
+                    <button
+                      onClick={() => router.push('/challenge')}
+                      className="w-full py-4 bg-accent-ink text-accent font-bold rounded-2xl hover:brightness-105 transition-all"
+                    >
+                      챌린지 둘러보기
+                    </button>
                   </>
                 )}
               </div>
@@ -409,7 +449,10 @@ function MainPageContent() {
               <h3 className="text-lg font-black text-ink mb-6">복약 관리</h3>
               <div className="space-y-4">
                 {medications.slice(0, 2).map((med, index) => (
-                  <div key={`${med.id}-${index}`} className="p-4 rounded-2xl bg-surface-2 border border-line">
+                  <div
+                    key={`${med.id}-${index}`}
+                    className="p-4 rounded-2xl bg-surface-2 border border-line"
+                  >
                     <div className="flex justify-between items-start mb-1">
                       <p className="font-bold text-ink truncate flex-1">{med.medicine_name}</p>
                       <span className="text-[10px] font-bold text-accent bg-accent-soft px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
@@ -419,7 +462,10 @@ function MainPageContent() {
                     <p className="text-xs text-muted">{med.dosage}</p>
                   </div>
                 ))}
-                <button onClick={() => router.push('/medication')} className="w-full py-4 bg-surface-2 text-ink font-bold rounded-2xl hover:brightness-95 transition-all flex items-center justify-center gap-2">
+                <button
+                  onClick={() => router.push('/medication')}
+                  className="w-full py-4 bg-surface-2 text-ink font-bold rounded-2xl hover:brightness-95 transition-all flex items-center justify-center gap-2"
+                >
                   <Plus size={18} /> 전체 보기
                 </button>
               </div>

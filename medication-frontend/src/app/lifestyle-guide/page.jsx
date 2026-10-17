@@ -21,8 +21,15 @@ import PrescriptionPickerModal from '@/components/lifestyle/PrescriptionPickerMo
 import SymptomLogForm from '@/components/lifestyle/SymptomLogForm'
 import { useInvalidateTodaySymptomLog, useTodaySymptomLog } from '@/queries/dailyLogs'
 import toast from 'react-hot-toast'
-import { AlertTriangle, Moon, Utensils, Dumbbell, Stethoscope, ChevronLeft, ChevronRight } from 'lucide-react'
-
+import {
+  AlertTriangle,
+  Moon,
+  Utensils,
+  Dumbbell,
+  Stethoscope,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 
 const CHALLENGES_PER_PAGE = 5
 
@@ -75,9 +82,9 @@ const TABS = [
 ]
 
 const DIFFICULTY_STYLE = {
-  '쉬움': { bg: 'bg-blue-50', text: 'text-blue-500' },
-  '보통': { bg: 'bg-green-50', text: 'text-green-500' },
-  '어려움': { bg: 'bg-red-50', text: 'text-red-500' },
+  쉬움: { bg: 'bg-blue-50', text: 'text-blue-500' },
+  보통: { bg: 'bg-green-50', text: 'text-green-500' },
+  어려움: { bg: 'bg-red-50', text: 'text-red-500' },
 }
 
 function formatDate(isoStr) {
@@ -121,7 +128,7 @@ function ChallengeBanner({ challenge, isViewingHistory }) {
 
   const today = new Date().toISOString().split('T')[0]
   const checkedToday = challenge.completed_dates?.some(
-    (d) => (typeof d === 'string' ? d : d.toISOString?.().split('T')[0]) === today
+    (d) => (typeof d === 'string' ? d : d.toISOString?.().split('T')[0]) === today,
   )
 
   if (challenge.challenge_status === 'COMPLETED') {
@@ -129,10 +136,14 @@ function ChallengeBanner({ challenge, isViewingHistory }) {
       <div className="fixed bottom-20 left-0 w-full px-4 z-40 pointer-events-none">
         <div className="max-w-3xl mx-auto bg-green-50 border border-green-200 rounded-2xl px-4 py-3 flex items-center justify-between shadow-lg">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold text-green-400 uppercase tracking-wide">챌린지 완료</p>
+            <p className="text-[10px] font-bold text-green-400 uppercase tracking-wide">
+              챌린지 완료
+            </p>
             <p className="text-sm font-bold text-green-700 truncate">{challenge.title}</p>
           </div>
-          <span className="bg-green-500 text-accent-ink text-xs font-bold px-3 py-1.5 rounded-full shrink-0 ml-3">완료</span>
+          <span className="bg-green-500 text-accent-ink text-xs font-bold px-3 py-1.5 rounded-full shrink-0 ml-3">
+            완료
+          </span>
         </div>
       </div>
     )
@@ -142,7 +153,9 @@ function ChallengeBanner({ challenge, isViewingHistory }) {
     <div className="fixed bottom-20 left-0 w-full px-4 z-40">
       <div className="max-w-3xl mx-auto bg-surface border border-line rounded-2xl px-4 py-3 flex items-center justify-between shadow-lg">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold text-muted uppercase tracking-wide">이 가이드 관련 챌린지</p>
+          <p className="text-[10px] font-bold text-muted uppercase tracking-wide">
+            이 가이드 관련 챌린지
+          </p>
           <p className="text-sm font-bold text-ink truncate">{challenge.title}</p>
           {challenge.target_days && (
             <p className="text-xs text-muted">
@@ -158,7 +171,9 @@ function ChallengeBanner({ challenge, isViewingHistory }) {
             onClick={() => requestStart(challenge)}
             disabled={isProcessing}
             className={`ml-3 px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-colors cursor-pointer ${
-              isProcessing ? 'bg-surface-2 text-muted cursor-wait' : 'bg-accent text-accent-ink hover:brightness-110 active:scale-95'
+              isProcessing
+                ? 'bg-surface-2 text-muted cursor-wait'
+                : 'bg-accent text-accent-ink hover:brightness-110 active:scale-95'
             }`}
           >
             {isProcessing && startTarget?.id === challenge.id ? '처리중...' : '시작하기'}
@@ -181,7 +196,9 @@ function ChallengeBanner({ challenge, isViewingHistory }) {
             onClick={() => checkToday(challenge)}
             disabled={isProcessing}
             className={`ml-3 px-3 py-2 rounded-xl text-xs font-bold shrink-0 transition-colors cursor-pointer ${
-              isProcessing ? 'bg-surface-2 text-muted cursor-wait' : 'bg-blue-500 text-accent-ink hover:bg-blue-600'
+              isProcessing
+                ? 'bg-surface-2 text-muted cursor-wait'
+                : 'bg-blue-500 text-accent-ink hover:bg-blue-600'
             }`}
           >
             {isProcessing ? '처리중...' : '오늘 완료 체크'}
@@ -227,7 +244,7 @@ function LifestyleGuideContent() {
   // 진입 탭을 지정할 수 있게 한다 (예: /lifestyle-guide?tab=symptom).
   const initialTabFromQuery = searchParams.get('tab')
   const [activeTab, setActiveTab] = useState(
-    VALID_TAB_KEYS.includes(initialTabFromQuery) ? initialTabFromQuery : 'interaction'
+    VALID_TAB_KEYS.includes(initialTabFromQuery) ? initialTabFromQuery : 'interaction',
   )
 
   // ── 오늘의 증상 (서버 상태 — 쿼리 계층) ──
@@ -289,7 +306,7 @@ function LifestyleGuideContent() {
     })
   const isLoadingChallenges = false
 
-  const firstReadyGuide = guides.find(g => g.status === 'ready') || null
+  const firstReadyGuide = guides.find((g) => g.status === 'ready') || null
   const isViewingHistory =
     !!selectedGuide && !!firstReadyGuide && selectedGuide.id !== firstReadyGuide.id
 
@@ -373,14 +390,17 @@ function LifestyleGuideContent() {
           <div className="flex items-center gap-3">
             <span className="text-sm">챌린지가 시작되었습니다!</span>
             <button
-              onClick={() => { toast.dismiss(t.id); router.push('/challenge') }}
+              onClick={() => {
+                toast.dismiss(t.id)
+                router.push('/challenge')
+              }}
               className="text-blue-500 font-bold text-sm shrink-0 cursor-pointer"
             >
               보러가기
             </button>
           </div>
         ),
-        { duration: 4000 }
+        { duration: 4000 },
       )
     } catch {
       showError('챌린지 시작에 실패했습니다.')
@@ -395,9 +415,13 @@ function LifestyleGuideContent() {
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-4 animate-pulse">
           <div className="h-10 bg-surface rounded-xl w-full" />
           <div className="flex gap-2 overflow-hidden">
-            {[1, 2, 3].map((i) => <div key={i} className="h-8 bg-surface rounded-full w-16 shrink-0" />)}
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-8 bg-surface rounded-full w-16 shrink-0" />
+            ))}
           </div>
-          {[1, 2, 3].map((i) => <div key={i} className="h-24 bg-surface rounded-2xl w-full" />)}
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 bg-surface rounded-2xl w-full" />
+          ))}
         </div>
         <BottomNav />
       </main>
@@ -411,12 +435,9 @@ function LifestyleGuideContent() {
       <Header title="생활습관 가이드" subtitle="맞춤형 건강 가이드" showBack={false} />
 
       <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
-
         {/* ── 새 가이드 버튼 ── */}
         <div className="flex items-center justify-between">
-          <p className="text-xs text-muted">
-            {isGenerating ? '🤖 AI가 분석 중입니다...' : ''}
-          </p>
+          <p className="text-xs text-muted">{isGenerating ? '🤖 AI가 분석 중입니다...' : ''}</p>
           <button
             onClick={handleClickNewGuide}
             disabled={isGenerating || !profileId}
@@ -465,7 +486,7 @@ function LifestyleGuideContent() {
         )}
 
         {/* ── 첫 가이드 생성 중 스켈레톤 ── */}
-        {isGenerating && guides.filter(g => g.status === 'ready').length === 0 && (
+        {isGenerating && guides.filter((g) => g.status === 'ready').length === 0 && (
           <div className="animate-pulse space-y-4">
             <div className="flex gap-2">
               <div className="h-7 bg-surface-2 rounded-full w-20" />
@@ -473,11 +494,15 @@ function LifestyleGuideContent() {
             <div className="bg-surface rounded-2xl px-4 py-3 shadow-sm border border-line">
               <div className="h-3 bg-surface-2 rounded w-32 mb-3" />
               <div className="flex flex-wrap gap-1.5">
-                {[1, 2, 3].map((i) => <div key={i} className="h-6 bg-surface-2 rounded-full w-16" />)}
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-6 bg-surface-2 rounded-full w-16" />
+                ))}
               </div>
             </div>
             <div className="flex gap-1 overflow-hidden">
-              {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-9 bg-surface-2 rounded-xl w-20 shrink-0" />)}
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-9 bg-surface-2 rounded-xl w-20 shrink-0" />
+              ))}
             </div>
             <div className="bg-surface rounded-2xl shadow-sm border border-line p-5">
               <div className="flex items-center gap-2 mb-4">
@@ -494,7 +519,7 @@ function LifestyleGuideContent() {
         )}
 
         {/* ── 기존 가이드 있고 신규 생성 중 — inline 알림 ── */}
-        {isGenerating && guides.filter(g => g.status === 'ready').length > 0 && (
+        {isGenerating && guides.filter((g) => g.status === 'ready').length > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-3">
             <div className="h-4 w-4 rounded-full border-2 border-blue-300 border-t-blue-600 animate-spin shrink-0" />
             <div className="min-w-0">
@@ -532,9 +557,14 @@ function LifestyleGuideContent() {
                         : formatDate(guide.created_at)}
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteGuide(guide) }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteGuide(guide)
+                    }}
                     className={`ml-0.5 leading-none cursor-pointer transition-colors ${
-                      isSelected ? 'text-muted hover:text-accent-ink' : 'text-muted hover:text-red-400'
+                      isSelected
+                        ? 'text-muted hover:text-accent-ink'
+                        : 'text-muted hover:text-red-400'
                     }`}
                     title="가이드 삭제"
                   >
@@ -547,23 +577,24 @@ function LifestyleGuideContent() {
         )}
 
         {/* ── 과거 가이드 열람 배너 ── */}
-        {isViewingHistory && (() => {
-          const prescribed = summarizePrescribedRange(selectedGuide.medication_snapshot)
-          return (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-amber-500 text-sm">⚠️</span>
-                <p className="text-xs text-amber-800 font-bold">
-                  {formatFullDateTime(selectedGuide.created_at)} 에 만들어진 가이드예요
+        {isViewingHistory &&
+          (() => {
+            const prescribed = summarizePrescribedRange(selectedGuide.medication_snapshot)
+            return (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-500 text-sm">⚠️</span>
+                  <p className="text-xs text-amber-800 font-bold">
+                    {formatFullDateTime(selectedGuide.created_at)} 에 만들어진 가이드예요
+                  </p>
+                </div>
+                <p className="text-[11px] text-amber-700 leading-relaxed pl-5">
+                  {prescribed && <>처방일 {prescribed} 기준으로 작성됐어요. </>}
+                  이후 처방이나 설문조사가 바뀌었다면 새 가이드를 만들어 주세요.
                 </p>
               </div>
-              <p className="text-[11px] text-amber-700 leading-relaxed pl-5">
-                {prescribed && <>처방일 {prescribed} 기준으로 작성됐어요. </>}
-                이후 처방이나 설문조사가 바뀌었다면 새 가이드를 만들어 주세요.
-              </p>
-            </div>
-          )
-        })()}
+            )
+          })()}
 
         {/* ── 가이드 내용 ── */}
         {selectedGuide && (
@@ -618,7 +649,9 @@ function LifestyleGuideContent() {
             </div>
 
             {/* 탭 콘텐츠 */}
-            <div className={`bg-surface rounded-2xl shadow-sm border ${currentTab?.border || 'border-line'} p-5`}>
+            <div
+              className={`bg-surface rounded-2xl shadow-sm border ${currentTab?.border || 'border-line'} p-5`}
+            >
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xl">{currentTab?.icon}</span>
                 <h2 className={`font-black text-base ${currentTab?.color}`}>{currentTab?.label}</h2>
@@ -635,7 +668,6 @@ function LifestyleGuideContent() {
               {/* ── 증상 탭: 오늘의 증상 요약 카드 + 입력 폼 ── */}
               {activeTab === 'symptom' && (
                 <div className="mt-5 space-y-4">
-
                   {/* 오늘의 증상 요약 카드 */}
                   {/* data-testid: 아래 입력 폼의 프리셋 칩과 같은 텍스트가 나오므로,
                       테스트가 "조회된 기록"만 골라 단언할 수 있게 경계를 노출한다. */}
@@ -691,7 +723,9 @@ function LifestyleGuideContent() {
                     <div className="bg-surface-2 border border-line rounded-2xl p-4 flex items-center justify-between gap-3">
                       <div className="text-xs text-muted leading-relaxed">
                         <p className="font-bold text-ink mb-1">지난 가이드를 보고 계셔요</p>
-                        <p>오늘의 증상은 한 곳에서만 기록할 수 있어요. 최근 가이드에서 입력해주세요.</p>
+                        <p>
+                          오늘의 증상은 한 곳에서만 기록할 수 있어요. 최근 가이드에서 입력해주세요.
+                        </p>
                       </div>
                       {/* 사용자 선택만 해제하면 파생 규칙이 최신 가이드로 되돌린다 */}
                       <button
@@ -715,137 +749,160 @@ function LifestyleGuideContent() {
             </div>
 
             {/* ── 챌린지 목록 (5개씩 페이지네이션) ── */}
-            {guideChallenges.length > 0 && (() => {
-              const totalPages = Math.max(1, Math.ceil(guideChallenges.length / CHALLENGES_PER_PAGE))
-              const safePage = Math.min(challengePage, totalPages - 1)
-              const pageStart = safePage * CHALLENGES_PER_PAGE
-              const pageItems = guideChallenges.slice(pageStart, pageStart + CHALLENGES_PER_PAGE)
-              const isFirstPage = safePage === 0
-              const isLastPage = safePage >= totalPages - 1
-              return (
-                <div className="bg-surface rounded-2xl shadow-sm border border-line p-4">
-                  <div className="flex items-center justify-between mb-3 gap-2">
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-muted">🎯 이 가이드에서 생성된 챌린지</p>
-                      <p className="text-[11px] text-muted mt-0.5 break-keep">
-                        총 {guideChallenges.length}개의 추천 챌린지를 페이지로 넘겨가며 둘러볼 수 있어요.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {isLoadingChallenges ? (
-                      <div className="animate-pulse space-y-2">
-                        {[1, 2].map((i) => <div key={i} className="h-10 bg-surface-2 rounded-xl" />)}
+            {guideChallenges.length > 0 &&
+              (() => {
+                const totalPages = Math.max(
+                  1,
+                  Math.ceil(guideChallenges.length / CHALLENGES_PER_PAGE),
+                )
+                const safePage = Math.min(challengePage, totalPages - 1)
+                const pageStart = safePage * CHALLENGES_PER_PAGE
+                const pageItems = guideChallenges.slice(pageStart, pageStart + CHALLENGES_PER_PAGE)
+                const isFirstPage = safePage === 0
+                const isLastPage = safePage >= totalPages - 1
+                return (
+                  <div className="bg-surface rounded-2xl shadow-sm border border-line p-4">
+                    <div className="flex items-center justify-between mb-3 gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-muted">
+                          🎯 이 가이드에서 생성된 챌린지
+                        </p>
+                        <p className="text-[11px] text-muted mt-0.5 break-keep">
+                          총 {guideChallenges.length}개의 추천 챌린지를 페이지로 넘겨가며 둘러볼 수
+                          있어요.
+                        </p>
                       </div>
-                    ) : (
-                      pageItems.map((c) => {
-                        const tabMeta = TABS.find((t) => t.key === c.category)
-                        const diffStyle = c.difficulty ? (DIFFICULTY_STYLE[c.difficulty] || DIFFICULTY_STYLE['보통']) : null
-                        const today = new Date().toISOString().split('T')[0]
-                        const checkedToday = c.completed_dates?.some(
-                          (d) => (typeof d === 'string' ? d : d.toISOString?.().split('T')[0]) === today
-                        )
-                        const isProcessing =
-                          (isStarting && startTarget?.id === c.id) || checkingId === c.id
+                    </div>
 
-                        return (
-                          <div
-                            key={c.id}
-                            className="flex items-center justify-between gap-3 py-2 px-3 bg-surface-2 rounded-xl"
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              {tabMeta && (
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tabMeta.bg} ${tabMeta.color}`}>
-                                  {tabMeta.icon}
-                                </span>
-                              )}
-                              <span className="text-sm font-bold text-ink truncate">{c.title}</span>
-                              {diffStyle && (
-                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${diffStyle.bg} ${diffStyle.text}`}>
-                                  {c.difficulty}
-                                </span>
-                              )}
-                            </div>
+                    <div className="space-y-2">
+                      {isLoadingChallenges ? (
+                        <div className="animate-pulse space-y-2">
+                          {[1, 2].map((i) => (
+                            <div key={i} className="h-10 bg-surface-2 rounded-xl" />
+                          ))}
+                        </div>
+                      ) : (
+                        pageItems.map((c) => {
+                          const tabMeta = TABS.find((t) => t.key === c.category)
+                          const diffStyle = c.difficulty
+                            ? DIFFICULTY_STYLE[c.difficulty] || DIFFICULTY_STYLE['보통']
+                            : null
+                          const today = new Date().toISOString().split('T')[0]
+                          const checkedToday = c.completed_dates?.some(
+                            (d) =>
+                              (typeof d === 'string' ? d : d.toISOString?.().split('T')[0]) ===
+                              today,
+                          )
+                          const isProcessing =
+                            (isStarting && startTarget?.id === c.id) || checkingId === c.id
 
-                            <div className="shrink-0">
-                              {c.challenge_status === 'COMPLETED' ? (
-                                <span className="bg-green-50 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full">완료</span>
-                              ) : !c.is_active ? (
-                                <button
-                                  onClick={() => requestStart(c)}
-                                  disabled={isViewingHistory || isProcessing}
-                                  className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-colors ${
-                                    isViewingHistory
-                                      ? 'bg-surface-2 text-muted cursor-default'
-                                      : isProcessing
-                                        ? 'bg-surface-2 text-muted cursor-wait'
-                                        : 'bg-accent text-accent-ink hover:brightness-110 cursor-pointer'
-                                  }`}
-                                >
-                                  {isProcessing ? '...' : '시작하기'}
-                                </button>
-                              ) : checkedToday ? (
-                                <span className="bg-green-50 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full">오늘 완료</span>
-                              ) : (
-                                <button
-                                  onClick={() => checkToday(c)}
-                                  disabled={isViewingHistory || isProcessing}
-                                  className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-colors ${
-                                    isViewingHistory
-                                      ? 'bg-surface-2 text-muted cursor-default'
-                                      : isProcessing
-                                        ? 'bg-surface-2 text-muted cursor-wait'
-                                        : 'bg-accent text-accent-ink hover:brightness-110 active:scale-95 cursor-pointer'
-                                  }`}
-                                >
-                                  {isProcessing ? '...' : '오늘 체크'}
-                                </button>
-                              )}
+                          return (
+                            <div
+                              key={c.id}
+                              className="flex items-center justify-between gap-3 py-2 px-3 bg-surface-2 rounded-xl"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                {tabMeta && (
+                                  <span
+                                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${tabMeta.bg} ${tabMeta.color}`}
+                                  >
+                                    {tabMeta.icon}
+                                  </span>
+                                )}
+                                <span className="text-sm font-bold text-ink truncate">
+                                  {c.title}
+                                </span>
+                                {diffStyle && (
+                                  <span
+                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${diffStyle.bg} ${diffStyle.text}`}
+                                  >
+                                    {c.difficulty}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="shrink-0">
+                                {c.challenge_status === 'COMPLETED' ? (
+                                  <span className="bg-green-50 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full">
+                                    완료
+                                  </span>
+                                ) : !c.is_active ? (
+                                  <button
+                                    onClick={() => requestStart(c)}
+                                    disabled={isViewingHistory || isProcessing}
+                                    className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-colors ${
+                                      isViewingHistory
+                                        ? 'bg-surface-2 text-muted cursor-default'
+                                        : isProcessing
+                                          ? 'bg-surface-2 text-muted cursor-wait'
+                                          : 'bg-accent text-accent-ink hover:brightness-110 cursor-pointer'
+                                    }`}
+                                  >
+                                    {isProcessing ? '...' : '시작하기'}
+                                  </button>
+                                ) : checkedToday ? (
+                                  <span className="bg-green-50 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full">
+                                    오늘 완료
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => checkToday(c)}
+                                    disabled={isViewingHistory || isProcessing}
+                                    className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-colors ${
+                                      isViewingHistory
+                                        ? 'bg-surface-2 text-muted cursor-default'
+                                        : isProcessing
+                                          ? 'bg-surface-2 text-muted cursor-wait'
+                                          : 'bg-accent text-accent-ink hover:brightness-110 active:scale-95 cursor-pointer'
+                                    }`}
+                                  >
+                                    {isProcessing ? '...' : '오늘 체크'}
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )
-                      })
+                          )
+                        })
+                      )}
+                    </div>
+
+                    {/* ── 페이지네이션 컨트롤 ── */}
+                    {totalPages > 1 && (
+                      <div className="mt-4 flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setChallengePage((p) => Math.max(0, p - 1))}
+                          disabled={isFirstPage}
+                          aria-label="이전 페이지"
+                          className={`w-8 h-8 flex items-center justify-center rounded-full border transition-colors ${
+                            isFirstPage
+                              ? 'bg-surface-2 text-muted border-line cursor-not-allowed'
+                              : 'bg-surface text-ink border-line hover:bg-surface-2 cursor-pointer'
+                          }`}
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <span className="text-xs font-bold text-muted tabular-nums">
+                          {safePage + 1} / {totalPages}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setChallengePage((p) => Math.min(totalPages - 1, p + 1))}
+                          disabled={isLastPage}
+                          aria-label="다음 페이지"
+                          className={`w-8 h-8 flex items-center justify-center rounded-full border transition-colors ${
+                            isLastPage
+                              ? 'bg-surface-2 text-muted border-line cursor-not-allowed'
+                              : 'bg-surface text-ink border-line hover:bg-surface-2 cursor-pointer'
+                          }`}
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
                     )}
                   </div>
-
-                  {/* ── 페이지네이션 컨트롤 ── */}
-                  {totalPages > 1 && (
-                    <div className="mt-4 flex items-center justify-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setChallengePage((p) => Math.max(0, p - 1))}
-                        disabled={isFirstPage}
-                        aria-label="이전 페이지"
-                        className={`w-8 h-8 flex items-center justify-center rounded-full border transition-colors ${
-                          isFirstPage
-                            ? 'bg-surface-2 text-muted border-line cursor-not-allowed'
-                            : 'bg-surface text-ink border-line hover:bg-surface-2 cursor-pointer'
-                        }`}
-                      >
-                        <ChevronLeft size={16} />
-                      </button>
-                      <span className="text-xs font-bold text-muted tabular-nums">
-                        {safePage + 1} / {totalPages}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setChallengePage((p) => Math.min(totalPages - 1, p + 1))}
-                        disabled={isLastPage}
-                        aria-label="다음 페이지"
-                        className={`w-8 h-8 flex items-center justify-center rounded-full border transition-colors ${
-                          isLastPage
-                            ? 'bg-surface-2 text-muted border-line cursor-not-allowed'
-                            : 'bg-surface text-ink border-line hover:bg-surface-2 cursor-pointer'
-                        }`}
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
+                )
+              })()}
           </>
         )}
       </div>

@@ -1,15 +1,15 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
   ]),
   {
     // React 19 / React Compiler 지향 규칙 3종을 **error 로 승격**한다 (2026-09-14).
@@ -17,9 +17,9 @@ const eslintConfig = defineConfig([
     // exhaustive-deps 는 next 기본이 warn 이라 여기서 함께 올린다.
     // 이력·처리 방식: docs/tech-debt/frontend-react-hooks-effect-refactor.md
     rules: {
-      "react-hooks/set-state-in-effect": "error",
-      "react-hooks/immutability": "error",
-      "react-hooks/exhaustive-deps": "error",
+      'react-hooks/set-state-in-effect': 'error',
+      'react-hooks/immutability': 'error',
+      'react-hooks/exhaustive-deps': 'error',
     },
   },
   {
@@ -45,9 +45,9 @@ const eslintConfig = defineConfig([
     // 현재 코드베이스 사용처 0건이므로 error 로 넣어 신규 유입을 CI 에서 차단한다.
     // 정말 필요하면 해당 라인에 sanitize(예: DOMPurify) 후 명시적 eslint-disable 로 예외 처리.
     rules: {
-      "react/no-danger": "error",
+      'react/no-danger': 'error',
     },
   },
-]);
+])
 
-export default eslintConfig;
+export default eslintConfig

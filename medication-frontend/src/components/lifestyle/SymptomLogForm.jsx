@@ -56,8 +56,17 @@ function CustomSymptomInput({ onAdd }) {
 }
 
 const PRESET_SYMPTOMS = [
-  '어지러움', '두통', '구역질', '복통', '설사', '변비',
-  '피로감', '수면 장애', '식욕 부진', '발진', '심계항진',
+  '어지러움',
+  '두통',
+  '구역질',
+  '복통',
+  '설사',
+  '변비',
+  '피로감',
+  '수면 장애',
+  '식욕 부진',
+  '발진',
+  '심계항진',
 ]
 
 // 사용자 정의 칩 (preset 목록에 없는 증상). reset 후에도 유지되도록
@@ -157,11 +166,7 @@ export default function SymptomLogForm({ profileId, initialSymptoms, initialNote
                         key={s}
                         type="button"
                         onClick={() =>
-                          field.onChange(
-                            isOn
-                              ? selected.filter((v) => v !== s)
-                              : [...selected, s],
-                          )
+                          field.onChange(isOn ? selected.filter((v) => v !== s) : [...selected, s])
                         }
                         className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
                           isOn

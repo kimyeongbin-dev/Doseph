@@ -75,7 +75,6 @@ export default function OcrPage() {
       />
 
       <div className="max-w-3xl mx-auto px-6 py-8">
-
         {/* 안내 카드 */}
         <div className="bg-surface-2 rounded-2xl p-6 mb-8 border border-line">
           <h2 className="font-bold text-ink text-sm mb-4 flex items-center gap-2">
@@ -101,12 +100,7 @@ export default function OcrPage() {
         {/* 업로드 영역 */}
         <div className="bg-surface rounded-3xl shadow-sm p-4 border border-line">
           <label className="block w-full border-2 border-dashed border-line rounded-2xl py-20 text-center cursor-pointer hover:border-line hover:bg-surface-2/50 transition-all">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-            />
+            <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
             {preview ? (
               <div className="px-4">
                 {/* eslint-disable-next-line @next/next/no-img-element -- 정적 export(unoptimized) + 클라 미리보기(dataURL)라 next/image 이점 없음 */}
@@ -130,7 +124,9 @@ export default function OcrPage() {
           <span className="text-2xl">💡</span>
           <div className="flex-1">
             <p className="font-bold text-blue-800 text-sm mb-1">사진 촬영이 어렵다면?</p>
-            <p className="text-blue-700 text-xs">처방전이 없거나 인식이 어려운 약품은 아래 버튼을 눌러 직접 입력할 수 있어요.</p>
+            <p className="text-blue-700 text-xs">
+              처방전이 없거나 인식이 어려운 약품은 아래 버튼을 눌러 직접 입력할 수 있어요.
+            </p>
           </div>
         </div>
 
@@ -154,9 +150,10 @@ export default function OcrPage() {
             onClick={handleAnalyze}
             disabled={!preview}
             className={`flex-1 py-4 rounded-xl text-sm font-bold transition-all active:scale-[0.98] cursor-pointer
-              ${preview
-                ? 'bg-accent text-accent-ink hover:brightness-110'
-                : 'bg-surface-2 text-muted cursor-not-allowed'
+              ${
+                preview
+                  ? 'bg-accent text-accent-ink hover:brightness-110'
+                  : 'bg-surface-2 text-muted cursor-not-allowed'
               }`}
           >
             분석 시작하기

@@ -12,10 +12,7 @@ export default function FormError({ name, errors, className = '' }) {
   const message = fieldError(errors, name)
   if (!message) return null
   return (
-    <p
-      role="alert"
-      className={`mt-1 text-[11px] font-bold text-red-500 break-keep ${className}`}
-    >
+    <p role="alert" className={`mt-1 text-[11px] font-bold text-red-500 break-keep ${className}`}>
       {message}
     </p>
   )
