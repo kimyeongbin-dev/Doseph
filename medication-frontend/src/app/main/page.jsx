@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, Suspense, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import api from '@/lib/api'
-import { Flame, Plus, MessageCircle, FileText, Loader2, X, Trash2, Activity } from 'lucide-react'
+import { Flame, Plus, MessageCircle, Activity } from 'lucide-react'
 import ChatModal from '@/components/chat/ChatModal'
 import HealthSurveyModal from '@/components/common/HealthSurveyModal'
 import { useProfile } from '@/contexts/ProfileContext'
@@ -12,6 +12,7 @@ import { useMedication } from '@/contexts/MedicationContext'
 import { useChallenge } from '@/contexts/ChallengeContext'
 import { useOcrDraft, useOcrEntryNavigator } from '@/contexts/OcrDraftContext'
 import TodaySchedule from '@/components/medication/TodaySchedule'
+import ActiveDraftsCard from '@/components/medication/ActiveDraftsCard'
 import ErrorState from '@/components/common/ErrorState'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -24,75 +25,6 @@ const HERO_BG_IMAGES = [
   '/hero_bg_2.png',
   '/hero_bg_3.png',
 ]
-
-// 활성 OCR draft 카드 — main 우측하단 floating (챗봇 아이콘 위)
-// 사용자가 X 로 카드 전체를 숨길 수 있고 (새로고침 시 다시 표시),
-// 각 항목 좌측의 휴지통으로 개별 draft 를 폐기할 수도 있다.
-function ActiveDraftsCard({ drafts, onSelect, onDelete }) {
-  const [dismissed, setDismissed] = useState(false)
-  if (!drafts || drafts.length === 0 || dismissed) return null
-
-  const formatTime = (iso) => {
-    const d = new Date(iso)
-    return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-  }
-  const STATUS_LABEL = {
-    pending: '처리 중',
-    ready: '확인 대기',
-    no_text: '텍스트 없음',
-    no_candidates: '인식 실패',
-    failed: '오류',
-  }
-
-  return (
-    <div className="fixed right-6 bottom-44 z-40 w-72 bg-surface rounded-2xl border border-line shadow-[var(--shadow-pop)] p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <FileText size={16} className="text-muted" />
-          <p className="font-bold text-sm text-ink">처방전 ({drafts.length}건)</p>
-        </div>
-        <button
-          onClick={() => setDismissed(true)}
-          className="text-muted hover:text-ink cursor-pointer"
-          aria-label="카드 숨기기"
-        >
-          <X size={16} />
-        </button>
-      </div>
-      <ul className="space-y-1 max-h-56 overflow-y-auto">
-        {drafts.map((d) => (
-          <li key={d.draft_id} className="flex items-center gap-1">
-            <button
-              onClick={() => onDelete(d.draft_id)}
-              className="text-muted hover:text-critical cursor-pointer flex-shrink-0 p-2 rounded-lg hover:bg-critical/10 transition-colors"
-              aria-label="처방전 폐기"
-            >
-              <Trash2 size={14} />
-            </button>
-            <button
-              onClick={() => onSelect(d.draft_id)}
-              className="flex-1 flex items-center justify-between gap-3 px-3 py-2 rounded-xl hover:bg-surface-2 cursor-pointer transition-colors text-left"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                {d.status === 'pending' ? (
-                  <Loader2 size={14} className="text-accent animate-spin flex-shrink-0" />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-success flex-shrink-0" />
-                )}
-                <span className="text-sm font-bold text-ink truncate">
-                  {formatTime(d.created_at)} 업로드
-                </span>
-              </div>
-              <span className="text-xs text-muted flex-shrink-0">
-                {STATUS_LABEL[d.status] || d.status}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
 
 // 스켈레톤은 main의 레이아웃을 따름
 function MainSkeleton() {
@@ -498,6 +430,7 @@ function MainPageContent() {
 
       <ActiveDraftsCard
         drafts={activeDrafts}
+        profileId={selectedProfileId}
         onSelect={(id) => router.push(`/ocr/result?draft_id=${id}`)}
         onDelete={handleDeleteDraft}
       />
