@@ -7,9 +7,15 @@
 ```bash
 uv sync                                  # Python 의존성 + 개발 도구(Ruff·MyPy·pre-commit)
 uv run pre-commit install                # 훅 3종 설치 (.pre-commit-config.yaml 의 default_install_hook_types)
-npm --prefix medication-frontend ci      # FE 의존성 — ESLint 훅이 여기서 돈다
+npm --prefix medication-frontend ci      # FE 의존성 — ESLint·Prettier 훅이 여기서 돈다
+git config blame.ignoreRevsFile .git-blame-ignore-revs   # 형식만 바꾼 대량 커밋을 git blame 이 건너뛴다
 cp .env.example .env                     # 값은 직접 채웁니다. .env 는 커밋되지 않습니다
 ```
+
+> `git blame` 은 각 줄을 마지막으로 바꾼 커밋을 보여 줍니다. 재포맷 커밋이 그 줄들을 덮으면
+> «왜 이렇게 됐나» 를 찾을 수 없어서, 그런 커밋을 `.git-blame-ignore-revs` 에 적어 둡니다.
+> GitHub 화면은 이 파일을 자동으로 읽고, 로컬은 위 설정을 한 번 해야 합니다.
+> 이 파일에는 **동작을 바꾸지 않은 형식 전용 커밋만** 넣고, 해시는 `git rev-parse` 출력에서 복사합니다.
 
 로컬 서버와 테스트는 Docker 안에서 돌립니다. 테스트는 경로를 붙이지 않고 **전체**를 돌립니다.
 
@@ -98,7 +104,7 @@ docker compose exec -T fastapi sh -c 'cd /app && uv run --no-sync pytest -q'
 
 | 훅 | 막는 것 |
 |---|---|
-| `pre-commit` | **Ruff** 린트(자동 수정 후 재검사)·포맷, **ESLint**(FE), 한글 출력 UTF-8 방어, 줄끝 공백·파일 끝 개행·YAML/TOML/JSON 문법·머지 충돌 표식·섞인 줄바꿈·큰 파일 |
+| `pre-commit` | **Ruff** 린트(자동 수정 후 재검사)·포맷, **ESLint**·**Prettier** 형식 검사(FE), 한글 출력 UTF-8 방어, 줄끝 공백·파일 끝 개행·YAML/TOML/JSON 문법·머지 충돌 표식·섞인 줄바꿈·큰 파일 |
 | `commit-msg` | 위 형식(`type(scope): 요약`, type 12종)에 맞지 않는 제목, 앞머리 오염(이모지·대괄호·`@`·공백), AI 트레일러 |
 | `pre-push` | **MyPy**·부채·커버리지 baseline(새로 늘어난 것만), 레이어 계약, Bandit 보안 린트, CR 줄바꿈, 문서 배치·메타·참조 정합성 |
 
@@ -116,6 +122,7 @@ API 키, DB 접속 정보, 비밀번호는 코드나 `.env.example`에 넣지 �
 | 전체 훅 실행 | `uv run pre-commit run --all-files` |
 | Python 린트·포맷 | `uv run ruff check --fix .` · `uv run ruff format .` |
 | FE 린트 | `npm --prefix medication-frontend run lint` |
+| FE 포맷 | `npm --prefix medication-frontend run format` (검사만: `run format:check`) |
 
 ### AI 도구 하네스
 Claude Code 같은 AI 도구에는 [CLAUDE.md](CLAUDE.md)의 규칙이 적용됩니다. 커밋 규칙은 사람과 똑같이 위 훅이 강제합니다.
