@@ -39,6 +39,7 @@
 |---|---|
 | 🔧🎨🔍 `ruff-check` · `ruff-format` · `ruff-check-final` | 린트·포맷 (자동 수정 후 재검사까지 3단) |
 | 🟦 `eslint-frontend` | FE 린트 |
+| 🎨 `prettier-frontend` | FE 형식 검사(고치지 않고 검사만 — 고치는 것은 `npm run format`). 설정 = `medication-frontend/.prettierrc.json`, 2026-10-18 도입 |
 | ✂️📝 `trailing-whitespace` · `end-of-file-fixer` | 공백·개행 |
 | 📋 `check-yaml` · `check-toml` · `check-json` | 설정 파일 파싱 오류 |
 | ⚠️📁 `check-merge-conflict` · `check-case-conflict` | 충돌 마커 · 대소문자 충돌(Windows↔Linux) |
@@ -84,7 +85,7 @@
 |---|---|
 | **Security Scan** | Bandit (high 이상 실패) + 리포트 아티팩트 |
 | **Lint (Ruff)** | `ruff check` · `ruff format --check` · **MyPy baseline 게이트** · **레이어 계약(import-linter)** |
-| **Frontend** | ESLint · **Vitest** · **`node --test`(CSP 해시 주입 5건)** · `npm audit --audit-level=high` (**차단**) · **배포와 같은 사슬로 정적 빌드**(`build:pages`) + **주입 산출물 검증** |
+| **Frontend** | ESLint · **Prettier**(`format:check`) · **Vitest** · **`node --test`(CSP 해시 주입 5건)** · `npm audit --audit-level=high` (**차단**) · **배포와 같은 사슬로 정적 빌드**(`build:pages`) + **주입 산출물 검증** |
 | **E2E (Playwright)** | compose 로 백엔드 기동 → **`aerich upgrade` + 스키마 검증** → 헬스 → **local 타깃** 정적 빌드 → Playwright **61건** → **인벤토리 게이트** → 실패 산출물(`trace`·`screenshot`·`video`) 업로드 |
 | **Test** | `pytest app -m "not db"` → `pytest app -m db` → `pytest tests` → 커버리지 리포트 → **커버리지 baseline 게이트** |
 
