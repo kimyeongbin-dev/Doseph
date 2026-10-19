@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { CheckCircle, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-import api from '@/lib/api'
+import { submitOcrUpload } from '@/lib/ocrApi'
 import { streamSSE } from '@/lib/sseClient'
 import { useProfile } from '@/contexts/ProfileContext'
 
@@ -193,16 +193,12 @@ export default function OcrLoadingPage() {
           return
         }
 
-        const blob = await (await fetch(fileData)).blob()
-        const file = new File([blob], fileName, { type: fileType })
-        const formData = new FormData()
-        formData.append('file', file)
-
         // 현재 선택된 프로필로 처방전 등록 — selectedProfileId 가 없으면 BE 가 SELF default
-        const response = await api.post('/api/v1/ocr/extract', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          timeout: 60000,
-          params: selectedProfileId ? { profile_id: selectedProfileId } : undefined,
+        const draftId = await submitOcrUpload({
+          fileData,
+          fileName,
+          fileType,
+          profileId: selectedProfileId,
         })
 
         sessionStorage.removeItem('ocrFileData')
@@ -210,7 +206,7 @@ export default function OcrLoadingPage() {
         sessionStorage.removeItem('ocrFileType')
 
         if (abortController.signal.aborted) return
-        await consumeStream(response.data.draft_id)
+        await consumeStream(draftId)
       } catch (err) {
         clearInterval(stepTicker)
         const msg =
