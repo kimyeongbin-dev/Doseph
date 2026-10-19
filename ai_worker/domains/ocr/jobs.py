@@ -54,10 +54,21 @@ def process_ocr_task(image_bytes: bytes, filename: str, draft_id: str) -> bool:
 
 
 def _run_pipeline(image_bytes: bytes, filename: str, draft_id: str) -> bool:
-  """Sync 단계 (CLOVA + normalize) 후 DB 단계는 한 lifecycle 로 묶어 처리."""
+  """이미지에서 글자를 얻은 뒤 텍스트 처리 단계로 넘긴다."""
   raw_text = extract_text_from_image_bytes(image_bytes, filename)
+  return _process_text(raw_text, draft_id)
+
+
+# ── OCR 텍스트 처리 (글자를 어디서 얻었는지와 무관) ─────────────────────
+# 흐름: 빈 텍스트 -> NO_TEXT
+#       -> 정규화 -> 후보 추출 -> 후보 없음 -> NO_CANDIDATES
+#       -> [Tortoise lifecycle] DB 매칭 -> ocr_drafts UPDATE
+# 글자 얻기와 갈라 둔 것은 브라우저 OCR 이 텍스트를 직접 보내게 될 때
+# 이 단계를 그대로 쓰기 위해서다.
+def _process_text(raw_text: str, draft_id: str) -> bool:
+  """OCR 텍스트를 정규화·매칭해 ``ocr_drafts`` 를 UPDATE 한다."""
   if not raw_text.strip():
-    logger.warning("No text extracted from image: %s", filename)
+    logger.warning("No text extracted for draft %s", draft_id)
     _persist_terminal(draft_id, OcrDraftStatusValue.NO_TEXT)
     return False
 

@@ -1,14 +1,10 @@
 """OCR 후보 토큰을 medicine_info DB 와 매칭한다. (아키텍트 패러다임 시프트 버전)"""
 
-import asyncio
 import logging
-
-from tortoise import Tortoise
 
 from ai_worker.core.openai_client import get_openai_client
 from app.core.llm_models import MEDICINE_MATCHER_MODEL
 from app.core.logger import log_boundary
-from app.db.databases import TORTOISE_ORM
 from app.dtos.ocr import ExtractedMedicine, OcrLlmExtraction
 from app.repositories.medicine_info_repository import MedicineInfoRepository
 
@@ -79,19 +75,6 @@ async def search_candidates_in_open_db(candidates: list[str]) -> list[ExtractedM
 
   logger.info("Final Matching: %d LLM names -> %d matched to DB", len(extracted_items), db_match_count)
   return matched
-
-
-def match_candidates_to_medicines(candidates: list[str]) -> list[ExtractedMedicine]:
-  """Match OCR candidates to medicines, owning the DB lifecycle (sync entry point)."""
-  return asyncio.run(_run_with_db_lifecycle(candidates))
-
-
-async def _run_with_db_lifecycle(candidates: list[str]) -> list[ExtractedMedicine]:
-  await Tortoise.init(config=TORTOISE_ORM)
-  try:
-    return await search_candidates_in_open_db(candidates)
-  finally:
-    await Tortoise.close_connections()
 
 
 # 💡 strength(용량)과 item_type을 파라미터로 추가로 받습니다.
