@@ -15,7 +15,7 @@
 - §D.4 (데이오웬크림 — 자율회수 advisory) → severity=advisory, items 1건
 - §D.5-1 (샘플발사르탄 — NDEA critical) → severity=critical, items 1건
 - §D.5-2 (알파아세트아미노펜 — 자율회수 advisory) → severity=advisory, items 1건
-- OCR 등록 / 직접입력 등록 두 경로 동일 페이로드 (§D.1, §D.2 양 경로 검증).
+- 직접입력 경로만 다룬다. OCR 확정 경로는 recall_alert 를 만들지 않는다(QA-71).
 
 Tortoise ORM / RQ / 외부 API 호출 X — 모든 의존성 mock 으로 주입.
 """
@@ -246,51 +246,3 @@ class TestEnvelopeD5MixedSeverity:
     assert result.recall_alert is not None
     assert result.recall_alert.severity == "advisory"
     assert result.recall_alert.items[0].item_seq == "202504007"
-
-
-# ── OCR / 직접입력 양 경로 일관 ─────────────────────────────────────
-
-
-class TestOcrAndManualPathsConsistent:
-  @pytest.mark.asyncio
-  async def test_ocr_path_yields_same_payload_as_manual_for_d1(self) -> None:
-    """§D.1 (매칭 없음) — OCR 경로 / 직접입력 경로 모두 recall_alert is None."""
-    from app.services.medication_service import MedicationService
-
-    service = MedicationService()
-    service.prescription_group_repository.create = AsyncMock(return_value=MagicMock(id=uuid4()))
-    service.repository.create = AsyncMock(return_value=MagicMock(id=uuid4()))
-    profile_id = uuid4()
-    data = _make_medication_create("이부프로펜정200밀리그램", profile_id)
-
-    with (
-      patch("app.services.medication_service.in_transaction"),
-      patch("app.services.medication_service.check_and_alert_on_medication_save", new=AsyncMock()),
-      patch("app.services.medication_service.DrugRecallRepository") as repo_cls,
-    ):
-      repo_cls.return_value.find_by_item_seq_or_name = AsyncMock(return_value=[])
-      manual = await service.create_medication(profile_id, data)
-
-    # OCR 경로는 ocr_service._save_one_medication 가 동일 service 흐름을 거치므로
-    # 같은 hook 을 호출. 본 테스트는 manual 결과의 None 만 가드 — OCR 경로 검증은
-    # ocr_service 의 통합 테스트가 별도 담당.
-    assert manual.recall_alert is None
-
-  @pytest.mark.asyncio
-  async def test_ocr_path_yields_same_payload_as_manual_for_d2(self) -> None:
-    """§D.2 (NDMA critical) — 양 경로 모두 critical 1건."""
-    recall = _make_recall_row_from_seed(0)
-    service, _med = _build_service_with_mocks()
-    profile_id = uuid4()
-    data = _make_medication_create("데모라니티딘정150밀리그램", profile_id)
-
-    with (
-      patch("app.services.medication_service.in_transaction"),
-      patch("app.services.medication_service.check_and_alert_on_medication_save", new=AsyncMock()),
-      patch("app.services.medication_service.DrugRecallRepository") as repo_cls,
-    ):
-      repo_cls.return_value.find_by_item_seq_or_name = AsyncMock(return_value=[recall])
-      manual = await service.create_medication(profile_id, data)
-
-    assert manual.recall_alert is not None
-    assert manual.recall_alert.severity == "critical"
