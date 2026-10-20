@@ -84,7 +84,8 @@ def _is_valid_coords(lat: float | None, lng: float | None) -> bool:
 def _geolocation_or_none(status: str, lat: float | None, lng: float | None) -> dict[str, float] | None:
   if status != _STATUS_OK:
     return None
-  if lat is None or lng is None or not _is_valid_coords(lat, lng):
+  # _is_valid_coords 가 None 도 거른다. 뒤의 None 비교는 타입 검사기에 float 임을 알리는 것뿐이다.
+  if not _is_valid_coords(lat, lng) or lat is None or lng is None:
     raise ValueError("lat and lng must be finite numbers when status='ok'")
   return {"lat": float(lat), "lng": float(lng)}
 
