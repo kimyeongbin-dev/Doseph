@@ -62,7 +62,8 @@ def get_request_id() -> str:
 class JsonFormatter(logging.Formatter):
   """JSON line formatter — 한 record 당 한 줄 JSON 출력.
 
-  필드: ts (UTC ISO 8601), level, logger, msg, module, line, exception (있을 때).
+  필드: ts (UTC ISO 8601), level, logger, request_id, msg, module, func, line,
+  exception (있을 때).
   ``logger.exception()`` 호출 시 stack trace 가 ``exception`` 에 포함된다.
   """
 

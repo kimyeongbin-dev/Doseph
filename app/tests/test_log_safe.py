@@ -17,7 +17,7 @@ from app.core.log_safe import (
 )
 
 
-def _record(msg: str, args: tuple = ()) -> logging.LogRecord:
+def _record(msg: str, args: tuple[object, ...] = ()) -> logging.LogRecord:
   return logging.LogRecord("t", logging.INFO, __file__, 1, msg, args, None)
 
 
@@ -77,14 +77,7 @@ def test_scrub_filter_masks_rrn() -> None:
 
 
 def test_scrub_filter_keeps_normal_message() -> None:
-  """정상 메시지는 그대로 둔다(오탐 0)."""
+  """정상 메시지는 그대로 둔다(오탐 0) — lazy % 병합 결과도 보존된다(§9)."""
   rec = _record("user logged in profile_id=%s count=%s", (123, 4))
   ScrubFilter().filter(rec)
   assert rec.getMessage() == "user logged in profile_id=123 count=4"
-
-
-def test_scrub_filter_preserves_lazy_percent() -> None:
-  """lazy % 병합 결과가 보존된다(§9)."""
-  rec = _record("value=%s", ("plain",))
-  ScrubFilter().filter(rec)
-  assert rec.getMessage() == "value=plain"

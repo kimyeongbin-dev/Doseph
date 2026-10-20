@@ -11,6 +11,7 @@
 
 import asyncio
 import logging
+from pathlib import Path
 import sys
 
 import pytest
@@ -40,7 +41,7 @@ def _console_handler(logger: logging.Logger) -> logging.Handler:
   )
 
 
-def _record(msg: str, args: tuple = ()) -> logging.LogRecord:
+def _record(msg: str, args: tuple[object, ...] = ()) -> logging.LogRecord:
   return logging.LogRecord("t", logging.INFO, __file__, 1, msg, args, None)
 
 
@@ -74,20 +75,21 @@ def test_json_formatter_escapes_newline() -> None:
 
 
 # ── 저장공간: 시간 + 크기 병행 회전 ────────────────────────────────────
-def test_size_handler_rolls_over_on_size(tmp_path) -> None:
-  """크기 상한 초과 시 shouldRollover 가 1(회전)을 반환."""
+def test_size_handler_rolls_over_on_size(tmp_path: Path) -> None:
+  """크기 상한 초과 시 shouldRollover 가 1(회전)을, 상한 안이면 0 을 반환."""
   logf = tmp_path / "t.log"
   handler = SizeTimedRotatingFileHandler(str(logf), when="H", interval=3, backupCount=1, max_bytes=200)
   handler.setFormatter(logging.Formatter("%(message)s"))
   handler.emit(_record("small"))
 
+  assert handler.shouldRollover(_record("tiny")) == 0
   assert handler.shouldRollover(_record("y" * 500)) == 1
   handler.close()
 
 
 # ── 보안: 제한적 파일/디렉토리 권한 (POSIX) ────────────────────────────
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX 권한 전용")
-def test_log_dir_has_restrictive_mode(tmp_path, monkeypatch) -> None:
+def test_log_dir_has_restrictive_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
   monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
   log_dir = _resolve_log_dir()
 
@@ -95,7 +97,7 @@ def test_log_dir_has_restrictive_mode(tmp_path, monkeypatch) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX 권한 전용")
-def test_log_file_has_restrictive_mode(tmp_path) -> None:
+def test_log_file_has_restrictive_mode(tmp_path: Path) -> None:
   logf = tmp_path / "t.log"
   handler = SizeTimedRotatingFileHandler(str(logf), when="H", interval=3, backupCount=1)
   handler.emit(_record("hi"))
@@ -105,7 +107,7 @@ def test_log_file_has_restrictive_mode(tmp_path) -> None:
 
 
 # ── B1: 예외 핸들러 로깅 헬퍼 ──────────────────────────────────────────
-def test_log_handled_exception_records_context_and_stack(caplog) -> None:
+def test_log_handled_exception_records_context_and_stack(caplog: pytest.LogCaptureFixture) -> None:
   """핸들러가 잡은 예외를 요청 컨텍스트(kind/method/path) + 스택과 함께 ERROR 기록."""
   logger = logging.getLogger("test.handled")
 
@@ -135,7 +137,7 @@ def test_request_id_filter_injects_contextvar() -> None:
   try:
     record = _record("hi")
     RequestIdFilter().filter(record)
-    assert record.request_id == "req-123"
+    assert getattr(record, "request_id", None) == "req-123"
   finally:
     request_id_var.reset(token)
 
@@ -151,7 +153,7 @@ def test_json_formatter_includes_request_id() -> None:
 
 
 # ── B3: 포맷 정책(env) + funcName(위치) ────────────────────────────────
-def test_is_prod_reads_env(monkeypatch) -> None:
+def test_is_prod_reads_env(monkeypatch: pytest.MonkeyPatch) -> None:
   monkeypatch.setenv("ENV", "prod")
   assert _is_prod() is True
   monkeypatch.setenv("ENV", "local")
@@ -163,7 +165,7 @@ def test_json_formatter_includes_func() -> None:
   assert '"func"' in JsonFormatter().format(_record("hi"))
 
 
-def test_setup_logger_prod_uses_json(tmp_path, monkeypatch) -> None:
+def test_setup_logger_prod_uses_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
   """prod 는 콘솔(stdout)도 JSON 포맷(수집기 파싱)."""
   monkeypatch.setenv("ENV", "prod")
   monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
@@ -172,7 +174,7 @@ def test_setup_logger_prod_uses_json(tmp_path, monkeypatch) -> None:
   assert isinstance(_console_handler(logger).formatter, JsonFormatter)
 
 
-def test_setup_logger_local_uses_human(tmp_path, monkeypatch) -> None:
+def test_setup_logger_local_uses_human(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
   """local 은 콘솔 사람형식(직접 읽기 쉬움)."""
   monkeypatch.setenv("ENV", "local")
   monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
@@ -210,7 +212,7 @@ def _run_boundary(logger: logging.Logger, exc: Exception | None) -> None:
   asyncio.run(_body())
 
 
-def test_log_boundary_logs_start_and_success(caplog) -> None:
+def test_log_boundary_logs_start_and_success(caplog: pytest.LogCaptureFixture) -> None:
   """진입 시 DEBUG, 성공 시 INFO(소요 ms 포함)."""
   logger = logging.getLogger("test.boundary.ok")
   logger.setLevel(logging.DEBUG)
@@ -226,7 +228,7 @@ def test_log_boundary_logs_start_and_success(caplog) -> None:
   assert "kakao_token_exchange" in success
 
 
-def test_log_boundary_client_error_warns_and_reraises(caplog) -> None:
+def test_log_boundary_client_error_warns_and_reraises(caplog: pytest.LogCaptureFixture) -> None:
   """4xx(설정/클라이언트) 실패는 WARN + 스택 없이 기록하고 예외 재전파."""
   logger = logging.getLogger("test.boundary.4xx")
 
@@ -239,12 +241,13 @@ def test_log_boundary_client_error_warns_and_reraises(caplog) -> None:
   assert record.exc_info is None  # 예상된 실패 — 스택 미포함
 
 
-def test_log_boundary_server_error_logs_stack_and_reraises(caplog) -> None:
+@pytest.mark.parametrize("exc", [RuntimeError("boom"), _StatusError(500)], ids=["no-status", "5xx"])
+def test_log_boundary_server_error_logs_stack_and_reraises(caplog: pytest.LogCaptureFixture, exc: Exception) -> None:
   """그 외(5xx·네트워크·버그) 실패는 ERROR + 스택 포함하고 예외 재전파."""
   logger = logging.getLogger("test.boundary.5xx")
 
-  with caplog.at_level(logging.ERROR, logger="test.boundary.5xx"), pytest.raises(RuntimeError):
-    _run_boundary(logger, RuntimeError("boom"))
+  with caplog.at_level(logging.WARNING, logger="test.boundary.5xx"), pytest.raises(type(exc)):
+    _run_boundary(logger, exc)
 
   record = caplog.records[-1]
   assert record.levelno == logging.ERROR
@@ -252,7 +255,7 @@ def test_log_boundary_server_error_logs_stack_and_reraises(caplog) -> None:
 
 
 # ── B6: 통합 하네스 (조립된 로거 파이프라인) ──────────────────────────
-def test_setup_logger_wires_all_filters(tmp_path, monkeypatch) -> None:
+def test_setup_logger_wires_all_filters(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
   """setup_logger 콘솔 핸들러에 truncate·scrub·request_id 필터가 모두 부착."""
   monkeypatch.setenv("ENV", "local")
   monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
@@ -264,7 +267,7 @@ def test_setup_logger_wires_all_filters(tmp_path, monkeypatch) -> None:
   assert RequestIdFilter in filter_types
 
 
-def test_setup_logger_has_rotating_file_handler(tmp_path, monkeypatch) -> None:
+def test_setup_logger_has_rotating_file_handler(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
   """파일 핸들러(시간+크기 회전)가 부착된다."""
   monkeypatch.setenv("ENV", "local")
   monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
@@ -273,7 +276,7 @@ def test_setup_logger_has_rotating_file_handler(tmp_path, monkeypatch) -> None:
   assert any(isinstance(h, SizeTimedRotatingFileHandler) for h in logger.handlers)
 
 
-def test_logger_pipeline_scrubs_and_tags_request_id(tmp_path, monkeypatch) -> None:
+def test_logger_pipeline_scrubs_and_tags_request_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
   """end-to-end: 파이프라인 통과 후 request_id 포함 + JWT 토큰 스크럽 동시 적용."""
   monkeypatch.setenv("ENV", "local")
   monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
@@ -283,8 +286,9 @@ def test_logger_pipeline_scrubs_and_tags_request_id(tmp_path, monkeypatch) -> No
   token = request_id_var.set("req-b6")
   try:
     record = logging.LogRecord("test.b6.e2e", logging.INFO, __file__, 1, "auth Bearer eyJa.bcd.efg done", (), None)
-    for log_filter in handler.filters:
-      log_filter.filter(record)
+    # 핸들러가 실제로 거는 방식 그대로 — 부착된 필터 전부를 순서대로 통과시킨다.
+    assert handler.filter(record)
+    assert handler.formatter is not None
     out = handler.formatter.format(record)
   finally:
     request_id_var.reset(token)
