@@ -55,9 +55,24 @@ async def validation_exception_handler(_request: Request, exc: RequestValidation
     content={
       "error": "validation_error",
       "error_description": "입력값 유효성 검사에 실패했습니다.",
-      "details": exc.errors(),
+      "details": _public_errors(exc),
     },
   )
+
+
+def _public_errors(exc: RequestValidationError) -> list[dict]:
+  """검증 오류를 JSON 으로 내보낼 수 있는 모양으로 줄인다.
+
+  ``input`` 은 뺀다 — 바이트(multipart 본문)면 직렬화가 깨져 500 이 되고, 글자면 사용자가
+  보낸 내용(처방 글자 등)을 응답으로 되돌린다. ``ctx`` 에는 예외 객체가 실릴 수 있어 문자열로 바꾼다.
+  """
+  public = []
+  for error in exc.errors():
+    item = {key: value for key, value in error.items() if key not in ("input", "ctx")}
+    if "ctx" in error:
+      item["ctx"] = {key: str(value) for key, value in error["ctx"].items()}
+    public.append(item)
+  return public
 
 
 @app.exception_handler(DBConnectionError)
