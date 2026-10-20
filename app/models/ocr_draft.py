@@ -7,6 +7,7 @@
 """
 
 from enum import StrEnum
+from uuid import UUID
 
 from tortoise import fields, models
 
@@ -29,8 +30,7 @@ class OcrDraft(models.Model):
       profile: 업로드한 사용자 프로필 (FK, CASCADE).
       status: ai-worker 처리 상태 (pending → ready/no_text/no_candidates/failed).
       medicines: ai-worker 가 채우는 ExtractedMedicine 리스트 (JSONB).
-      filename: 원본 파일명 (UI 디버깅·로깅용, 사용자에게 표시 안 함).
-      image_hash: SHA256(image_bytes) — 동일 사용자 dedup 키.
+      text_hash: SHA256(약 줄 글자) — 동일 프로필 dedup 키. 글자 원문은 저장하지 않는다.
       created_at: 업로드 시각 — UI 카드 제목 ("오후 5:43 업로드") 기반.
       processed_at: ai-worker 가 처리 완료한 시각.
       consumed_at: confirm 으로 DB 영구 저장 완료 시점 (NULL 이면 아직 활성).
@@ -43,6 +43,8 @@ class OcrDraft(models.Model):
     on_delete=fields.CASCADE,
     description="업로드 프로필",
   )
+  # Tortoise 가 실행 중에 만드는 FK 열 속성 — 타입 검사기에 알리는 표기일 뿐 필드를 더하지 않는다.
+  profile_id: UUID
   status = fields.CharField(
     max_length=16,
     default=OcrDraftStatusValue.PENDING.value,
@@ -52,8 +54,7 @@ class OcrDraft(models.Model):
     default=list,
     description="ExtractedMedicine 리스트 (ai-worker 가 채움)",
   )
-  filename = fields.CharField(max_length=256, null=True, description="원본 파일명")
-  image_hash = fields.CharField(max_length=64, description="SHA256(image_bytes) — dedup 키")
+  text_hash = fields.CharField(max_length=64, description="SHA256(약 줄 글자) — dedup 키")
   created_at = fields.DatetimeField(auto_now_add=True)
   processed_at = fields.DatetimeField(null=True, description="ai-worker 처리 완료 시각")
   consumed_at = fields.DatetimeField(null=True, description="confirm 완료 시각 (NULL=활성)")

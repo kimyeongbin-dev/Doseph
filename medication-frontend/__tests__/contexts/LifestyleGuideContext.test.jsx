@@ -84,7 +84,7 @@ describe('LifestyleGuideContext 특성화', () => {
         <Harness />
       </QueryClientProvider>,
     )
-    // ⚠️ `findByText('0')` 으로 기다리면 안 된다 — guides.length 는 로딩 중에도 0 이라
+    // 주의: `findByText('0')` 으로 기다리면 안 된다 — guides.length 는 로딩 중에도 0 이라
     //    조회가 영원히 응답하지 않아도 통과한다(2026-09-15 결핍 주입으로 실측).
     //    참조 비교는 **data 가 undefined 로 확정된 뒤**에 시작해야 의미가 있으므로
     //    settled 에서만 참인 isError 를 앵커로 쓴다.

@@ -5,6 +5,7 @@ docs-private/PLAN_OCR_DRAFT.md §A — ai-worker 가 terminal failure 도달 시
 """
 
 from datetime import datetime
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -24,13 +25,12 @@ class TestProcessOcrTaskTerminalRollback:
     return str(uuid4())
 
   def test_no_text_calls_mark_terminal_failure(self, draft_id: str) -> None:
-    """raw_text 가 빈 문자열이면 NO_TEXT + consumed_at 자동 설정되어야 한다."""
+    """받은 글자가 공백뿐이면 NO_TEXT + consumed_at 자동 설정되어야 한다."""
     mock_repo = MagicMock()
     mock_repo.mark_terminal_failure = AsyncMock()
     mock_repo.update_result = AsyncMock()
 
     with (
-      patch("ai_worker.domains.ocr.jobs.extract_text_from_image_bytes", return_value=""),
       patch("ai_worker.domains.ocr.jobs.Tortoise") as mock_tortoise,
       patch("ai_worker.domains.ocr.jobs.OcrDraftRepository", return_value=mock_repo),
     ):
@@ -39,7 +39,7 @@ class TestProcessOcrTaskTerminalRollback:
 
       from ai_worker.domains.ocr.jobs import process_ocr_task
 
-      result = process_ocr_task(b"image-bytes", "rx.jpg", draft_id)
+      result = process_ocr_task(" \n ", draft_id)
 
     assert result is False
     mock_repo.mark_terminal_failure.assert_awaited_once_with(draft_id, OcrDraftStatusValue.NO_TEXT)
@@ -52,10 +52,6 @@ class TestProcessOcrTaskTerminalRollback:
     mock_repo.update_result = AsyncMock()
 
     with (
-      patch(
-        "ai_worker.domains.ocr.jobs.extract_text_from_image_bytes",
-        return_value="처방전 텍스트",
-      ),
       patch("ai_worker.domains.ocr.jobs.clean_ocr_text", return_value="정규화"),
       patch("ai_worker.domains.ocr.jobs.extract_medicine_candidates", return_value=[]),
       patch("ai_worker.domains.ocr.jobs.Tortoise") as mock_tortoise,
@@ -66,7 +62,7 @@ class TestProcessOcrTaskTerminalRollback:
 
       from ai_worker.domains.ocr.jobs import process_ocr_task
 
-      result = process_ocr_task(b"image-bytes", "rx.jpg", draft_id)
+      result = process_ocr_task("처방전 텍스트", draft_id)
 
     assert result is False
     mock_repo.mark_terminal_failure.assert_awaited_once_with(draft_id, OcrDraftStatusValue.NO_CANDIDATES)
@@ -79,8 +75,8 @@ class TestProcessOcrTaskTerminalRollback:
 
     with (
       patch(
-        "ai_worker.domains.ocr.jobs.extract_text_from_image_bytes",
-        side_effect=RuntimeError("CLOVA OCR boom"),
+        "ai_worker.domains.ocr.jobs.clean_ocr_text",
+        side_effect=RuntimeError("normalizer boom"),
       ),
       patch("ai_worker.domains.ocr.jobs.Tortoise") as mock_tortoise,
       patch("ai_worker.domains.ocr.jobs.OcrDraftRepository", return_value=mock_repo),
@@ -90,7 +86,7 @@ class TestProcessOcrTaskTerminalRollback:
 
       from ai_worker.domains.ocr.jobs import process_ocr_task
 
-      result = process_ocr_task(b"image-bytes", "rx.jpg", draft_id)
+      result = process_ocr_task("처방전 텍스트", draft_id)
 
     assert result is False
     mock_repo.mark_terminal_failure.assert_awaited_once_with(draft_id, OcrDraftStatusValue.FAILED)
@@ -102,10 +98,6 @@ class TestProcessOcrTaskTerminalRollback:
     mock_repo.mark_terminal_failure = AsyncMock()
 
     with (
-      patch(
-        "ai_worker.domains.ocr.jobs.extract_text_from_image_bytes",
-        return_value="처방전 텍스트",
-      ),
       patch("ai_worker.domains.ocr.jobs.clean_ocr_text", return_value="정규화"),
       patch(
         "ai_worker.domains.ocr.jobs.extract_medicine_candidates",
@@ -123,13 +115,60 @@ class TestProcessOcrTaskTerminalRollback:
 
       from ai_worker.domains.ocr.jobs import process_ocr_task
 
-      result = process_ocr_task(b"image-bytes", "rx.jpg", draft_id)
+      result = process_ocr_task("처방전 텍스트", draft_id)
 
     assert result is True
     mock_repo.update_result.assert_awaited_once()
     called_args = mock_repo.update_result.await_args
     assert called_args.args[1] == OcrDraftStatusValue.READY
     mock_repo.mark_terminal_failure.assert_not_awaited()
+
+
+# ── 받은 글자는 로그에 남기지 않는다 · 이미지 OCR 경로는 없다 ──────────
+
+
+class TestTextInputBoundary:
+  """워커는 브라우저가 보낸 글자를 받는다 — 그 글자를 로그로 흘리지 않고, CLOVA 경로는 사라졌다."""
+
+  def test_received_text_is_not_logged(self, caplog: pytest.LogCaptureFixture) -> None:
+    """화이트리스트를 통과했어도 사용자 처방 내용이다 — 길이·id 만 남긴다."""
+    text = "642200380 판토복정 40밀리그램 1 3 1"
+    mock_repo = MagicMock()
+    mock_repo.update_result = AsyncMock()
+    mock_repo.mark_terminal_failure = AsyncMock()
+    # 부모 logger "ai_worker" 는 루트로 전달하지 않으므로(propagate=False) caplog 를 직접 단다.
+    worker_logger = logging.getLogger("ai_worker")
+    worker_logger.addHandler(caplog.handler)
+
+    try:
+      with (
+        patch("ai_worker.domains.ocr.jobs.search_candidates_in_open_db", new=AsyncMock(return_value=[])),
+        patch("ai_worker.domains.ocr.jobs.Tortoise") as mock_tortoise,
+        patch("ai_worker.domains.ocr.jobs.OcrDraftRepository", return_value=mock_repo),
+        caplog.at_level(logging.DEBUG, logger="ai_worker"),
+      ):
+        mock_tortoise.init = AsyncMock()
+        mock_tortoise.close_connections = AsyncMock()
+
+        from ai_worker.domains.ocr.jobs import process_ocr_task
+
+        process_ocr_task(text, str(uuid4()))
+    finally:
+      worker_logger.removeHandler(caplog.handler)
+
+    assert caplog.records, "로그가 0줄이면 이 단언은 아무것도 못 본다"
+    assert "판토복" not in caplog.text
+    assert "642200380" not in caplog.text
+
+  def test_clova_extractor_module_is_gone(self) -> None:
+    import importlib.util
+
+    assert importlib.util.find_spec("ai_worker.domains.ocr.text_extractor") is None
+
+  def test_worker_config_has_no_clova_settings(self) -> None:
+    from ai_worker.core.config import Config
+
+    assert not [name for name in Config.model_fields if name.startswith("CLOVA")]
 
 
 # ── Repository 단위 — mark_terminal_failure 가 status + consumed_at 함께 갱신 ──

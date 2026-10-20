@@ -113,7 +113,7 @@ describe('ChallengeContext 특성화', () => {
   // ── 추천 탭의 "미시작" 계약 ────────────────────────────────────────
   // 백엔드 정의(`challenge_repository.not_started`)와 **같아야 한다**:
   //   is_active = false  AND  challenge_status != 'COMPLETED'
-  // 🔴 예전 구현은 `!== 'DELETED'` 로 걸렀는데, ChallengeStatus enum 에는
+  // 중요: 예전 구현은 `!== 'DELETED'` 로 걸렀는데, ChallengeStatus enum 에는
   //    IN_PROGRESS / COMPLETED 뿐이라 **아무것도 안 거르는 no-op** 이었다.
   //    폐지된 soft delete(QA-01)의 잔재이자, 완료된 비활성 챌린지가
   //    추천 탭에 되살아나는 경로였다(QA-38).
@@ -149,7 +149,7 @@ describe('ChallengeContext 특성화', () => {
 
     renderHarness()
 
-    // 🔴 `findByText` 는 정확 일치라 합쳐진 텍스트를 못 찾는다 — testid 로 기다린다.
+    // 중요: `findByText` 는 정확 일치라 합쳐진 텍스트를 못 찾는다 — testid 로 기다린다.
     await waitFor(() => expect(screen.getByTestId('unstarted').textContent).toContain('미시작'))
     const shown = screen.getByTestId('unstarted').textContent
     expect(shown, '표본이 비면 이 단언은 공짜로 통과한다').toContain('미시작')

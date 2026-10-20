@@ -13,6 +13,8 @@ import {
   FileText,
   LogOut,
   Pencil,
+  Flame,
+  Trophy,
 } from 'lucide-react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -479,8 +481,12 @@ function MyPageContent() {
                 <div className="grid grid-cols-3 gap-3 w-full">
                   <div className="bg-surface-2 p-4 rounded-[24px] border border-line">
                     <p className="text-[10px] font-black text-muted mb-1">연속 복약</p>
-                    <p data-testid="stat-streak" className="text-lg font-black text-ink">
-                      {streakDays}일째 🔥
+                    <p
+                      data-testid="stat-streak"
+                      className="text-lg font-black text-ink flex items-center gap-1"
+                    >
+                      {streakDays}일째
+                      <Flame size={16} className="text-orange-500" aria-hidden="true" />
                     </p>
                   </div>
                   <div
@@ -499,9 +505,10 @@ function MyPageContent() {
                     <p className="text-[10px] font-black text-orange-500 mb-1">진행 챌린지</p>
                     <p
                       data-testid="stat-ongoing-challenges"
-                      className="text-lg font-black text-ink"
+                      className="text-lg font-black text-ink flex items-center gap-1"
                     >
-                      {ongoingCount}개 🏆
+                      {ongoingCount}개
+                      <Trophy size={16} className="text-orange-500" aria-hidden="true" />
                     </p>
                   </div>
                 </div>

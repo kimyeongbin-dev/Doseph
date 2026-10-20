@@ -9,7 +9,7 @@
 // ChatModal.jsx 의 재시도 버튼은 **렌더될 수 없는 죽은 코드**였다(2026-09-14 실증).
 // 이 테스트는 그 죽은 분기가 다시 죽지 않도록 잠근다.
 //
-// ⚠️ 의도적으로 단언하지 않는 것: 메시지 전송·GPS 토글·세션 편집 흐름(다른 스펙의 몫).
+// 주의: 의도적으로 단언하지 않는 것: 메시지 전송·GPS 토글·세션 편집 흐름(다른 스펙의 몫).
 // 전제: 없음(api / ProfileContext mock 으로 격리, 백엔드 불필요).
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

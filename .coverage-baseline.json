@@ -8,7 +8,6 @@
   "ai_worker/domains/ocr/__init__.py": 0,
   "ai_worker/domains/ocr/jobs.py": 1,
   "ai_worker/domains/ocr/medicine_matcher.py": 71,
-  "ai_worker/domains/ocr/text_extractor.py": 27,
   "ai_worker/domains/ocr/text_normalizer.py": 13,
   "ai_worker/domains/rag/__init__.py": 0,
   "ai_worker/domains/rag/prompt_builder.py": 2,

@@ -79,7 +79,8 @@ EXCLUDED_PARTS = ("/tests/", "/migrations/", "/__pycache__/")
 #: 🔑 **이 값은 실측이다. 어림잡지 않는다** — 처음에 `150` 이라고 넣었더니 실제가 **148** 이라
 #: 게이트가 자기 첫 실행에서 자기를 막았다. 바닥값은 *"이쯤 되겠지"* 가 아니라
 #: **지금 세어지는 수**여야 한다(그래야 줄어든 것이 실패로 보인다).
-MIN_MEASURED_FILES = 148
+#: 2026-10-20 148 -> 147: v2.0 S2 가 서버 OCR 모듈(`ai_worker/domains/ocr/text_extractor.py`)을 지웠다.
+MIN_MEASURED_FILES = 147
 
 
 # ── coverage json 리포트 읽기 ──────────────────────────────────────────

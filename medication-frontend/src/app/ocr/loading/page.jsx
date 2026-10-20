@@ -1,22 +1,21 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-import api from '@/lib/api'
 import { streamSSE } from '@/lib/sseClient'
 import { useProfile } from '@/contexts/ProfileContext'
 
 const STEPS = [
-  '처방전 이미지를 읽고 있어요...',
+  '약품 정보를 찾고 있어요...',
   'AI가 약품 정보를 분석하고 있어요...',
   '복용 방법을 정리하고 있어요...',
   '거의 다 됐어요!',
 ]
 
 const TERMINAL_ERROR_MESSAGES = {
-  no_text: '이미지에서 텍스트를 찾지 못했어요.',
+  no_text: '약 정보를 찾지 못했어요.',
   no_candidates: '약품 정보를 인식하지 못했어요.',
   failed: '처리 중 오류가 발생했어요.',
 }
@@ -136,8 +135,9 @@ function PrescriptionSkeleton({ step }) {
   )
 }
 
-export default function OcrLoadingPage() {
+function OcrLoadingContent() {
   const router = useRouter()
+  const draftId = useSearchParams().get('draft_id')
   const { selectedProfileId } = useProfile()
   const [step, setStep] = useState(0)
   const [done, setDone] = useState(false)
@@ -183,50 +183,18 @@ export default function OcrLoadingPage() {
       }
     }
 
-    const run = async () => {
-      try {
-        const fileData = sessionStorage.getItem('ocrFileData')
-        const fileName = sessionStorage.getItem('ocrFileName')
-        const fileType = sessionStorage.getItem('ocrFileType')
-        if (!fileData) {
-          router.push('/ocr')
-          return
-        }
-
-        const blob = await (await fetch(fileData)).blob()
-        const file = new File([blob], fileName, { type: fileType })
-        const formData = new FormData()
-        formData.append('file', file)
-
-        // 현재 선택된 프로필로 처방전 등록 — selectedProfileId 가 없으면 BE 가 SELF default
-        const response = await api.post('/api/v1/ocr/extract', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          timeout: 60000,
-          params: selectedProfileId ? { profile_id: selectedProfileId } : undefined,
-        })
-
-        sessionStorage.removeItem('ocrFileData')
-        sessionStorage.removeItem('ocrFileName')
-        sessionStorage.removeItem('ocrFileType')
-
-        if (abortController.signal.aborted) return
-        await consumeStream(response.data.draft_id)
-      } catch (err) {
-        clearInterval(stepTicker)
-        const msg =
-          err.parsed?.message || err.response?.data?.detail || '분석 중 오류가 발생했습니다.'
-        router.push(
-          `/ocr?error=${encodeURIComponent(typeof msg === 'string' ? msg : JSON.stringify(msg))}`,
-        )
-      }
+    // 업로드는 /ocr 화면이 이미 마쳤다(약 줄 글자만) — 여기서는 draft_id 로 결과만 기다린다.
+    if (!draftId) {
+      clearInterval(stepTicker)
+      router.push('/ocr')
+    } else {
+      consumeStream(draftId)
     }
-
-    run()
     return () => {
       abortController.abort()
       clearInterval(stepTicker)
     }
-  }, [router, selectedProfileId])
+  }, [router, selectedProfileId, draftId])
 
   // 우측상단 닫기 X — 사용자가 main 으로 빠져나갈 수 있도록.
   // 처리 자체는 ai-worker 가 백그라운드로 계속 수행 -> main 의 활성 draft 카드로 회수 가능.
@@ -244,5 +212,14 @@ export default function OcrLoadingPage() {
       </button>
       <PrescriptionSkeleton step={step} />
     </>
+  )
+}
+
+// useSearchParams 는 정적 export 에서 Suspense 경계가 필요하다(결과 화면과 같은 구성).
+export default function OcrLoadingPage() {
+  return (
+    <Suspense fallback={<PrescriptionSkeleton step={0} />}>
+      <OcrLoadingContent />
+    </Suspense>
   )
 }

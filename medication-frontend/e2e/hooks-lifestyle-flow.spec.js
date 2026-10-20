@@ -7,7 +7,7 @@
 //   A5 (page.jsx:275): selectedGuide.id 변경 -> 챌린지 페이지 0으로 리셋
 //   A6 (page.jsx:302): userPickedGuide / latestGuide 기준 selectedGuide 자동 보정
 //
-// ⚠️ 가이드 생성은 LLM + SSE 비동기라 E2E 에서 결정적으로 만들 수 없다.
+// 주의: 가이드 생성은 LLM + SSE 비동기라 E2E 에서 결정적으로 만들 수 없다.
 // 그래서 **"남의 시스템" 경계에서만 가짜로 바꾼다** — 가이드/챌린지 조회 응답을
 // route 인터셉트로 고정하고, 그 뒤의 선택·탭·페이지네이션 로직은 실제 코드가 돈다.
 // (mock IdP 와 같은 원칙: 대역은 외부 경계에, 우리 코드는 진짜로)
@@ -115,7 +115,7 @@ test.describe('생활 가이드 — 가이드 선택·탭·증상', () => {
   })
 
   test('증상 탭 진입 시 오늘 증상이 조회되어 표시된다 (A1·A3)', async ({ page }) => {
-    // ⚠️ 스텁 값은 **고유 센티널**이어야 한다(규칙 R11). 이전 버전은 '두통'·'어지러움'
+    // 주의: 스텁 값은 **고유 센티널**이어야 한다(규칙 R11). 이전 버전은 '두통'·'어지러움'
     //    이라 SymptomLogForm 의 PRESET_SYMPTOMS 칩 라벨과 문자열이 겹쳤고, 칩은 조회
     //    결과와 무관하게 항상 렌더되므로 스텁을 비워도 통과했다(2026-09-14 실측).
     await stubGuideApis(page, { symptoms: [SYMPTOM_A, SYMPTOM_B] })
@@ -195,7 +195,7 @@ test.describe('생활 가이드 — 가이드 선택·탭·증상', () => {
     await page.goto('/lifestyle-guide')
     await page.getByRole('button', { name: /증상/ }).first().click()
 
-    // ⚠️ 폼의 프리셋 칩에도 같은 증상명이 있으므로, 반드시 요약 카드 안에서만 단언한다
+    // 주의: 폼의 프리셋 칩에도 같은 증상명이 있으므로, 반드시 요약 카드 안에서만 단언한다
     // (그러지 않으면 재조회가 없어도 통과하는 헛된 초록이 된다 — 규칙 R3)
     const summary = page.getByTestId('today-symptom-summary')
     await expect(summary.getByText('두통')).toBeVisible({ timeout: 15_000 })

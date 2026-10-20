@@ -4,7 +4,7 @@
 import { useEffect, Suspense, useState, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Trash2 } from 'lucide-react'
+import { Lightbulb, Trash2 } from 'lucide-react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -102,7 +102,7 @@ function OcrResultContent() {
   const qc = useQueryClient()
   const { removeDraftLocally, refetchDrafts } = useOcrDraft()
 
-  // 💡 스트림 제어와 재시도 쿨다운을 위한 상태 추가
+  // 스트림 제어와 재시도 쿨다운을 위한 상태 추가
   const streamControllerRef = useRef(null)
   const [isRetaking, setIsRetaking] = useState(false)
 
@@ -146,7 +146,7 @@ function OcrResultContent() {
     }
 
     const abortController = new AbortController()
-    streamControllerRef.current = abortController // 💡 외부 차단용 Ref 연결
+    streamControllerRef.current = abortController // 외부 차단용 Ref 연결
 
     const consumeStream = async () => {
       try {
@@ -181,7 +181,7 @@ function OcrResultContent() {
           }
         }
       } catch (err) {
-        if (abortController.signal.aborted) return // 💡 강제 차단 시 에러 무시
+        if (abortController.signal.aborted) return // 강제 차단 시 에러 무시
         toast.error('데이터가 만료되었거나 불러올 수 없습니다. 다시 촬영해주세요.')
         router.push('/ocr')
       }
@@ -194,7 +194,7 @@ function OcrResultContent() {
     }
   }, [draftId, router, selectedProfileId, reset])
 
-  // 💡 악의적 연타 및 좀비 스트림 차단 로직 적용
+  // 악의적 연타 및 좀비 스트림 차단 로직 적용
   const handleRetake = async () => {
     const now = Date.now()
     const lastRetakeTime = sessionStorage.getItem('last_retake_time')
@@ -662,7 +662,7 @@ function OcrResultContent() {
             ))}
 
             <div className="mt-6 mb-2 bg-blue-50 rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-blue-100">
-              <span className="text-2xl">💡</span>
+              <Lightbulb size={24} className="text-blue-500 shrink-0" aria-hidden="true" />
               <div className="flex-1">
                 <p className="font-bold text-blue-800 text-sm mb-1">인식되지 않은 약이 있나요?</p>
                 <p className="text-blue-700 text-xs">
@@ -683,7 +683,7 @@ function OcrResultContent() {
           </div>
 
           <div className="flex gap-3 pb-10">
-            {/* 💡 버튼 상태 연결 및 로딩 문구 처리 */}
+            {/* 버튼 상태 연결 및 로딩 문구 처리 */}
             <button
               type="button"
               onClick={handleRetake}

@@ -14,6 +14,16 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production', // 프로덕션에서 console.log 제거
   },
 
+  // 브라우저 OCR — onnxruntime-web 의 기본 진입점은 WebGPU 겸용(JSEP) WASM 28MB 를 요청해
+  // Cloudflare Pages 파일 한도(25MiB)를 넘는다. 측정에 쓴 WASM 전용 빌드(14MB)로 고정한다.
+  // ppu-paddle-ocr 내부의 import 도 같은 별칭을 타므로 엔진 인스턴스가 하나로 유지된다.
+  // 런타임 파일이 복사본과 맞는지는 build:pages 끝의 fetch-ocr-assets --verify-build 가 대조한다.
+  turbopack: {
+    resolveAlias: {
+      'onnxruntime-web': 'onnxruntime-web/wasm',
+    },
+  },
+
   images: {
     // 정적 export 에는 이미지 최적화 서버가 없으므로 최적화 비활성화 (원본 그대로 서빙)
     unoptimized: true,

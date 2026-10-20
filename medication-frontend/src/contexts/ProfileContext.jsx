@@ -7,7 +7,7 @@
 //   updateProfile, createProfile, deleteProfile,
 //   setSelectedProfileId, refetchProfiles, RELATION_LABELS, RELATION_GENDER_DEFAULT.
 //
-// ⚠️ 선택 프로필의 계약 (2026-09-14 구조 변경):
+// 주의: 선택 프로필의 계약 (2026-09-14 구조 변경):
 //   `selectedProfileId` 는 **state 가 아니라 렌더 중 파생값**이다.
 //   사용자가 고른 id(`pickedProfileId`) 를 목록과 대조해 유효하면 쓰고, 아니면
 //   저장값 -> SELF -> 첫 프로필 순으로 물러난다(고른 프로필이 삭제돼도 되돌리지 않고 무시).

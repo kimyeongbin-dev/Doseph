@@ -1,14 +1,10 @@
 """OCR 후보 토큰을 medicine_info DB 와 매칭한다. (아키텍트 패러다임 시프트 버전)"""
 
-import asyncio
 import logging
-
-from tortoise import Tortoise
 
 from ai_worker.core.openai_client import get_openai_client
 from app.core.llm_models import MEDICINE_MATCHER_MODEL
 from app.core.logger import log_boundary
-from app.db.databases import TORTOISE_ORM
 from app.dtos.ocr import ExtractedMedicine, OcrLlmExtraction
 from app.repositories.medicine_info_repository import MedicineInfoRepository
 
@@ -28,7 +24,8 @@ async def search_candidates_in_open_db(candidates: list[str]) -> list[ExtractedM
 
   # 💡 LLM이 이름, 용량, 타입을 분리해서 가져옵니다.
   extracted_items = await _extract_medicines_with_llm(full_text)
-  logger.info("LLM Extracted Items: %s", extracted_items)
+  # 약 이름은 사용자의 처방 내용이라 건수만 남긴다.
+  logger.info("LLM Extracted Items: %d", len(extracted_items))
 
   matched: list[ExtractedMedicine] = []
   seen_names: set[str] = set()
@@ -81,19 +78,6 @@ async def search_candidates_in_open_db(candidates: list[str]) -> list[ExtractedM
   return matched
 
 
-def match_candidates_to_medicines(candidates: list[str]) -> list[ExtractedMedicine]:
-  """Match OCR candidates to medicines, owning the DB lifecycle (sync entry point)."""
-  return asyncio.run(_run_with_db_lifecycle(candidates))
-
-
-async def _run_with_db_lifecycle(candidates: list[str]) -> list[ExtractedMedicine]:
-  await Tortoise.init(config=TORTOISE_ORM)
-  try:
-    return await search_candidates_in_open_db(candidates)
-  finally:
-    await Tortoise.close_connections()
-
-
 # 💡 strength(용량)과 item_type을 파라미터로 추가로 받습니다.
 async def _match_clean_name(
   repo: MedicineInfoRepository,
@@ -130,13 +114,13 @@ async def _match_clean_name(
   fuzzy_results = await repo.fuzzy_search_by_name(pure_name, threshold=_FUZZY_THRESHOLD, limit=_FUZZY_LIMIT)
   if fuzzy_results:
     best = fuzzy_results[0]
-    med = await repo.get_by_id(best["id"])
-    if med and pure_name not in seen_names:
+    fuzzy_med = await repo.get_by_id(best["id"])
+    if fuzzy_med and pure_name not in seen_names:
       seen_names.add(pure_name)
       matched.append(
         ExtractedMedicine(
-          medicine_name=_build_display_name(med.medicine_name),  # 💡 DB 이름 뒤에 용량을 예쁘게 조립!
-          category=med.category,
+          medicine_name=_build_display_name(fuzzy_med.medicine_name),  # 💡 DB 이름 뒤에 용량을 예쁘게 조립!
+          category=fuzzy_med.category,
           raw_ocr_name=pure_name,
           is_llm_corrected=True,
           match_score=best["score"],

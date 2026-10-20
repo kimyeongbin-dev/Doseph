@@ -8,7 +8,7 @@
 // 호출이면 아무것도 기다리지 않는다. 그래서 ChatModal 의 재시도 UI 는 2026-09-14 까지
 // **렌더될 수 없는 죽은 코드**였다. 다시 죽으면 이 테스트가 빨개진다.
 //
-// ⚠️ 의도적으로 단언하지 않는 것: 스트릭·오늘 복약의 구체적 수치(다른 스펙이 복약
+// 주의: 의도적으로 단언하지 않는 것: 스트릭·오늘 복약의 구체적 수치(다른 스펙이 복약
 //    체크를 수행하면 달라진다), 에러 문구의 정확한 문장.
 // 전제: docker fastapi(:8000) 기동 + auth.setup 세션.
 
@@ -26,16 +26,16 @@ test.describe('무음 실패 표면화 (1-e)', () => {
       timeout: 15_000,
     })
     await expect(
-      page.getByText(/^\d+일째 🔥$/),
+      page.getByTestId('stat-streak'),
       '조회하지 못한 값을 0 으로 그리면 진짜 0 과 구분되지 않고 사용자 의욕만 꺾는다',
     ).toHaveCount(0)
 
     await recoverAndRetry(page, glob, injected)
 
     await expect(
-      page.getByText(/^\d+일째 🔥$/),
+      page.getByTestId('stat-streak'),
       '복구되면 실제 수치가 다시 렌더돼야 한다',
-    ).toBeVisible({ timeout: 15_000 })
+    ).toHaveText(/^\d+일째$/, { timeout: 15_000 })
   })
 
   test('챗 모달: 초기화 실패 시 재시도 버튼이 실제로 보인다', async ({ page }) => {

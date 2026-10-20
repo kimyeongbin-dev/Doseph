@@ -113,7 +113,7 @@ export function PrescriptionGroupProvider({ children }) {
   const error = listQuery.error
   const isRefetching = listQuery.isFetching
 
-  // ⚠️ 여기 있던 "activeCount 변화 시 invalidate" 블록은 제거됐다(QA-03, 2026-09-15).
+  // 주의: 여기 있던 "activeCount 변화 시 invalidate" 블록은 제거됐다(QA-03, 2026-09-15).
   //    **렌더 단계에서** setState + invalidateQueries 를 하는 형태라, medications 가
   //    처음 도착할 때(0 -> N) 에도 발동해 **/medication 첫 진입마다 그룹이 두 번 조회**됐다.
   //    TanStack Query 권장은 "변경을 일으킨 자리(mutation onSuccess)에서 invalidate" 이고,

@@ -5,7 +5,7 @@
 // 외부 API: sessions, activeSessionId, setActiveSessionId, isLoading,
 // createSession, renameSession, deleteSession, refetchSessions.
 //
-// ⚠️ refetchSessions 는 **참조가 안정하고(매 렌더 안 바뀜) 최신 목록을 반환**한다.
+// 주의: refetchSessions 는 **참조가 안정하고(매 렌더 안 바뀜) 최신 목록을 반환**한다.
 //    호출자의 effect 의존성에 그대로 넣어도 안전하고, 반환값을 바로 쓰면
 //    "재조회 -> 그 결과로 판단"을 한 흐름에서 끝낼 수 있다(ChatModal 초기화).
 //    **조회 완료까지 기다리고, 실패하면 reject 한다** — 호출자의 catch 분기가
@@ -116,7 +116,7 @@ export function ChatSessionProvider({ children }) {
   // `listQuery.refetch()` 는 매 렌더 새로 만들어지는 query 객체에 묶여 있어
   // 호출자의 effect 의존성을 흔든다. queryClient + key 로만 묶어 참조를 고정한다.
   //
-  // ⚠️ 여기서 `refetchQueries` 를 쓰면 안 된다. 두 가지가 겹쳐 실패가 사라진다:
+  // 주의: 여기서 `refetchQueries` 를 쓰면 안 된다. 두 가지가 겹쳐 실패가 사라진다:
   //   (1) 쿼리가 실패해도 **resolve** 한다(throwOnError 를 켜야 throw).
   //   (2) 호출 시점에 **관찰자가 아직 붙지 않았으면 아무 일도 하지 않고** 즉시 resolve 한다.
   //       모달의 초기화 effect 는 자식이라 부모(Provider)의 쿼리 구독보다 **먼저** 돈다.

@@ -4,7 +4,7 @@
 //       약품 항목 클릭   -> /medication/detail?id=        (구: /medication/{id})
 // 전제: docker fastapi(:8000) 기동 + seed.setup(authed 프로젝트의 선행 의존)이
 //       처방전 1건 이상을 보장한다 -> 데이터 존재는 단언 대상이지 skip 조건이 아니다.
-//       ⚠️ 과거엔 networkidle 직후 count() 로 판정 + waitFor 타임아웃을 삼켜서,
+//       주의: 과거엔 networkidle 직후 count() 로 판정 + waitFor 타임아웃을 삼켜서,
 //       전체 스위트 부하 시 무음 skip 이 발생했다(실측: 매 실행 1~2건).
 //       skip 은 '조용히 통과'라 회귀를 덮는다 -> 전부 단언으로 바꿨다.
 // 선택자: Step 3 구현에서 아래 data-testid 를 부여한다(테스트가 먼저 참조하는 인터페이스).

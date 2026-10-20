@@ -46,7 +46,7 @@ describe('TodaySchedule 특성화', () => {
     })
 
     // 완료 카운트가 1/1 로 반영될 때까지 먼저 대기한다(fetch 반영).
-    // ⚠️ 호출 단언을 await 앞에 두면 "쿼리가 렌더 중 즉시 호출되는가"라는 타이밍 구현
+    // 주의: 호출 단언을 await 앞에 두면 "쿼리가 렌더 중 즉시 호출되는가"라는 타이밍 구현
     //    세부에 의존한다. settled 이후에 보면 조회 발생 여부만 보게 된다.
     expect(await screen.findByText(/1\/1\s*완료/)).toBeInTheDocument()
     // 로그 조회 발생 (settled 이후 확인)

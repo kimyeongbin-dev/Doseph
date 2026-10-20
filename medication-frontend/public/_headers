@@ -12,6 +12,10 @@
 #   out/**/*.html 인라인 스크립트 SHA-256 목록으로 치환(빌드마다 변동 -> 하드코딩 불가).
 #   이제 해시 불일치 인라인 스크립트(예: XSS 주입)는 실제로 차단됨(XSS 킬체인 2 실행 차단).
 #   롤백: script-src 의 해시를 unsafe-inline 으로 되돌리고 배포(즉시 관측 모드 복귀).
+#
+# v2.0 S2(2026-10-20): script-src 에 'wasm-unsafe-eval' — 처방전 OCR 을 브라우저 WASM(onnxruntime-web)으로
+#   돌린다. WebAssembly 컴파일만 허용하고 JS eval 은 여전히 막힌다('unsafe-eval' 과 다르다).
+#   모델·WASM 은 같은 출처(/ocr/)에서 받으므로 connect-src 는 넓히지 않는다.
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -19,4 +23,4 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
   Reporting-Endpoints: csp-endpoint="https://api.doseph.com/api/v1/security/csp-report"
-  Content-Security-Policy: default-src 'self'; script-src 'self' __INLINE_SCRIPT_HASHES__ https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.doseph.com; img-src 'self' data: blob: https://k.kakaocdn.net; frame-ancestors 'none'; base-uri 'none'; report-uri https://api.doseph.com/api/v1/security/csp-report; report-to csp-endpoint
+  Content-Security-Policy: default-src 'self'; script-src 'self' __INLINE_SCRIPT_HASHES__ 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.doseph.com; img-src 'self' data: blob: https://k.kakaocdn.net; frame-ancestors 'none'; base-uri 'none'; report-uri https://api.doseph.com/api/v1/security/csp-report; report-to csp-endpoint

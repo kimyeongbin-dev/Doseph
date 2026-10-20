@@ -1,11 +1,11 @@
 """OCR API router module.
 
-본 라우터는 HTTP I/O 만 담당한다. CLOVA OCR 호출과 약품 매칭은
-ai-worker 의 ``process_ocr_task`` 가 비동기로 처리하며, 결과는 DB
+본 라우터는 HTTP I/O 만 담당한다. 글자 읽기(OCR)는 브라우저가 기기 안에서 하고,
+약품 매칭은 ai-worker 의 ``process_ocr_task`` 가 비동기로 처리하며, 결과는 DB
 ``ocr_drafts`` 테이블에 영속 저장된다 (Redis 미사용).
 
 흐름:
-1. ``POST /ocr/extract`` -> 즉시 200 + draft_id (medicines=[])
+1. ``POST /ocr/extract`` (JSON ``{"text"}``) -> 즉시 200 + draft_id (medicines=[])
 2. ``GET  /ocr/draft/{id}`` -> status (pending/ready/no_text/...) + medicines
 3. ``GET  /ocr/drafts/active`` -> main 페이지 카드용 활성 draft 목록
 4. ``POST /ocr/confirm`` -> ocr_drafts.consumed_at 설정 + medications INSERT
@@ -13,7 +13,7 @@ ai-worker 의 ``process_ocr_task`` 가 비동기로 처리하며, 결과는 DB
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
 from app.dependencies.security import get_current_account
@@ -22,6 +22,7 @@ from app.dtos.ocr import (
   OcrActiveDraftsResponse,
   OcrDraftPollResponse,
   OcrExtractResponse,
+  OcrTextUploadRequest,
 )
 from app.models.accounts import Account
 from app.models.profiles import Profile, RelationType
@@ -37,9 +38,6 @@ router = APIRouter(
   tags=["AI Integration"],
   dependencies=[Depends(get_current_account)],
 )
-
-ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
 def get_ocr_service() -> OCRService:
@@ -90,50 +88,54 @@ async def get_owned_profile_or_self(
   return profile
 
 
+# ── 본문 형식 확인 (JSON 만) ──────────────────────────────────────────
+# 흐름: Content-Type 의 미디어 타입만 떼어 비교 -> application/json 이 아니면 415
+# 옛 앱의 multipart 이미지 업로드가 «값이 틀렸다(422)» 가 아니라 «형식을 안 받는다» 로 거절되게 한다.
+# 의존성은 본문 검증보다 먼저 풀리므로 이미지 바이트를 파싱하려 들지 않는다.
+def require_json_body(request: Request) -> None:
+  """본문이 JSON 이 아니면 415 Unsupported Media Type."""
+  media_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+  if media_type != "application/json":
+    raise HTTPException(
+      status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+      detail="Request body must be application/json.",
+    )
+
+
 @router.post(
   "/extract",
   response_model=OcrExtractResponse,
   status_code=status.HTTP_200_OK,
-  summary="처방전 이미지 업로드 후 OCR 비동기 처리 시작",
+  summary="기기에서 OCR 한 약 줄 글자를 받아 약품 매칭 비동기 처리 시작",
+  dependencies=[Depends(require_json_body)],
+  responses={
+    415: {"description": "본문이 JSON 이 아님 (이미지 업로드는 받지 않는다)"},
+    422: {"description": "글자가 비었거나 상한을 넘었거나 계약 밖 필드가 있음"},
+  },
 )
-async def extract_medication_from_image(
-  file: Annotated[UploadFile, File(description="Prescription/medicine bag image to recognize")],
+async def extract_medication_from_text(
+  request: OcrTextUploadRequest,
   ocr_service: Annotated[OCRService, Depends(get_ocr_service)],
   profile: Annotated[Profile, Depends(get_owned_profile_or_self)],
 ) -> OcrExtractResponse:
-  """이미지를 ai-worker 로 enqueue 하고 draft_id 를 즉시 반환한다.
+  """약 줄 글자를 ai-worker 로 enqueue 하고 draft_id 를 즉시 반환한다.
 
-  실제 OCR 처리는 ai-worker 의 RQ task 가 비동기로 수행해 ``ocr_drafts`` 테이블을
-  UPDATE 한다. 프론트는 응답으로 받은 ``draft_id`` 로 ``/ocr/draft/{id}`` 를 폴링.
+  사진은 기기를 떠나지 않는다 — 브라우저가 OCR 후 약 줄만 골라 보낸다.
+  매칭은 ai-worker 의 RQ task 가 비동기로 수행해 ``ocr_drafts`` 테이블을
+  UPDATE 한다. 프론트는 응답으로 받은 ``draft_id`` 로 결과를 구독한다.
 
-  같은 사용자 + 같은 image_hash + 미consume draft 가 이미 있으면 dedup 으로
+  같은 프로필 + 같은 글자 + 미consume draft 가 이미 있으면 dedup 으로
   기존 draft_id 가 반환된다 (RQ 재enqueue 없음).
 
   Args:
-      file: 업로드된 처방전/약봉투 이미지 파일.
+      request: 약 줄 글자 (``{"text": ...}`` 외 필드는 422, JSON 이 아닌 본문은 415).
       ocr_service: OCR 서비스 인스턴스.
-      profile: 요청자의 SELF 프로필 (의존성).
+      profile: 요청 대상 프로필 (의존성).
 
   Returns:
       ``OcrExtractResponse`` — ``draft_id`` 와 빈 ``medicines`` 리스트.
-
-  Raises:
-      HTTPException: 형식 미지원·크기 초과·파일 누락.
   """
-  _validate_upload(file)
-  await file.seek(0)
-  return await ocr_service.enqueue_ocr_task(file, profile.id)
-
-
-def _validate_upload(file: UploadFile) -> None:
-  """업로드 파일의 형식·크기를 검증한다."""
-  if file.content_type not in ALLOWED_IMAGE_TYPES:
-    raise HTTPException(status_code=400, detail="Unsupported file format.")
-  if file.size and file.size > MAX_FILE_SIZE:
-    raise HTTPException(
-      status_code=413,
-      detail=f"File size too large. (Max: {MAX_FILE_SIZE // (1024 * 1024)}MB)",
-    )
+  return await ocr_service.enqueue_ocr_text(request.text, profile.id)
 
 
 @router.get(
@@ -238,7 +240,7 @@ async def confirm_and_save_medication(
   request: ConfirmMedicationRequest,
   ocr_service: Annotated[OCRService, Depends(get_ocr_service)],
   profile: Annotated[Profile, Depends(get_owned_profile_or_self)],
-) -> dict:
+) -> dict[str, str]:
   """사용자가 검수·수정한 최종 약품 리스트를 DB 에 저장한다."""
   try:
     return await ocr_service.confirm_and_save(request, profile.id)

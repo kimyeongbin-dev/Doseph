@@ -37,11 +37,13 @@ app = FastAPI(
 # Global exception handlers
 
 
+# ── 요청 검증 실패 응답 ───────────────────────────────────────────────
+# 흐름: 오류 중 JSON 문법 오류(json_invalid)가 있으면 400 -> 아니면 422 -> 공개 가능한 내역만 싣는다
+# RFC 9110 의 구분이다: 문법이 깨진 요청은 400, 문법은 맞는데 값이 규칙을 어기면 422.
+# 예전엔 전부 400 으로 바꿨는데, 그래서 FE 의 422 문구와 OpenAPI 의 422 선언이 거짓이 돼 있었다.
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
-  """Handle Pydantic validation errors.
-
-  Converts 422 validation errors to 400 bad request with detailed error info.
+  """Handle Pydantic validation errors (400 for malformed JSON, 422 otherwise).
 
   Args:
       request: The incoming request.
@@ -50,14 +52,30 @@ async def validation_exception_handler(_request: Request, exc: RequestValidation
   Returns:
       JSONResponse: Error response with validation details.
   """
+  malformed = any(error.get("type") == "json_invalid" for error in exc.errors())
   return JSONResponse(
-    status_code=status.HTTP_400_BAD_REQUEST,
+    status_code=status.HTTP_400_BAD_REQUEST if malformed else status.HTTP_422_UNPROCESSABLE_CONTENT,
     content={
       "error": "validation_error",
       "error_description": "입력값 유효성 검사에 실패했습니다.",
-      "details": exc.errors(),
+      "details": _public_errors(exc),
     },
   )
+
+
+def _public_errors(exc: RequestValidationError) -> list[dict[str, object]]:
+  """검증 오류를 JSON 으로 내보낼 수 있는 모양으로 줄인다.
+
+  ``input`` 은 뺀다 — 바이트(multipart 본문)면 직렬화가 깨져 500 이 되고, 글자면 사용자가
+  보낸 내용(처방 글자 등)을 응답으로 되돌린다. ``ctx`` 에는 예외 객체가 실릴 수 있어 문자열로 바꾼다.
+  """
+  public = []
+  for error in exc.errors():
+    item = {key: value for key, value in error.items() if key not in ("input", "ctx")}
+    if "ctx" in error:
+      item["ctx"] = {key: str(value) for key, value in error["ctx"].items()}
+    public.append(item)
+  return public
 
 
 @app.exception_handler(DBConnectionError)
@@ -130,15 +148,17 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 # localhost is only accessible from local machine, so it's safe to allow in all environments
 # 로컬 독립 API 전환(④): FE(:3000)가 fastapi(:8000)를 직접 호출 → nginx:80 오리진 제거.
 _LOCALHOST_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
+# FRONTEND_URL 이 비어 있으면 None 이 오리진 목록에 들어갔다(어떤 요청과도 일치하지 않아 동작은 같다) — 타입만 맞춘다.
+_FRONTEND_ORIGINS = [config.FRONTEND_URL] if config.FRONTEND_URL else []
 
 if config.ENV == Env.PROD:
   # Production: FRONTEND_URL (env-injected, e.g. https://doseph.com) + localhost for local prod testing
-  cors_origins = [config.FRONTEND_URL, *_LOCALHOST_ORIGINS]
+  cors_origins = [*_FRONTEND_ORIGINS, *_LOCALHOST_ORIGINS]
   cors_methods = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
   cors_headers = ["Content-Type", "Authorization"]
 elif config.ENV == Env.DEV:
   # Development/test: FRONTEND_URL + localhost allowed
-  cors_origins = [config.FRONTEND_URL, *_LOCALHOST_ORIGINS]
+  cors_origins = [*_FRONTEND_ORIGINS, *_LOCALHOST_ORIGINS]
   cors_methods = ["*"]
   cors_headers = ["*"]
 else:
