@@ -17,7 +17,7 @@ from app.core.log_safe import (
 )
 
 
-def _record(msg: str, args: tuple = ()) -> logging.LogRecord:
+def _record(msg: str, args: tuple[object, ...] = ()) -> logging.LogRecord:
   return logging.LogRecord("t", logging.INFO, __file__, 1, msg, args, None)
 
 
