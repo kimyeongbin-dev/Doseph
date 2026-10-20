@@ -5,11 +5,13 @@ via ``asyncio.run`` — no app import / pytest-asyncio needed.
 """
 
 import asyncio
+import re
 
+import pytest
 from starlette.types import Message, Receive, Scope, Send
 
 from app.core.logger import get_request_id
-from app.middlewares.request_context import RequestContextMiddleware
+from app.middlewares.request_context import MAX_REQUEST_ID_LEN, RequestContextMiddleware
 
 
 def _run(scope: Scope) -> tuple[dict[str, str], list[Message], str]:
@@ -58,11 +60,33 @@ def test_middleware_generates_id_and_sets_header() -> None:
 
 
 def test_middleware_honors_incoming_id() -> None:
-  """유입 X-Request-ID 가 있으면 그 값을 승계."""
-  captured, sent, _ = _run({"type": "http", "headers": [(b"x-request-id", b"abc123")]})
+  """규격 안의 유입 X-Request-ID 는 그 값을 승계(프록시·클라이언트와 상관 ID 공유)."""
+  captured, sent, _ = _run({"type": "http", "headers": [(b"x-request-id", b"abc-123_X.9")]})
 
-  assert captured["id_in_ctx"] == "abc123"
-  assert _response_header(sent, b"x-request-id") == b"abc123"
+  assert captured["id_in_ctx"] == "abc-123_X.9"
+  assert _response_header(sent, b"x-request-id") == b"abc-123_X.9"
+
+
+@pytest.mark.parametrize(
+  "incoming",
+  [b"a" * (MAX_REQUEST_ID_LEN + 1), b"has space", b"semi;colon", b"\xc3\xa9", b""],
+  ids=["too-long", "space", "semicolon", "non-ascii", "empty"],
+)
+def test_middleware_replaces_malformed_incoming_id(incoming: bytes) -> None:
+  """규격 밖 X-Request-ID 는 승계하지 않고 새로 만든다(로그 비대·위조 상관 ID 방지)."""
+  captured, sent, _ = _run({"type": "http", "headers": [(b"x-request-id", incoming)]})
+
+  assert captured["id_in_ctx"].encode() != incoming
+  assert re.fullmatch(r"[0-9a-f]{32}", captured["id_in_ctx"])  # 새로 만든 uuid4 hex
+  assert _response_header(sent, b"x-request-id") == captured["id_in_ctx"].encode()
+
+
+def test_middleware_honors_incoming_id_at_max_length() -> None:
+  """상한 길이까지는 승계한다(경계 — 너무 좁게 막지 않는다)."""
+  incoming = b"r" * MAX_REQUEST_ID_LEN
+  captured, _, _ = _run({"type": "http", "headers": [(b"x-request-id", incoming)]})
+
+  assert captured["id_in_ctx"].encode() == incoming
 
 
 def test_middleware_resets_contextvar_after_request() -> None:
