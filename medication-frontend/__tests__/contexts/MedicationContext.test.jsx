@@ -6,7 +6,7 @@
 //   (3) 실패해도 medications 는 빈 배열이라 소비자가 터지지 않는다(기존 계약 유지)
 // (2)가 왜 안전망인가: 이 값이 없으면 페이지는 실패를 알 길이 없어
 // `length === 0` 분기로 "등록된 약이 없어요"(EmptyState)를 그린다 — 실패가 사라진다.
-// ⚠️ 의도적으로 단언하지 않는 것: 에러 객체의 내용. 화면 문구는 ErrorState 의 책임이다.
+// 주의: 의도적으로 단언하지 않는 것: 에러 객체의 내용. 화면 문구는 ErrorState 의 책임이다.
 // 전제: 없음(api/ProfileContext mock 으로 격리, 백엔드 불필요).
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

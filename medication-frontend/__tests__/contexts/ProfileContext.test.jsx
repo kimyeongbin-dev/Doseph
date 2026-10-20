@@ -89,7 +89,7 @@ describe('ProfileContext selectedProfileId 정합', () => {
     api.get.mockResolvedValue({ data: [] })
     renderProvider()
 
-    // ⚠️ `findByText('0')` 으로 기다리면 안 된다 — 로딩 중에도 profiles.length 는 0 이라
+    // 주의: `findByText('0')` 으로 기다리면 안 된다 — 로딩 중에도 profiles.length 는 0 이라
     //    조회가 영원히 응답하지 않아도 통과한다(2026-09-15 결핍 주입으로 실측). 조회가
     //    **끝났다**는 사실은 isLoading=false 로만 확인할 수 있다.
     await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'))
@@ -98,7 +98,7 @@ describe('ProfileContext selectedProfileId 정합', () => {
       screen.getByTestId('selected'),
       '선택할 프로필이 없으면 어떤 id 도 고르면 안 된다',
     ).toHaveTextContent('none')
-    // ⚠️ 이때 저장값이 남는지 여부는 의도적으로 단언하지 않는다 —
+    // 주의: 이때 저장값이 남는지 여부는 의도적으로 단언하지 않는다 —
     //    현재 구현은 "선택이 있었다가 사라진" 전이에서만 지우고, 처음부터 빈 목록이면
     //    남겨둔다. 그 정리 여부는 이 리팩터의 계약이 아니다.
   })

@@ -6,7 +6,7 @@
 //   G3 (ChatModal.jsx:153): activeSessionId 변경 시 메시지 자동 로드
 //   G4 (ChatModal.jsx:166): 세션 변경 시 GPS 토글 상태 리셋
 //
-// ⚠️ 이 스펙이 검증하지 "않는" 것 — LLM 과의 실제 계약
+// 주의: 이 스펙이 검증하지 "않는" 것 — LLM 과의 실제 계약
 //    메시지 응답(/messages/ask)은 OpenAI 호출이라 결정적일 수 없어 route 로 고정한다.
 //    따라서 **모델 교체·응답 스키마 드리프트는 이 테스트로 잡히지 않는다.**
 //    그쪽은 (a) 응답 Pydantic 스키마 강제 (b) 실 provider 계약 테스트(스케줄 실행)
@@ -56,7 +56,7 @@ test.describe('챗 모달 — 세션 초기화 / 메시지 로드', () => {
     ).toBeVisible({ timeout: 15_000 })
   })
 
-  // ⚠️ 발신자 구분은 BE 의 `sender_type`(USER|ASSISTANT)으로 판정한다.
+  // 주의: 발신자 구분은 BE 의 `sender_type`(USER|ASSISTANT)으로 판정한다.
   //    과거 이 mock 은 `role` 을 보내 모든 메시지가 assistant 로 렌더됐는데,
   //    텍스트 존재만 단언해서 통과했다 — 매핑이 깨져도 초록인 구멍이었다.
   //    관측 가능한 차이로 잠근다: user 는 원문 그대로, assistant 는 Markdown 렌더.

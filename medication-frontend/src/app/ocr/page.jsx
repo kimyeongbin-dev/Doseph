@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Info, Camera, AlertTriangle } from 'lucide-react'
+import { Info, Camera, AlertTriangle, Lightbulb } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import Header from '@/components/layout/Header'
@@ -196,7 +196,7 @@ export default function OcrPage() {
 
         {/* [신규 추가] 직접 입력 안내 배너 */}
         <div className="mt-8 bg-blue-50 rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-blue-100">
-          <span className="text-2xl">💡</span>
+          <Lightbulb size={24} className="text-blue-500 shrink-0" aria-hidden="true" />
           <div className="flex-1">
             <p className="font-bold text-blue-800 text-sm mb-1">사진 촬영이 어렵다면?</p>
             <p className="text-blue-700 text-xs">

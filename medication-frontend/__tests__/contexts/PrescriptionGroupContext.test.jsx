@@ -95,7 +95,7 @@ describe('PrescriptionGroupContext 특성화', () => {
         <Harness />
       </QueryClientProvider>,
     )
-    // ⚠️ `findByText('empty')` 으로 기다리면 안 된다 — groups 는 로딩 중에도 비어 있어
+    // 주의: `findByText('empty')` 으로 기다리면 안 된다 — groups 는 로딩 중에도 비어 있어
     //    'empty' 가 렌더되므로, 조회가 영원히 응답하지 않아도 통과한다(2026-09-15 실측).
     //    참조 비교는 data 가 undefined 로 **확정된 뒤**여야 하므로 isError 를 앵커로 쓴다.
     await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('true'))

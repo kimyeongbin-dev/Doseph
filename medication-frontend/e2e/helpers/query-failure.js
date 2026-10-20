@@ -6,7 +6,7 @@
 //   (5xx 는 2회 재시도 + backoff 라 타이밍 의존이 생긴다 — 안전망 규칙 R7).
 //   429 는 2026-09-14 E2E 에서 실제로 겪은 상태코드이기도 하다.
 //
-// ⚠️ 왜 "안정될 때까지" 가 필요한가 (2026-09-15 실측):
+// 주의: 왜 "안정될 때까지" 가 필요한가 (2026-09-15 실측):
 //   진입 직후 화면이 **스스로 한 번 더 조회**하는 경우가 있다. 예) /medication 은
 //   medications 가 도착하면 activeCount 가 0->N 으로 바뀌며 prescription-groups 를
 //   invalidate 한다(PrescriptionGroupContext.jsx:116). 이 2차 조회가 주입 해제 뒤에

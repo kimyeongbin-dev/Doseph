@@ -23,6 +23,8 @@ import { useInvalidateTodaySymptomLog, useTodaySymptomLog } from '@/queries/dail
 import toast from 'react-hot-toast'
 import {
   AlertTriangle,
+  Pill,
+  Target,
   Moon,
   Utensils,
   Dumbbell,
@@ -437,7 +439,7 @@ function LifestyleGuideContent() {
       <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
         {/* ── 새 가이드 버튼 ── */}
         <div className="flex items-center justify-between">
-          <p className="text-xs text-muted">{isGenerating ? '🤖 AI가 분석 중입니다...' : ''}</p>
+          <p className="text-xs text-muted">{isGenerating ? 'AI가 분석 중입니다...' : ''}</p>
           <button
             onClick={handleClickNewGuide}
             disabled={isGenerating || !profileId}
@@ -583,7 +585,7 @@ function LifestyleGuideContent() {
             return (
               <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-amber-500 text-sm">⚠️</span>
+                  <AlertTriangle size={14} className="text-amber-500 shrink-0" aria-hidden="true" />
                   <p className="text-xs text-amber-800 font-bold">
                     {formatFullDateTime(selectedGuide.created_at)} 에 만들어진 가이드예요
                   </p>
@@ -602,7 +604,10 @@ function LifestyleGuideContent() {
             {/* 복용 약 스냅샷 */}
             {selectedGuide.medication_snapshot?.length > 0 && (
               <div className="bg-surface rounded-2xl px-4 py-3 shadow-sm border border-line">
-                <p className="text-xs font-bold text-muted mb-2">💊 가이드 생성 시 복용 약</p>
+                <p className="text-xs font-bold text-muted mb-2 flex items-center gap-1">
+                  <Pill size={12} aria-hidden="true" />
+                  가이드 생성 시 복용 약
+                </p>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedGuide.medication_snapshot.map((med, i) => {
                     const name =
@@ -764,8 +769,8 @@ function LifestyleGuideContent() {
                   <div className="bg-surface rounded-2xl shadow-sm border border-line p-4">
                     <div className="flex items-center justify-between mb-3 gap-2">
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-muted">
-                          🎯 이 가이드에서 생성된 챌린지
+                        <p className="text-xs font-bold text-muted flex items-center gap-1">
+                          <Target size={12} aria-hidden="true" />이 가이드에서 생성된 챌린지
                         </p>
                         <p className="text-[11px] text-muted mt-0.5 break-keep">
                           총 {guideChallenges.length}개의 추천 챌린지를 페이지로 넘겨가며 둘러볼 수

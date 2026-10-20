@@ -162,7 +162,7 @@ export default function ChatModal({ onClose, profileId }) {
   //       (세션이 하나도 없으면 인사말만)
   // 서버와의 동기화라 effect 가 맞다. 다만 상태 변경은 전부 비동기 콜백 안에서만
   // 일어난다 — effect 본문에서 동기 setState 를 하면 렌더가 한 번 더 돈다.
-  // ⚠️ 세션 전환/생성/삭제는 각 이벤트 핸들러가 직접 메시지를 로드한다. 여기서
+  // 주의: 세션 전환/생성/삭제는 각 이벤트 핸들러가 직접 메시지를 로드한다. 여기서
   //    activeSessionId 를 다시 구독하면 전송 중 낙관적 메시지를 덮어쓸 수 있다.
   useEffect(() => {
     if (!hasProfile) return
