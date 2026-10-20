@@ -13,6 +13,9 @@ node_modules/
 out/
 build/
 
+# 브라우저 OCR 자산 — scripts/fetch-ocr-assets.mjs 가 빌드·dev 전에 받아 해시로 대조한다
+/public/ocr/
+
 # testing
 coverage/
 

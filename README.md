@@ -65,7 +65,8 @@ flowchart LR
     W --> PG
     W --> RD
     W --> OAI["OpenAI"]
-    W --> CLV["CLOVA OCR"]
+    User -.->|사진은 기기 안에서만| BOCR["브라우저 OCR<br/>PaddleOCR · WASM"]
+    BOCR -.->|약 줄 글자만| FE
     W -.->|정기 동기화| DSA["식약처<br/>회수 데이터"]
 ```
 
@@ -102,7 +103,7 @@ flowchart TD
 ### AI
 
 - OpenAI (Structured Output + Tool Calling)
-- CLOVA OCR
+- PaddleOCR (`ppu-paddle-ocr` + `onnxruntime-web`) — 브라우저 안에서 처방전을 읽는다. 사진은 기기를 떠나지 않고 서버는 약 줄 글자만 받는다
 - Sentence-Transformers
 - 자체 RAG 4-stage hybrid pipeline
 

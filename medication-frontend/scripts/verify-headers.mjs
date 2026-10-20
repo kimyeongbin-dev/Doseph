@@ -87,6 +87,19 @@ function verify(content) {
     failures.push("script-src 에 'unsafe-inline' 잔존 (해시 승격 무력화)")
   }
 
+  // v2.0 S2: 브라우저 OCR(WASM)은 'wasm-unsafe-eval' 이 있어야 돈다. 이것이 빠지면 OCR 화면만 조용히 죽는다.
+  //   반대로 'unsafe-eval'(JS eval 허용)은 넣지 않는다 — WASM 하나 때문에 JS eval 까지 열 이유가 없다.
+  if (scriptSrc && !scriptSrc[0].includes("'wasm-unsafe-eval'")) {
+    failures.push(
+      "script-src 에 'wasm-unsafe-eval' 없음 (브라우저 OCR 이 WASM 을 컴파일하지 못한다)",
+    )
+  }
+  if (scriptSrc && /(^|\s)'unsafe-eval'/.test(scriptSrc[0])) {
+    failures.push(
+      "script-src 에 'unsafe-eval' 존재 (JS eval 허용 — WASM 에는 'wasm-unsafe-eval' 이면 충분)",
+    )
+  }
+
   return failures
 }
 
