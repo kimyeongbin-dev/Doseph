@@ -57,7 +57,9 @@ async def test_save_one_medication_invokes_helper() -> None:
 
   assert result is fake_medication
   helper.assert_awaited_once()
-  args, kwargs = helper.await_args
+  call = helper.await_args
+  assert call is not None
+  args, kwargs = call
   assert (args[0] if args else kwargs["medication"]) is fake_medication
 
 
