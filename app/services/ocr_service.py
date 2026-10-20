@@ -2,7 +2,7 @@
 
 본 서비스는 HTTP 흐름의 thin layer 다:
 
-- ``enqueue_ocr_task``: 업로드 bytes -> dedup 체크 -> ocr_drafts INSERT
+- ``enqueue_ocr_text``: 약 줄 글자 -> dedup 체크 -> ocr_drafts INSERT
   (또는 기존 활성 draft 재사용) -> RQ ``ai`` 큐에 enqueue -> draft_id 반환
 - ``get_draft_data``: ocr_drafts SELECT -> ``OcrDraftPollResponse`` (단발 조회)
 - ``stream_draft_states``: SSE 용 async generator — status 변화 시점마다 yield,
@@ -11,7 +11,8 @@
 - ``confirm_and_save``: ocr_drafts 의 consumed_at 을 atomic 으로 설정한 뒤
   Medication 영구 저장
 
-OCR 자체 (CLOVA 호출 + 텍스트 정규화 + DB 매칭) 는 ai-worker 의
+글자 읽기(OCR)는 브라우저가 기기 안에서 하고 서버는 약 줄 글자만 받는다.
+텍스트 정규화 + DB 매칭은 ai-worker 의
 ``ai_worker.domains.ocr.jobs.process_ocr_task`` 가 비동기로 처리하고
 ocr_drafts 를 직접 UPDATE 한다. Redis 는 더 이상 결과 저장에 사용하지 않으며
 RQ 큐 broker 로만 쓰인다.
@@ -28,7 +29,6 @@ import time
 from typing import Any
 from uuid import UUID
 
-from fastapi import UploadFile
 from rq import Queue
 from tortoise.transactions import in_transaction
 
@@ -91,29 +91,31 @@ class OCRService:
     self._repository = repository or OcrDraftRepository()
     self._prescription_group_repository = PrescriptionGroupRepository()
 
-  async def enqueue_ocr_task(self, file: UploadFile, profile_id: UUID | str) -> OcrExtractResponse:
-    """업로드 bytes 를 ai-worker 로 enqueue 한다 (dedup 적용).
+  # ── 처방전 글자 접수 (dedup -> draft INSERT -> RQ enqueue) ─────────────
+  # 흐름: SHA256(text) -> 활성 draft 있음 -> 그 draft_id 반환
+  #                    -> 없음 -> ocr_drafts INSERT -> ai 큐에 글자만 enqueue
+  # 글자는 DB 에 저장하지 않는다 — 해시만 남기고 원문은 RQ payload 로만 건넨다.
+  async def enqueue_ocr_text(self, text: str, profile_id: UUID | str) -> OcrExtractResponse:
+    """브라우저가 보낸 약 줄 글자를 ai-worker 로 enqueue 한다 (dedup 적용).
 
-    같은 사용자 + 같은 image_hash + 미consume 인 draft 가 이미 있으면
+    같은 프로필 + 같은 text_hash + 미consume 인 draft 가 이미 있으면
     새 enqueue 없이 기존 draft_id 를 반환한다.
 
     Args:
-        file: 사용자가 업로드한 처방전 이미지.
+        text: 기기에서 OCR 후 약 줄만 남긴 글자.
         profile_id: 업로드한 프로필 ID.
 
     Returns:
         ``OcrExtractResponse`` — draft_id 와 빈 medicines 리스트.
     """
-    image_bytes = await file.read()
-    image_hash = hashlib.sha256(image_bytes).hexdigest()
-    filename = file.filename or "prescription.jpg"
+    text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
 
-    existing = await self._repository.find_active_by_hash(profile_id, image_hash)
+    existing = await self._repository.find_active_by_hash(profile_id, text_hash)
     if existing is not None:
       return OcrExtractResponse(draft_id=str(existing.id), medicines=[])
 
-    draft = await self._repository.create_pending(profile_id, image_hash, filename)
-    self._queue.enqueue(_OCR_JOB_REF, image_bytes, filename, str(draft.id))
+    draft = await self._repository.create_pending(profile_id, text_hash)
+    self._queue.enqueue(_OCR_JOB_REF, text, str(draft.id))
     return OcrExtractResponse(draft_id=str(draft.id), medicines=[])
 
   async def get_draft_data(

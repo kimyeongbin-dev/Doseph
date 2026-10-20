@@ -197,7 +197,7 @@ services:
       PYTHONPYCACHEPREFIX: /tmp/pycache
       LOG_DIR: /app/logs
     networks:
-      - frontend  # OpenAI / Kakao Local / CLOVA OCR 외부 호출
+      - frontend  # OpenAI / Kakao Local / Gemini 외부 호출
       - backend   # Redis
     healthcheck:
       test: ["CMD", "pgrep", "-f", "python"]

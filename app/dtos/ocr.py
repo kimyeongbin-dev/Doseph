@@ -7,7 +7,28 @@ operations including medicine extraction, draft persistence, and confirmation.
 from datetime import date, datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+# 측정(합성 처방전 36장)에서 보낸 글자는 최대 189자였다 — 약이 10개를 넘는 처방전도 담을 여유.
+OCR_TEXT_MAX_LENGTH = 2000
+
+
+class OcrTextUploadRequest(BaseModel):
+  """브라우저 OCR 이 고른 «약 줄» 글자 — 서버가 받는 처방전 입력의 전부.
+
+  사진은 기기를 떠나지 않는다. 이미지·파일명 같은 다른 필드를 실어 보내면 거부한다.
+  """
+
+  model_config = ConfigDict(extra="forbid")
+
+  # 공백만 온 글자는 pattern 으로 거부한다. field_validator 의 ValueError 는 오류 ctx 에
+  # 예외 객체가 실려 전역 검증 핸들러의 JSON 직렬화가 깨진다(400 대신 500).
+  text: str = Field(
+    min_length=1,
+    max_length=OCR_TEXT_MAX_LENGTH,
+    pattern=r"\S",
+    description="기기에서 OCR 후 약 줄만 남긴 글자 (줄바꿈으로 구분)",
+  )
 
 
 class OcrDraftStatus(StrEnum):
@@ -15,7 +36,7 @@ class OcrDraftStatus(StrEnum):
 
   PENDING: ai-worker 가 처리 중. 프론트는 폴링을 계속한다.
   READY:   처리 완료. ``medicines`` 필드에 결과가 채워져 있다.
-  NO_TEXT: OCR 결과에 텍스트가 없음 (블러·빈 이미지 등). 사용자에게 재촬영 안내.
+  NO_TEXT: 받은 글자에 내용이 없음. 사용자에게 재촬영 안내.
   NO_CANDIDATES: 텍스트는 있지만 약품명 후보 추출 실패. 사용자에게 다른 이미지 안내.
   FAILED:  처리 중 예외 발생. 일반 에러 안내.
   """

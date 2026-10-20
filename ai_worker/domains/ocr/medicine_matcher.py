@@ -24,7 +24,8 @@ async def search_candidates_in_open_db(candidates: list[str]) -> list[ExtractedM
 
   # 💡 LLM이 이름, 용량, 타입을 분리해서 가져옵니다.
   extracted_items = await _extract_medicines_with_llm(full_text)
-  logger.info("LLM Extracted Items: %s", extracted_items)
+  # 약 이름은 사용자의 처방 내용이라 건수만 남긴다.
+  logger.info("LLM Extracted Items: %d", len(extracted_items))
 
   matched: list[ExtractedMedicine] = []
   seen_names: set[str] = set()

@@ -3,18 +3,17 @@
 본 모듈은 RQ task entry point 만 정의한다. 실제 비즈니스 로직은
 도메인 안의 다른 모듈로 위임한다:
 
-- CLOVA OCR 호출 → ``text_extractor``
 - 텍스트 정규화 → ``text_normalizer``
 - DB 매칭 → ``medicine_matcher.search_candidates_in_open_db`` (Tortoise 가 이미 열린 상태)
 - 결과 영속 저장 → ``ocr_drafts`` 테이블 UPDATE (Redis 미사용)
 
-흐름: CLOVA OCR -> 텍스트 정규화 -> 후보 추출
-       -> [Tortoise lifecycle] DB 매칭 -> ocr_drafts UPDATE
-       (CLOVA·정규화 단계는 sync, DB 단계는 한 번의 init/close 로 묶음)
-
-이미지는 디스크에 저장하지 않고 RQ payload 의 bytes 로 직접 받는다.
+글자 읽기(OCR)는 브라우저가 기기 안에서 하고, 본 job 은 약 줄만 남긴 글자를
+RQ payload 로 받는다. 사진은 서버에 오지 않는다.
 draft_id 는 FastAPI 가 ``ocr_drafts`` 에 INSERT 하면서 만든 UUID 다 —
 본 job 은 그 row 를 UPDATE 한다.
+
+받은 글자는 화이트리스트를 통과했어도 사용자의 처방 내용이므로 로그에 남기지 않는다
+(길이·draft_id 만 남긴다).
 """
 
 import asyncio
@@ -23,7 +22,6 @@ from tortoise import Tortoise
 
 from ai_worker.core.logger import get_logger
 from ai_worker.domains.ocr.medicine_matcher import search_candidates_in_open_db
-from ai_worker.domains.ocr.text_extractor import extract_text_from_image_bytes
 from ai_worker.domains.ocr.text_normalizer import clean_ocr_text, extract_medicine_candidates
 from app.db.databases import TORTOISE_ORM
 from app.dtos.ocr import ExtractedMedicine
@@ -33,48 +31,39 @@ from app.repositories.ocr_draft_repository import OcrDraftRepository
 logger = get_logger(__name__)
 
 
-def process_ocr_task(image_bytes: bytes, filename: str, draft_id: str) -> bool:
-  """[RQ Task] 처방전 이미지 한 장을 처리해 ``ocr_drafts`` 를 UPDATE 한다.
+def process_ocr_task(text: str, draft_id: str) -> bool:
+  """[RQ Task] 브라우저가 보낸 약 줄 글자를 처리해 ``ocr_drafts`` 를 UPDATE 한다.
 
   Args:
-      image_bytes: 업로드된 처방전 이미지의 raw bytes.
-      filename: 원본 파일명 — CLOVA OCR payload 에 전달.
+      text: 기기에서 OCR 후 약 줄만 남긴 글자.
       draft_id: 사전에 INSERT 된 ``ocr_drafts.id`` (UUID 문자열).
 
   Returns:
       성공 시 ``True``, 실패 시 ``False``.
   """
-  logger.info("Starting OCR task: filename=%s draft_id=%s size=%d", filename, draft_id, len(image_bytes))
+  logger.info("Starting OCR task: draft_id=%s length=%d", draft_id, len(text))
   try:
-    return _run_pipeline(image_bytes, filename, draft_id)
+    return _process_text(text, draft_id)
   except Exception:
     logger.exception("OCR task failed for %s", draft_id)
     _persist_terminal(draft_id, OcrDraftStatusValue.FAILED)
     return False
 
 
-def _run_pipeline(image_bytes: bytes, filename: str, draft_id: str) -> bool:
-  """이미지에서 글자를 얻은 뒤 텍스트 처리 단계로 넘긴다."""
-  raw_text = extract_text_from_image_bytes(image_bytes, filename)
-  return _process_text(raw_text, draft_id)
-
-
-# ── OCR 텍스트 처리 (글자를 어디서 얻었는지와 무관) ─────────────────────
+# ── OCR 텍스트 처리 ─────────────────────────────────────────────────────
 # 흐름: 빈 텍스트 -> NO_TEXT
 #       -> 정규화 -> 후보 추출 -> 후보 없음 -> NO_CANDIDATES
 #       -> [Tortoise lifecycle] DB 매칭 -> ocr_drafts UPDATE
-# 글자 얻기와 갈라 둔 것은 브라우저 OCR 이 텍스트를 직접 보내게 될 때
-# 이 단계를 그대로 쓰기 위해서다.
 def _process_text(raw_text: str, draft_id: str) -> bool:
   """OCR 텍스트를 정규화·매칭해 ``ocr_drafts`` 를 UPDATE 한다."""
   if not raw_text.strip():
-    logger.warning("No text extracted for draft %s", draft_id)
+    logger.warning("No text received for draft %s", draft_id)
     _persist_terminal(draft_id, OcrDraftStatusValue.NO_TEXT)
     return False
 
   candidates = extract_medicine_candidates(clean_ocr_text(raw_text))
   if not candidates:
-    logger.warning("No medicine candidates found in OCR text")
+    logger.warning("No medicine candidates found in OCR text for draft %s", draft_id)
     _persist_terminal(draft_id, OcrDraftStatusValue.NO_CANDIDATES)
     return False
 

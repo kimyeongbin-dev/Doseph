@@ -15,46 +15,39 @@ from app.models.ocr_draft import OcrDraft, OcrDraftStatusValue
 class OcrDraftRepository:
   """OcrDraft CRUD — service 레이어 전용 진입점."""
 
-  async def create_pending(
-    self,
-    profile_id: UUID | str,
-    image_hash: str,
-    filename: str | None,
-  ) -> OcrDraft:
+  async def create_pending(self, profile_id: UUID | str, text_hash: str) -> OcrDraft:
     """status=pending 인 신규 draft 를 생성한다.
 
     Args:
         profile_id: 업로드한 프로필 ID.
-        image_hash: SHA256(image_bytes).
-        filename: 원본 파일명 (없으면 None).
+        text_hash: SHA256(약 줄 글자).
 
     Returns:
         저장된 OcrDraft (id 포함).
     """
     return await OcrDraft.create(
       profile_id=str(profile_id),
-      image_hash=image_hash,
-      filename=filename,
+      text_hash=text_hash,
       status=OcrDraftStatusValue.PENDING.value,
     )
 
   async def find_active_by_hash(
     self,
     profile_id: UUID | str,
-    image_hash: str,
+    text_hash: str,
   ) -> OcrDraft | None:
-    """동일 프로필 + 동일 image_hash + 미consume draft 가 있으면 반환 (dedup).
+    """동일 프로필 + 동일 text_hash + 미consume draft 가 있으면 반환 (dedup).
 
     Args:
         profile_id: 사용자 프로필 ID.
-        image_hash: SHA256(image_bytes).
+        text_hash: SHA256(약 줄 글자).
 
     Returns:
         활성 draft 또는 None.
     """
     return await OcrDraft.filter(
       profile_id=str(profile_id),
-      image_hash=image_hash,
+      text_hash=text_hash,
       consumed_at__isnull=True,
     ).first()
 
@@ -129,7 +122,7 @@ class OcrDraftRepository:
     ``no_text`` / ``no_candidates`` / ``failed`` 도달 시 ai-worker 가 그
     자리에서 호출한다. ``consumed_at`` 을 함께 채우므로 ``list_active`` 의
     ``consumed_at IS NULL`` 게이트로 자동 제외되고, ``find_active_by_hash``
-    의 dedup 매칭에서도 자동 제외 → 동일 사진 재시도 시 새 draft 정상 생성.
+    의 dedup 매칭에서도 자동 제외 → 같은 글자 재시도 시 새 draft 정상 생성.
 
     Args:
         draft_id: 처리 중이던 draft ID.

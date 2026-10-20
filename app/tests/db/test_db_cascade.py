@@ -220,7 +220,7 @@ async def test_deleting_profile_removes_every_child_row(db: None) -> None:
     [family.id],
   )
   await connection.execute_query(
-    "insert into ocr_drafts (id, image_hash, profile_id) values (gen_random_uuid(), 'qa01-hash', $1)",
+    "insert into ocr_drafts (id, text_hash, profile_id) values (gen_random_uuid(), 'qa01-hash', $1)",
     [family.id],
   )
 

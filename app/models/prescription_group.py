@@ -18,7 +18,7 @@ class PrescriptionGroupSource(StrEnum):
   """처방전 그룹의 생성 경로.
 
   Attributes:
-      OCR: 사용자가 처방전 이미지를 업로드 → CLOVA OCR → confirm 한 흐름.
+      OCR: 사용자가 처방전을 찍어 기기에서 읽은 약 줄을 보냄 → 매칭 → confirm 한 흐름.
       MANUAL: 사용자가 약품을 직접 입력으로 추가한 흐름.
       MIGRATED: 마이그레이션 #24 시점에 기존 medication 들로부터 산출된 그룹.
   """
