@@ -120,6 +120,36 @@ def _tool_call_to_worker_dict(
   return payload
 
 
+# ── 도구 1회 호출 뒤 2nd LLM 에 넘길 메시지 ─────────────────────────
+# 흐름: 지난 대화 -> 사용자 질문 -> «도구를 불렀다» 는 어시스턴트 메시지 -> 도구 결과
+# 키워드 위치 검색과 회수 조회가 같은 모양을 각자 복사해 들고 있었다(B-18 배치 1 에서 합침).
+def _single_tool_second_turn(
+  history: list[dict[str, str]],
+  content: str,
+  tool_call: ToolCall,
+  results: dict[str, Any],
+) -> list[dict[str, Any]]:
+  assistant_with_tool: dict[str, Any] = {
+    "role": "assistant",
+    "content": None,
+    "tool_calls": [
+      {
+        "id": tool_call.tool_call_id,
+        "type": "function",
+        "function": {
+          "name": tool_call.name,
+          "arguments": json.dumps(tool_call.arguments, ensure_ascii=False),
+        },
+      }
+    ],
+  }
+  tool_message = _tool_result_message(
+    tool_call.tool_call_id,
+    results.get(tool_call.tool_call_id, {"error": "no result"}),
+  )
+  return [*history, {"role": "user", "content": content}, assistant_with_tool, tool_message]
+
+
 def _tool_result_message(tool_call_id: str, result: dict[str, Any]) -> dict[str, Any]:
   """Wrap one tool result as the ``role="tool"`` message the LLM expects."""
   return {
@@ -672,30 +702,7 @@ class MessageService:
     logger.info("[Chat] session=%s location_search keyword=%r", sid, location_query.query)
     results = await run_tool_calls_via_rq(calls=worker_calls, queue=self._get_queue())
 
-    assistant_with_tool = {
-      "role": "assistant",
-      "content": None,
-      "tool_calls": [
-        {
-          "id": tool_call.tool_call_id,
-          "type": "function",
-          "function": {
-            "name": tool_call.name,
-            "arguments": json.dumps(tool_call.arguments, ensure_ascii=False),
-          },
-        }
-      ],
-    }
-    tool_message = _tool_result_message(
-      tool_call.tool_call_id,
-      results.get(tool_call.tool_call_id, {"error": "no result"}),
-    )
-    second_messages = [
-      *history,
-      {"role": "user", "content": content},
-      assistant_with_tool,
-      tool_message,
-    ]
+    second_messages = _single_tool_second_turn(history, content, tool_call, results)
     completion = await generate_chat_response_via_rq(
       messages=second_messages,
       queue=self._get_queue(),
@@ -823,30 +830,7 @@ class MessageService:
     )
     results = await run_tool_calls_via_rq(calls=worker_calls, queue=self._get_queue())
 
-    assistant_with_tool = {
-      "role": "assistant",
-      "content": None,
-      "tool_calls": [
-        {
-          "id": tool_call.tool_call_id,
-          "type": "function",
-          "function": {
-            "name": tool_call.name,
-            "arguments": json.dumps(tool_call.arguments, ensure_ascii=False),
-          },
-        }
-      ],
-    }
-    tool_message = _tool_result_message(
-      tool_call.tool_call_id,
-      results.get(tool_call.tool_call_id, {"error": "no result"}),
-    )
-    second_messages = [
-      *history,
-      {"role": "user", "content": content},
-      assistant_with_tool,
-      tool_message,
-    ]
+    second_messages = _single_tool_second_turn(history, content, tool_call, results)
     completion = await generate_chat_response_via_rq(
       messages=second_messages,
       queue=self._get_queue(),
