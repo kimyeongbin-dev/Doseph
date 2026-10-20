@@ -221,7 +221,7 @@ async def confirm_and_save_medication(
   request: ConfirmMedicationRequest,
   ocr_service: Annotated[OCRService, Depends(get_ocr_service)],
   profile: Annotated[Profile, Depends(get_owned_profile_or_self)],
-) -> dict:
+) -> dict[str, str]:
   """사용자가 검수·수정한 최종 약품 리스트를 DB 에 저장한다."""
   try:
     return await ocr_service.confirm_and_save(request, profile.id)

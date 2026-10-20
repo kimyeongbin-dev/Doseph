@@ -60,7 +60,7 @@ async def validation_exception_handler(_request: Request, exc: RequestValidation
   )
 
 
-def _public_errors(exc: RequestValidationError) -> list[dict]:
+def _public_errors(exc: RequestValidationError) -> list[dict[str, object]]:
   """검증 오류를 JSON 으로 내보낼 수 있는 모양으로 줄인다.
 
   ``input`` 은 뺀다 — 바이트(multipart 본문)면 직렬화가 깨져 500 이 되고, 글자면 사용자가
@@ -145,15 +145,17 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 # localhost is only accessible from local machine, so it's safe to allow in all environments
 # 로컬 독립 API 전환(④): FE(:3000)가 fastapi(:8000)를 직접 호출 → nginx:80 오리진 제거.
 _LOCALHOST_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
+# FRONTEND_URL 이 비어 있으면 None 이 오리진 목록에 들어갔다(어떤 요청과도 일치하지 않아 동작은 같다) — 타입만 맞춘다.
+_FRONTEND_ORIGINS = [config.FRONTEND_URL] if config.FRONTEND_URL else []
 
 if config.ENV == Env.PROD:
   # Production: FRONTEND_URL (env-injected, e.g. https://doseph.com) + localhost for local prod testing
-  cors_origins = [config.FRONTEND_URL, *_LOCALHOST_ORIGINS]
+  cors_origins = [*_FRONTEND_ORIGINS, *_LOCALHOST_ORIGINS]
   cors_methods = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
   cors_headers = ["Content-Type", "Authorization"]
 elif config.ENV == Env.DEV:
   # Development/test: FRONTEND_URL + localhost allowed
-  cors_origins = [config.FRONTEND_URL, *_LOCALHOST_ORIGINS]
+  cors_origins = [*_FRONTEND_ORIGINS, *_LOCALHOST_ORIGINS]
   cors_methods = ["*"]
   cors_headers = ["*"]
 else:

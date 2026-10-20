@@ -114,13 +114,13 @@ async def _match_clean_name(
   fuzzy_results = await repo.fuzzy_search_by_name(pure_name, threshold=_FUZZY_THRESHOLD, limit=_FUZZY_LIMIT)
   if fuzzy_results:
     best = fuzzy_results[0]
-    med = await repo.get_by_id(best["id"])
-    if med and pure_name not in seen_names:
+    fuzzy_med = await repo.get_by_id(best["id"])
+    if fuzzy_med and pure_name not in seen_names:
       seen_names.add(pure_name)
       matched.append(
         ExtractedMedicine(
-          medicine_name=_build_display_name(med.medicine_name),  # 💡 DB 이름 뒤에 용량을 예쁘게 조립!
-          category=med.category,
+          medicine_name=_build_display_name(fuzzy_med.medicine_name),  # 💡 DB 이름 뒤에 용량을 예쁘게 조립!
+          category=fuzzy_med.category,
           raw_ocr_name=pure_name,
           is_llm_corrected=True,
           match_score=best["score"],

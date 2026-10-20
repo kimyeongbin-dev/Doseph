@@ -108,6 +108,6 @@ async def _update_status_only(draft_id: str, status: OcrDraftStatusValue) -> Non
     await Tortoise.close_connections()
 
 
-def _to_jsonable_dict(med: ExtractedMedicine) -> dict:
+def _to_jsonable_dict(med: ExtractedMedicine) -> dict[str, object]:
   """ExtractedMedicine -> JSONField 직렬화 가능한 dict (date -> ISO 문자열)."""
   return med.model_dump(mode="json")

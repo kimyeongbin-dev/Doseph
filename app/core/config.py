@@ -8,6 +8,7 @@ Follows modern Python configuration patterns with pydantic-settings.
 from enum import StrEnum
 from pathlib import Path
 import secrets
+from typing import TypedDict
 import zoneinfo
 
 from pydantic import Field, model_validator
@@ -213,14 +214,22 @@ class Config(BaseSettings):
 # ── API 문서 노출 정책 ────────────────────────────────────────────────
 # 흐름: ENV 판별 -> prod 면 docs/redoc/openapi URL 을 None 으로 반환(비노출)
 #       -> 프로덕션에서 API 스키마 정보 유출 차단, 개발/로컬만 문서 제공
-def docs_urls(env: Env) -> dict[str, str | None]:
+class DocsUrls(TypedDict):
+  """``FastAPI(**docs_urls(...))`` 로 펼칠 키 — 키마다 타입이 정해져야 mypy 가 인자를 맞춰 본다."""
+
+  docs_url: str | None
+  redoc_url: str | None
+  openapi_url: str | None
+
+
+def docs_urls(env: Env) -> DocsUrls:
   """Return FastAPI docs URLs, disabled in production.
 
   Args:
       env: The active deployment environment.
 
   Returns:
-      dict[str, str | None]: docs_url/redoc_url/openapi_url. All None in
+      DocsUrls: docs_url/redoc_url/openapi_url. All None in
       production so the API schema is not exposed publicly.
   """
   if env == Env.PROD:

@@ -97,7 +97,7 @@ class OcrDraftRepository:
     self,
     draft_id: UUID | str,
     status: OcrDraftStatusValue,
-    medicines: list[dict],
+    medicines: list[dict[str, object]],
   ) -> None:
     """ai-worker 가 처리 완료 후 호출 — 결과를 저장한다.
 

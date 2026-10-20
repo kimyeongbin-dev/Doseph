@@ -7,6 +7,7 @@
 """
 
 from enum import StrEnum
+from uuid import UUID
 
 from tortoise import fields, models
 
@@ -42,6 +43,8 @@ class OcrDraft(models.Model):
     on_delete=fields.CASCADE,
     description="업로드 프로필",
   )
+  # Tortoise 가 실행 중에 만드는 FK 열 속성 — 타입 검사기에 알리는 표기일 뿐 필드를 더하지 않는다.
+  profile_id: UUID
   status = fields.CharField(
     max_length=16,
     default=OcrDraftStatusValue.PENDING.value,
