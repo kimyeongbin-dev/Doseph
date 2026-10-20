@@ -566,7 +566,7 @@ class MedicationService:
     )
 
 
-def _to_precaution_sections(precautions: dict | None) -> list[PrecautionSection]:
+def _to_precaution_sections(precautions: dict[str, list[str]] | None) -> list[PrecautionSection]:
   """JSONB precautions dict → list[PrecautionSection] (카테고리 순서 보존).
 
   None / 빈 dict / 비-dict 입력 → 빈 list.
