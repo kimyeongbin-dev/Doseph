@@ -37,11 +37,13 @@ app = FastAPI(
 # Global exception handlers
 
 
+# ── 요청 검증 실패 응답 ───────────────────────────────────────────────
+# 흐름: 오류 중 JSON 문법 오류(json_invalid)가 있으면 400 -> 아니면 422 -> 공개 가능한 내역만 싣는다
+# RFC 9110 의 구분이다: 문법이 깨진 요청은 400, 문법은 맞는데 값이 규칙을 어기면 422.
+# 예전엔 전부 400 으로 바꿨는데, 그래서 FE 의 422 문구와 OpenAPI 의 422 선언이 거짓이 돼 있었다.
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
-  """Handle Pydantic validation errors.
-
-  Converts 422 validation errors to 400 bad request with detailed error info.
+  """Handle Pydantic validation errors (400 for malformed JSON, 422 otherwise).
 
   Args:
       request: The incoming request.
@@ -50,8 +52,9 @@ async def validation_exception_handler(_request: Request, exc: RequestValidation
   Returns:
       JSONResponse: Error response with validation details.
   """
+  malformed = any(error.get("type") == "json_invalid" for error in exc.errors())
   return JSONResponse(
-    status_code=status.HTTP_400_BAD_REQUEST,
+    status_code=status.HTTP_400_BAD_REQUEST if malformed else status.HTTP_422_UNPROCESSABLE_CONTENT,
     content={
       "error": "validation_error",
       "error_description": "입력값 유효성 검사에 실패했습니다.",

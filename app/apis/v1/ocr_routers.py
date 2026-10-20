@@ -13,7 +13,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
 from app.dependencies.security import get_current_account
@@ -88,11 +88,30 @@ async def get_owned_profile_or_self(
   return profile
 
 
+# ── 본문 형식 확인 (JSON 만) ──────────────────────────────────────────
+# 흐름: Content-Type 의 미디어 타입만 떼어 비교 -> application/json 이 아니면 415
+# 옛 앱의 multipart 이미지 업로드가 «값이 틀렸다(422)» 가 아니라 «형식을 안 받는다» 로 거절되게 한다.
+# 의존성은 본문 검증보다 먼저 풀리므로 이미지 바이트를 파싱하려 들지 않는다.
+def require_json_body(request: Request) -> None:
+  """본문이 JSON 이 아니면 415 Unsupported Media Type."""
+  media_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+  if media_type != "application/json":
+    raise HTTPException(
+      status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+      detail="Request body must be application/json.",
+    )
+
+
 @router.post(
   "/extract",
   response_model=OcrExtractResponse,
   status_code=status.HTTP_200_OK,
   summary="기기에서 OCR 한 약 줄 글자를 받아 약품 매칭 비동기 처리 시작",
+  dependencies=[Depends(require_json_body)],
+  responses={
+    415: {"description": "본문이 JSON 이 아님 (이미지 업로드는 받지 않는다)"},
+    422: {"description": "글자가 비었거나 상한을 넘었거나 계약 밖 필드가 있음"},
+  },
 )
 async def extract_medication_from_text(
   request: OcrTextUploadRequest,
@@ -109,7 +128,7 @@ async def extract_medication_from_text(
   기존 draft_id 가 반환된다 (RQ 재enqueue 없음).
 
   Args:
-      request: 약 줄 글자 (``{"text": ...}`` 외 필드는 422).
+      request: 약 줄 글자 (``{"text": ...}`` 외 필드는 422, JSON 이 아닌 본문은 415).
       ocr_service: OCR 서비스 인스턴스.
       profile: 요청 대상 프로필 (의존성).
 

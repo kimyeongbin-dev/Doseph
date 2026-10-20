@@ -8,7 +8,10 @@
 - 같은 프로필이 같은 글자를 다시 보내면 새 작업 없이 기존 draft 를 돌려준다.
 - multipart 이미지 업로드는 더 이상 받지 않는다.
 
-검증 실패는 422 가 아니라 400 이다 — 앱 전역 핸들러(``validation_exception_handler``)가 바꾼다.
+상태 코드는 RFC 9110 의 구분을 따른다:
+- JSON 이 아닌 본문(multipart 이미지 등) → 415 — 서버가 그 형식을 받지 않는다
+- 문법이 깨진 JSON → 400 — 요청 자체가 잘못 만들어졌다
+- 문법은 맞지만 값이 규칙을 어김(공백·상한 초과·추가 필드) → 422
 """
 
 from collections.abc import AsyncGenerator
@@ -143,6 +146,31 @@ class TestExtractRoute:
 
     response = await client.post("/api/v1/ocr/extract", json={"text": "  "})
 
+    assert response.status_code == 422
+    assert response.json()["error"] == "validation_error"
+    fake_service.enqueue_ocr_text.assert_not_awaited()
+
+  @pytest.mark.asyncio
+  async def test_extra_field_is_unprocessable(self, ocr_client: tuple[AsyncClient, MagicMock]) -> None:
+    """글자 외 필드(이미지 dataURL 등)를 실으면 422 — JSON 은 맞지만 계약 밖이다."""
+    client, fake_service = ocr_client
+
+    response = await client.post(
+      "/api/v1/ocr/extract", json={"text": _DRUG_LINES, "image": "data:image/png;base64,AAAA"}
+    )
+
+    assert response.status_code == 422
+    fake_service.enqueue_ocr_text.assert_not_awaited()
+
+  @pytest.mark.asyncio
+  async def test_malformed_json_is_bad_request(self, ocr_client: tuple[AsyncClient, MagicMock]) -> None:
+    """문법이 깨진 JSON 은 값 검증 이전의 문제라 400 이다."""
+    client, fake_service = ocr_client
+
+    response = await client.post(
+      "/api/v1/ocr/extract", content=b'{"text": ', headers={"Content-Type": "application/json"}
+    )
+
     assert response.status_code == 400
     fake_service.enqueue_ocr_text.assert_not_awaited()
 
@@ -153,7 +181,7 @@ class TestExtractRoute:
 
     response = await client.post("/api/v1/ocr/extract", json={"text": "가" * (OCR_TEXT_MAX_LENGTH + 1)})
 
-    assert response.status_code == 400
+    assert response.status_code == 422
     assert response.json()["details"], "오류 내역이 비면 아래 단언은 아무것도 못 본다"
     assert "가가가" not in response.text
 
@@ -166,5 +194,5 @@ class TestExtractRoute:
       files={"file": ("rx.png", b"\x89PNG\r\n\x1a\n", "image/png")},
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 415
     fake_service.enqueue_ocr_text.assert_not_awaited()
