@@ -5,10 +5,10 @@ including creation, AI chat requests, and response serialization.
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.messages import SenderType
 
@@ -87,18 +87,27 @@ class ChatAskPendingResponse(BaseModel):
 
 
 class ToolResultRequest(BaseModel):
-  """``POST /messages/tool-result`` request body (Y-7).
+  """``POST /messages/tool-result`` request body.
 
-  ``status="ok"`` requires both ``lat`` and ``lng``; the service layer
-  (``resolve_pending_turn``) enforces this at runtime and returns 400
-  on violation, so we keep the fields optional here to surface the
-  denial path as a single validated shape.
+  허용(``ok``)과 거부(``denied``)를 한 모양으로 받는다. 좌표는 허용일 때만 필수라
+  필드는 선택으로 두고, 조합 규칙은 아래 검증기가 경계에서 잡는다(위반 = 422).
   """
 
   turn_id: str = Field(..., description="Pending turn id from the /ask 202 response")
   status: Literal["ok", "denied"] = Field(..., description="Geolocation permission outcome")
-  lat: float | None = Field(default=None, description="Latitude (WGS84) when status='ok'")
-  lng: float | None = Field(default=None, description="Longitude (WGS84) when status='ok'")
+  lat: float | None = Field(
+    default=None, allow_inf_nan=False, description="Latitude (WGS84) — required when status='ok'"
+  )
+  lng: float | None = Field(
+    default=None, allow_inf_nan=False, description="Longitude (WGS84) — required when status='ok'"
+  )
+
+  # 좌표 없는 허용은 대기 턴을 소비하기 전에 끊는다 — 서비스까지 내려가면 claim 이 낭비된다.
+  @model_validator(mode="after")
+  def _ok_requires_coords(self) -> Self:
+    if self.status == "ok" and (self.lat is None or self.lng is None):
+      raise ValueError("lat and lng are required when status='ok'")
+    return self
 
 
 class ToolResultResponse(BaseModel):

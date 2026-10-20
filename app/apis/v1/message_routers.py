@@ -110,7 +110,7 @@ async def ask_message(
   status_code=status.HTTP_200_OK,
   summary="Resolve a pending turn with a geolocation callback",
   responses={
-    status.HTTP_400_BAD_REQUEST: {"description": "status='ok' without lat/lng"},
+    status.HTTP_422_UNPROCESSABLE_CONTENT: {"description": "status='ok' without finite lat/lng"},
     status.HTTP_403_FORBIDDEN: {"description": "turn_id belongs to another account"},
     status.HTTP_410_GONE: {"description": "turn_id expired or unknown"},
   },
@@ -122,7 +122,8 @@ async def submit_tool_result(
 ) -> ToolResultResponse:
   """Complete a turn that was paused for GPS permission.
 
-  The 400 / 403 / 410 branches are raised by the service layer (see
+  The 422 (``status='ok'`` without finite coordinates) is raised at the edge by
+  ``ToolResultRequest`` validation. The 403 / 410 branches are raised by the service layer (see
   ``MessageService.resolve_pending_turn``) and bubble up unchanged as
   standard FastAPI ``HTTPException`` responses.
 

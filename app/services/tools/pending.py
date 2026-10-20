@@ -16,6 +16,7 @@ Hash 대신 JSON string 을 쓰는 이유:
 3. 필드 추가 시 마이그레이션 부담 없음
 """
 
+from collections.abc import Callable
 import json
 import logging
 import time
@@ -64,7 +65,7 @@ class InMemoryPendingTurnStore:
     self,
     *,
     ttl_sec: int = DEFAULT_TTL_SEC,
-    clock: "callable[[], float] | None" = None,
+    clock: Callable[[], float] | None = None,
   ) -> None:
     self._ttl = ttl_sec
     self._clock = clock or time.monotonic

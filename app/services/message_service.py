@@ -48,7 +48,6 @@ _GEOLOCATION_DENIED_MESSAGE = "Permission denied: user rejected geolocation"
 # HTTP status codes referenced inside ``resolve_pending_turn`` — the
 # ``status`` parameter shadows ``fastapi.status`` in that method, so the
 # symbolic aliases are imported up-front to avoid an inline alias.
-_HTTP_400_BAD_REQUEST = 400
 _HTTP_403_FORBIDDEN = 403
 _HTTP_410_GONE = 410
 
@@ -69,17 +68,26 @@ def _preview(text: str, limit: int = _LOG_PREVIEW_LIMIT) -> str:
 
 
 def _is_valid_coords(lat: float | None, lng: float | None) -> bool:
-  """``lat``/``lng`` 가 유한한 숫자값인지 검증.
-
-  None / NaN / Infinity / 비숫자 모두 거부 — 잘못된 좌표가 ai-worker 까지
-  내려가 Kakao API 호출에서 ValueError 로 터지는 것을 callback 진입 단계에서
-  명확한 400 으로 끊는다.
-  """
+  """``lat``/``lng`` 가 유한한 숫자값인지 검증 — None / NaN / Infinity / 비숫자 / bool 거부."""
   if not isinstance(lat, (int, float)) or not isinstance(lng, (int, float)):
     return False
   if isinstance(lat, bool) or isinstance(lng, bool):  # bool 은 int 의 서브클래스
     return False
   return math.isfinite(lat) and math.isfinite(lng)
+
+
+# ── 위치 콜백 → 워커에 넘길 좌표 ────────────────────────────────────
+# 흐름: 거부 -> None / 허용 + 유한한 좌표 -> {"lat", "lng"} / 허용 + 그 밖 -> ValueError
+# 요청 경계(ToolResultRequest)가 422 로 먼저 막는다. 여기는 경계를 건너뛴 직접 호출의 방어선이고,
+# 잘못된 좌표가 워커까지 내려가 Kakao 호출에서 터지는 것을 대기 턴 claim 전에 끊는다.
+# HTTP 를 모르는 ValueError 를 던진다 — 서비스는 프레임워크에 의존하지 않는다.
+def _geolocation_or_none(status: str, lat: float | None, lng: float | None) -> dict[str, float] | None:
+  if status != _STATUS_OK:
+    return None
+  # _is_valid_coords 가 None 도 거른다. 뒤의 None 비교는 타입 검사기에 float 임을 알리는 것뿐이다.
+  if not _is_valid_coords(lat, lng) or lat is None or lng is None:
+    raise ValueError("lat and lng must be finite numbers when status='ok'")
+  return {"lat": float(lat), "lng": float(lng)}
 
 
 def _chat_messages_to_history(messages: list[ChatMessage]) -> list[dict[str, str]]:
@@ -111,6 +119,36 @@ def _tool_call_to_worker_dict(
   if profile_id is not None:
     payload["profile_id"] = profile_id
   return payload
+
+
+# ── 도구 1회 호출 뒤 2nd LLM 에 넘길 메시지 ─────────────────────────
+# 흐름: 지난 대화 -> 사용자 질문 -> «도구를 불렀다» 는 어시스턴트 메시지 -> 도구 결과
+# 키워드 위치 검색과 회수 조회가 같은 모양을 각자 복사해 들고 있었다(B-18 배치 1 에서 합침).
+def _single_tool_second_turn(
+  history: list[dict[str, str]],
+  content: str,
+  tool_call: ToolCall,
+  results: dict[str, Any],
+) -> list[dict[str, Any]]:
+  assistant_with_tool: dict[str, Any] = {
+    "role": "assistant",
+    "content": None,
+    "tool_calls": [
+      {
+        "id": tool_call.tool_call_id,
+        "type": "function",
+        "function": {
+          "name": tool_call.name,
+          "arguments": json.dumps(tool_call.arguments, ensure_ascii=False),
+        },
+      }
+    ],
+  }
+  tool_message = _tool_result_message(
+    tool_call.tool_call_id,
+    results.get(tool_call.tool_call_id, {"error": "no result"}),
+  )
+  return [*history, {"role": "user", "content": content}, assistant_with_tool, tool_message]
 
 
 def _tool_result_message(tool_call_id: str, result: dict[str, Any]) -> dict[str, Any]:
@@ -665,30 +703,7 @@ class MessageService:
     logger.info("[Chat] session=%s location_search keyword=%r", sid, location_query.query)
     results = await run_tool_calls_via_rq(calls=worker_calls, queue=self._get_queue())
 
-    assistant_with_tool = {
-      "role": "assistant",
-      "content": None,
-      "tool_calls": [
-        {
-          "id": tool_call.tool_call_id,
-          "type": "function",
-          "function": {
-            "name": tool_call.name,
-            "arguments": json.dumps(tool_call.arguments, ensure_ascii=False),
-          },
-        }
-      ],
-    }
-    tool_message = _tool_result_message(
-      tool_call.tool_call_id,
-      results.get(tool_call.tool_call_id, {"error": "no result"}),
-    )
-    second_messages = [
-      *history,
-      {"role": "user", "content": content},
-      assistant_with_tool,
-      tool_message,
-    ]
+    second_messages = _single_tool_second_turn(history, content, tool_call, results)
     completion = await generate_chat_response_via_rq(
       messages=second_messages,
       queue=self._get_queue(),
@@ -816,30 +831,7 @@ class MessageService:
     )
     results = await run_tool_calls_via_rq(calls=worker_calls, queue=self._get_queue())
 
-    assistant_with_tool = {
-      "role": "assistant",
-      "content": None,
-      "tool_calls": [
-        {
-          "id": tool_call.tool_call_id,
-          "type": "function",
-          "function": {
-            "name": tool_call.name,
-            "arguments": json.dumps(tool_call.arguments, ensure_ascii=False),
-          },
-        }
-      ],
-    }
-    tool_message = _tool_result_message(
-      tool_call.tool_call_id,
-      results.get(tool_call.tool_call_id, {"error": "no result"}),
-    )
-    second_messages = [
-      *history,
-      {"role": "user", "content": content},
-      assistant_with_tool,
-      tool_message,
-    ]
+    second_messages = _single_tool_second_turn(history, content, tool_call, results)
     completion = await generate_chat_response_via_rq(
       messages=second_messages,
       queue=self._get_queue(),
@@ -878,11 +870,13 @@ class MessageService:
         pending 생성 시점에 이미 저장됨.
 
     Raises:
-        HTTPException: 400 / 403 / 410 (helper 들이 던짐).
+        ValueError: ``status="ok"`` 인데 좌표가 유한한 숫자가 아님 — 요청 경계
+            (``ToolResultRequest``)가 422 로 먼저 막으므로 직접 호출에서만 닿는다.
+        HTTPException: 403 / 410 (helper 들이 던짐).
     """
-    self._validate_resolve_payload(status, lat, lng)
+    geolocation = _geolocation_or_none(status, lat, lng)
     pending = await self._claim_and_authorize(turn_id, account_id)
-    results = await self._collect_tool_results(pending, status=status, lat=lat, lng=lng)
+    results = await self._collect_tool_results(pending, geolocation=geolocation)
 
     completion = await generate_chat_response_via_rq(
       messages=[
@@ -909,15 +903,6 @@ class MessageService:
     )
     return AskResult(user_message=None, assistant_message=assistant_msg, pending=None)
 
-  @staticmethod
-  def _validate_resolve_payload(status: str, lat: float | None, lng: float | None) -> None:
-    """status='ok' 인데 lat/lng 가 유효하지 않으면 즉시 400 — claim 낭비 방지."""
-    if status == _STATUS_OK and not _is_valid_coords(lat, lng):
-      raise HTTPException(
-        status_code=_HTTP_400_BAD_REQUEST,
-        detail="lat and lng must be finite numbers when status='ok'",
-      )
-
   async def _claim_and_authorize(self, turn_id: str, account_id: UUID | str) -> PendingTurn:
     """Pending 을 atomic 하게 claim + ownership 검증 — 각각 410/403."""
     store = self._get_pending_store()
@@ -938,16 +923,13 @@ class MessageService:
     self,
     pending: PendingTurn,
     *,
-    status: str,
-    lat: float | None,
-    lng: float | None,
+    geolocation: dict[str, float] | None,
   ) -> dict[str, Any]:
-    """Eager 결과 위에 geo 결과 (or denied) 를 합쳐 최종 results dict 를 만든다."""
+    """Eager 결과 위에 geo 결과 (``geolocation`` 이 None 이면 거부 결과) 를 합친다."""
     results = dict(pending.eager_results)
     remaining_geo_calls = [tc for tc in pending.tool_calls if tc.needs_geolocation and tc.tool_call_id not in results]
-    if status == _STATUS_OK:
+    if geolocation is not None:
       if remaining_geo_calls:
-        geolocation = {"lat": lat, "lng": lng}
         call_payload = [_tool_call_to_worker_dict(tc, geolocation=geolocation) for tc in remaining_geo_calls]
         geo_results = await run_tool_calls_via_rq(calls=call_payload, queue=self._get_queue())
         results.update(geo_results)
