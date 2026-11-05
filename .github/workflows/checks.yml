@@ -174,6 +174,13 @@ jobs:
       #    프로드(CF Pages)는 주입을 돌린다 — 2026-09-22 실측: doseph.com 의 script-src 에 실제 sha256.
       #    `npm run build` 대신 `build:pages` 를 부르는 이유: 전자는 dotenv 로 ../.env 를 읽는데
       #    CI 에는 그 파일이 없다. 값은 아래 env 블록이 준다.
+      # OCR 모델 캐시. 키가 스크립트 해시라 모델이 바뀌면 새로 받고, 파일은 다시 SHA-256 으로 대조한다.
+      - name: Cache OCR models
+        uses: actions/cache@v6
+        with:
+          path: medication-frontend/.next/cache/ocr-models
+          key: ocr-models-${{ hashFiles('medication-frontend/scripts/fetch-ocr-assets.mjs') }}
+
       - name: Build (static export + CSP 해시 주입)
         run: npm run build:pages
         env:
@@ -277,6 +284,13 @@ jobs:
       # 🔴 e2e 는 **local 타깃**으로 따로 굽는다. frontend 잡의 out/ 은 프로드 API 를
       #    가리키므로(NEXT_PUBLIC_API_BASE_URL=https://api.doseph.com) 재사용하면
       #    **테스트가 프로드를 때린다.** 미설정 시 env.js 기본값 = http://localhost:8000.
+      # OCR 모델 캐시. 키가 스크립트 해시라 모델이 바뀌면 새로 받고, 파일은 다시 SHA-256 으로 대조한다.
+      - name: Cache OCR models
+        uses: actions/cache@v6
+        with:
+          path: medication-frontend/.next/cache/ocr-models
+          key: ocr-models-${{ hashFiles('medication-frontend/scripts/fetch-ocr-assets.mjs') }}
+
       - name: Build (local target + CSP 해시 주입)
         working-directory: medication-frontend
         run: npm run build:pages

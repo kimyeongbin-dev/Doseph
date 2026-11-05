@@ -9,9 +9,9 @@
 const ASSET_BASE = '/ocr'
 
 const MODEL = {
-  detection: `${ASSET_BASE}/models/PP-OCRv5_mobile_det_infer.onnx`,
-  recognition: `${ASSET_BASE}/models/korean_PP-OCRv5_mobile_rec_infer.onnx`,
-  charactersDictionary: `${ASSET_BASE}/models/ppocrv5_korean_dict.txt`,
+  detection: `${ASSET_BASE}/models/v1/PP-OCRv5_mobile_det_infer.onnx`,
+  recognition: `${ASSET_BASE}/models/v1/korean_PP-OCRv5_mobile_rec_infer.onnx`,
+  charactersDictionary: `${ASSET_BASE}/models/v1/ppocrv5_korean_dict.txt`,
 }
 
 // S2 측정과 같은 조건 — 긴 변 2000px 로 줄여 읽는다(휴대폰 원본 4000px 대비 속도·메모리 절약).
@@ -30,7 +30,7 @@ function loadOcrService() {
         import('onnxruntime-web'),
         import('ppu-paddle-ocr/web'),
       ])
-      ort.env.wasm.wasmPaths = `${ASSET_BASE}/ort/`
+      ort.env.wasm.wasmPaths = `${ASSET_BASE}/ort/${ort.env.versions.web}/`
       ort.env.wasm.numThreads = 1
       const service = new PaddleOcrService({
         model: MODEL,
