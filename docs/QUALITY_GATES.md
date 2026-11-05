@@ -82,7 +82,7 @@
 
 | 잡 | 내용 |
 |---|---|
-| **Security Scan** | Bandit (high 이상 실패) + 리포트 아티팩트 |
+| **Security Scan** | Bandit (high 이상 실패) + 리포트 아티팩트 · **`pip-audit`**(`uv.lock` 전 그룹 고정 버전 · **차단** · 대상 바닥값 100) |
 | **Lint (Ruff)** | `ruff check` · `ruff format --check` · **MyPy baseline 게이트** · **레이어 계약(import-linter)** |
 | **Frontend** | ESLint · **Vitest** · **`node --test`(CSP 해시 주입 5건)** · `npm audit --audit-level=high` (**차단**) · **배포와 같은 사슬로 정적 빌드**(`build:pages`) + **주입 산출물 검증** |
 | **E2E (Playwright)** | compose 로 백엔드 기동 → **`aerich upgrade` + 스키마 검증** → 헬스 → **local 타깃** 정적 빌드 → Playwright **61건** → **인벤토리 게이트** → 실패 산출물(`trace`·`screenshot`·`video`) 업로드 |
@@ -117,6 +117,10 @@
 > 결핍 주입 **5/5 Red**(미커버 증가 · 파일 소실 · 바닥값 미달 · 리포트 부재 · baseline 부재) ·
 > 음성 대조 **3/3 통과**(무변화 · **커버리지 개선** · 새 파일). 개선을 통과시키는 표본이 핵심이다 —
 > *"커버리지가 바뀌었다"* 로 막으면 **좋아져도 빨개진다.**
+
+> 🐍 **`pip-audit` 은 `npm audit` 의 Python 짝이다** (2026-11-05 추가). 없을 때 `uv.lock` 의 critical(pyjwt · anyio · certifi)이
+> CI 에 안 보였고, Dependabot 알림을 켜고서야 드러났다. 같은 이유로 전 그룹을 본다.
+> 🧪 무장 확인: 수정 전 잠금 파일 = 13패키지 90건 검출(exit 1) · 수정 후 = 0건(exit 0).
 
 > 🔒 **`npm audit` 은 dev/prod 를 구분하지 않는다 — 그대로 둔다** (2026-09-30 판정)
 >

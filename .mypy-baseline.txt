@@ -44,7 +44,7 @@ app/db/vector_field.py:0: note: See https://mypy.readthedocs.io/en/stable/common
 app/db/vector_field.py:0: note: This violates the Liskov substitution principle
 app/dtos/lifestyle_guide.py:0: error: Missing type arguments for generic type "dict"  [type-arg]
 app/dtos/lifestyle_guide.py:0: error: Missing type arguments for generic type "list"  [type-arg]
-app/main.py:0: error: Argument "allow_origins" to "add_middleware" of "Starlette" has incompatible type "list[str | None]"; expected "Sequence[str]"  [arg-type]
+app/main.py:0: error: Argument "allow_origins" to "add_middleware" of "Starlette" has incompatible type "list[str | None]"; expected "Collection[str]"  [arg-type]
 app/main.py:0: error: Argument 1 to "FastAPI" has incompatible type "**dict[str, str | None]"; expected "APIRouter | None"  [arg-type]
 app/main.py:0: error: Argument 1 to "FastAPI" has incompatible type "**dict[str, str | None]"; expected "Callable[[APIRoute], str]"  [arg-type]
 app/main.py:0: error: Argument 1 to "FastAPI" has incompatible type "**dict[str, str | None]"; expected "Sequence[Callable[[], Any]] | None"  [arg-type]
