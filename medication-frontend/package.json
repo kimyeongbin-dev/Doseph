@@ -2,6 +2,9 @@
   "name": "medication-frontend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.22.2"
+  },
   "scripts": {
     "predev": "node scripts/fetch-ocr-assets.mjs",
     "dev": "dotenv -e ../.env -- next dev --turbopack",
