@@ -21,7 +21,7 @@
 
 ### 원본 / 포트폴리오 분기
 
-본 레포는 부트캠프 4인 팀 프로젝트 Doseph(`v1.0.0-team-final`)를 fork하여 **개인 프로젝트**로 전환했다. 팀 작업 이후 개인적으로 찾은 개선점에 대한 보완을 위한 프로젝트다.
+본 레포는 부트캠프 4인 팀 프로젝트 DownForce(`v1.0.0-team-final`)를 fork하여 **개인 프로젝트**로 전환했다. 팀 작업 이후 개인적으로 찾은 개선점에 대한 보완을 위한 프로젝트다.
 
 - 원본 팀 레포 (read-only): https://github.com/AI-HealthCare-02/AI_02_06
 - 팀 종료 시점 스냅샷: [v1.0.0-team-final Release](https://github.com/kimyeongbin-dev/Doseph/releases/tag/v1.0.0-team-final)
