@@ -163,6 +163,7 @@ class MedicationRepository:
 
   async def create(
     self,
+    *,
     profile_id: UUID,
     medicine_name: str,
     intake_times: list[str],
