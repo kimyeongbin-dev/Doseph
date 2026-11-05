@@ -2,6 +2,7 @@
 # 흐름: 주간 스캔 -> minor/patch 는 그룹 PR 1건으로 묶음 -> major 는 개별 PR
 #       보안 취약점(GHSA)은 스케줄 무관 즉시 수정 PR (Dependabot alerts 기본 동작)
 # 목적: next transitive 취약점(postcss/sharp/next) 등 SCA 부채를 능동 수정.
+# 대상 = dev: main 에 바로 머지하면 uv.lock 변경이 CD 를 돌려 백엔드가 곧장 배포된다(CD paths-ignore 밖).
 version: 2
 
 updates:
@@ -12,6 +13,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    target-branch: "dev"
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
@@ -28,6 +30,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    target-branch: "dev"
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
@@ -43,6 +46,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    target-branch: "dev"
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(ci)"
