@@ -94,6 +94,7 @@ docker compose exec -T fastapi sh -c 'cd /app && uv run --no-sync pytest -q'
 2. 컨벤션에 맞춰 커밋한 뒤 push
 3. `dev`를 대상으로 PR을 엽니다. PR 본문에 구현 내용, 트러블슈팅 과정, 고민한 점을 적어 개발 기록으로 남깁니다.
 4. CI(`checks.yml`)가 초록인 것을 확인하고 **Merge commit**으로 머지합니다(기능 단위 커밋과 PR 연결을 보존). 머지한 feature 브랜치는 삭제합니다.
+   - **Dependabot PR 만 예외**입니다. 봇이 쓰는 제목·본문은 규약을 못 지켜 `Commit messages` 검사가 빨강이므로, 나머지 검사가 초록인 것을 본 뒤 `gh pr merge <번호> --squash --subject "chore(deps): ..." --body ""` 로 머지합니다.
 5. 버전 목표를 달성하면 `dev` → `main` PR로 릴리스하고, `main`에 버전 태그를 답니다. **`main` 머지는 곧 배포**입니다.
 
 ---

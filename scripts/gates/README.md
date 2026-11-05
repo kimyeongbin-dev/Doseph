@@ -9,7 +9,7 @@
 |---|---|---|
 | `doc/` | **문서·기록 규약** — 배치·`doc-meta`·스냅샷 짝·포트폴리오 근거·메모리 인덱스 | `pre-push` |
 | `code/` | **코드·아키텍처** — 레이어 계약 · 폐기 어휘 · `QA-##` 앵커 | `pre-push` (+ 레이어는 CI) |
-| `commit/` | **커밋 메시지** — 트레일러 금지 · 제목 위생 | `commit-msg` |
+| `commit/` | **커밋 메시지** — 트레일러 금지 · 제목 위생 · 푸시 범위 검사 | `commit-msg` · `pre-push` · CI |
 | `tooling/` | **도구 자신의 위생** — UTF-8 출력 방어 | `pre-push` |
 
 ```
@@ -18,7 +18,7 @@ scripts/gates/
 ├── doc/      check_doc_filing · check_doc_meta · check_plan_archives
 │             check_portfolio_sync · check_memory_index
 ├── code/     check_layers · check_comment_staleness · check_anchors
-├── commit/   check_commit_trailers · check_commit_subject
+├── commit/   check_commit_trailers · check_commit_subject · check_commit_range
 └── tooling/  check_utf8_guard
 ```
 
