@@ -26,7 +26,7 @@ flowchart TD
     B --> C[분석 시작하기]
 
     subgraph DEVICE [기기 안 - 서버로 아무것도 안 나간다]
-        C --> D[OCR 엔진 지연 로딩<br/>onnxruntime-web WASM 전용 빌드<br/>모델은 같은 출처 /ocr/ 에서]
+        C --> D[Web Worker 에서 엔진 로딩<br/>onnxruntime-web WASM 전용 빌드<br/>모델은 같은 출처 /ocr/ 에서]
         D -- 실패 --> E1[엔진 준비 실패 안내<br/>재시도 · 직접 입력]
         D --> F[사진 → 글자 줄 + 신뢰도<br/>EXIF 회전 보정 · 긴 변 2000px]
         F --> G[신뢰도 0.5 미만 글자 버림<br/>평균 신뢰도 계산]
@@ -88,7 +88,7 @@ flowchart TD
 
 | 단계 | 페이지/엔드포인트 | 역할 |
 |------|-----------------|------|
-| 기기 안 OCR | `/ocr` (`lib/ocr/browserOcr.js` · `ocrLines.js` · `retake.js`) | 사진 → 글자 → 약 줄 고르기 → 재촬영 판정 |
+| 기기 안 OCR | `/ocr` (`lib/ocr/browserOcr.js` · `ocr.worker.js` · `ocrLines.js` · `retake.js`) | 사진 → 글자 → 약 줄 고르기 → 재촬영 판정. 읽기가 끝나면 워커를 종료해 WASM 메모리를 돌려받는다 |
 | 접수 | `POST /ocr/extract` | 형식(415)·문법(400)·값(422) 검증 → 글자 해시 중복 확인 → draft 생성·작업 등록 |
 | 처리 | AI 워커 `process_ocr_task(text, draft_id)` | 정규화 → LLM 구조화 → 약 DB 대조 → `ocr_drafts` 갱신 |
 | 대기 | `GET /ocr/draft/{id}/stream` (SSE) | 상태 변화만 push. 단발 조회는 `GET /ocr/draft/{id}` |
