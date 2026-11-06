@@ -5,6 +5,7 @@ PLAN.md (RAG 재설계 PR-C). DB 호출은 stub - SQL 빌더 형태와 결과 �
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -74,7 +75,8 @@ def stub_connection(monkeypatch: pytest.MonkeyPatch):
     rows.clear()
     rows.extend(new_rows)
 
-  monkeypatch.setattr(hybrid_metadata.connections, "get", lambda _name: _FakeConn())
+  # tortoise-orm 1.x 의 connections 는 컨텍스트가 있어야 속성을 읽는 프록시라 통째로 바꾼다.
+  monkeypatch.setattr(hybrid_metadata, "connections", SimpleNamespace(get=lambda _name: _FakeConn()))
   return captured, _set_rows
 
 
