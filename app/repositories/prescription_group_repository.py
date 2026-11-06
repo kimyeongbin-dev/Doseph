@@ -69,8 +69,8 @@ class PrescriptionGroupRepository:
     self,
     group: PrescriptionGroup,
     *,
-    department: str | None | type(...) = ...,
-    hospital_name: str | None | type(...) = ...,
+    department: str | type(...) | None = ...,
+    hospital_name: str | type(...) | None = ...,
   ) -> PrescriptionGroup:
     """그룹 메타 부분 수정. ``...`` 인자는 미설정 (변경 안함).
 
