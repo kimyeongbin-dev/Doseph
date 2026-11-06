@@ -54,8 +54,9 @@ def _vector_literal(values: list[float]) -> str:
 
 async def _fetch(query: str, params: list[Any] | None = None) -> list[dict[str, Any]]:
   """Run a query on the current Tortoise connection."""
-  _, rows = await connections.get("default").execute_query(query, params or [])
-  return list(rows)
+  # tortoise-orm 1.x 의 execute_query 는 INSERT 의 RETURNING 행을 버린다.
+  rows: list[dict[str, Any]] = await connections.get("default").execute_query_dict(query, params or [])
+  return rows
 
 
 async def _make_medicine_info(name: str = "벡터테스트약") -> int:

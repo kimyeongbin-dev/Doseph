@@ -84,9 +84,9 @@ class PrescriptionGroupRepository:
         업데이트된 그룹.
     """
     if department is not ...:
-      group.department = department  # type: ignore[assignment]
+      group.department = department
     if hospital_name is not ...:
-      group.hospital_name = hospital_name  # type: ignore[assignment]
+      group.hospital_name = hospital_name
     await group.save()
     return group
 
