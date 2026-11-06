@@ -29,17 +29,17 @@ export const healthSurveySchema = z.object({
   age: z.preprocess(
     emptyToUndef,
     z.coerce
-      .number({ invalid_type_error: '숫자만 입력해주세요' })
+      .number({ error: '숫자만 입력해주세요' })
       .int('정수만 입력해주세요')
       .min(1, '나이는 1세 이상이에요')
       .max(120, '나이는 120세 이하예요')
       .optional(),
   ),
-  gender: z.enum(['MALE', 'FEMALE'], { invalid_type_error: '성별을 선택해주세요' }).optional(),
+  gender: z.enum(['MALE', 'FEMALE'], { error: '성별을 선택해주세요' }).optional(),
   height: z.preprocess(
     emptyToUndef,
     z.coerce
-      .number({ invalid_type_error: '숫자만 입력해주세요' })
+      .number({ error: '숫자만 입력해주세요' })
       .min(50, '키는 50cm 이상이에요')
       .max(250, '키는 250cm 이하예요')
       .optional(),
@@ -47,7 +47,7 @@ export const healthSurveySchema = z.object({
   weight: z.preprocess(
     emptyToUndef,
     z.coerce
-      .number({ invalid_type_error: '숫자만 입력해주세요' })
+      .number({ error: '숫자만 입력해주세요' })
       .min(1, '몸무게는 1kg 이상이에요')
       .max(300, '몸무게는 300kg 이하예요')
       .optional(),
@@ -60,7 +60,7 @@ export const healthSurveySchema = z.object({
 
 // ── 2. Medication (OCR result + 직접 등록 + edit 공용) ───────────────────
 const intakeTimeEnum = z.enum(['BREAKFAST', 'LUNCH', 'DINNER', 'BEDTIME'], {
-  invalid_type_error: '복약 시간 슬롯이 올바르지 않아요',
+  error: '복약 시간 슬롯이 올바르지 않아요',
 })
 
 export const medicationCreateSchema = z
@@ -73,14 +73,14 @@ export const medicationCreateSchema = z
       .min(1, '복약 시간을 한 개 이상 선택해주세요')
       .max(4, '복약 시간은 최대 4개까지 가능해요'),
     total_intake_count: z.coerce
-      .number({ invalid_type_error: '총 복약 횟수는 숫자만 가능해요' })
+      .number({ error: '총 복약 횟수는 숫자만 가능해요' })
       .int('정수만 가능해요')
       .min(1, '총 복약 횟수는 1회 이상이에요'),
     remaining_intake_count: z.coerce
-      .number({ invalid_type_error: '남은 복약 횟수는 숫자만 가능해요' })
+      .number({ error: '남은 복약 횟수는 숫자만 가능해요' })
       .int('정수만 가능해요')
       .min(0, '남은 복약 횟수는 0 이상이에요'),
-    start_date: z.coerce.date({ invalid_type_error: '시작일을 입력해주세요' }),
+    start_date: z.coerce.date({ error: '시작일을 입력해주세요' }),
     end_date: z.preprocess(emptyToUndef, z.coerce.date().optional()),
     dispensed_date: z.preprocess(emptyToUndef, z.coerce.date().optional()),
     expiration_date: z.preprocess(emptyToUndef, z.coerce.date().optional()),
@@ -105,7 +105,7 @@ export const medicationEditPatchSchema = z.object({
   daily_intake_count: z.preprocess(
     emptyToUndef,
     z.coerce
-      .number({ invalid_type_error: '숫자만 입력해주세요' })
+      .number({ error: '숫자만 입력해주세요' })
       .int('정수만 가능해요')
       .min(1, '1회 이상이어야 해요')
       .max(24, '하루 최대 24회까지 가능해요')
@@ -114,7 +114,7 @@ export const medicationEditPatchSchema = z.object({
   total_intake_days: z.preprocess(
     emptyToUndef,
     z.coerce
-      .number({ invalid_type_error: '숫자만 입력해주세요' })
+      .number({ error: '숫자만 입력해주세요' })
       .int('정수만 가능해요')
       .min(1, '1일 이상이어야 해요')
       .max(365, '1년 이내로 입력해주세요')
@@ -124,7 +124,7 @@ export const medicationEditPatchSchema = z.object({
 
 // ── 3. 일일 증상 로그 ──────────────────────────────────────────────────
 export const dailyLogCreateSchema = z.object({
-  log_date: z.coerce.date({ invalid_type_error: '날짜를 입력해주세요' }),
+  log_date: z.coerce.date({ error: '날짜를 입력해주세요' }),
   symptoms: z.array(z.string()).min(0).max(20, '증상은 최대 20개까지 선택할 수 있어요'),
   note: optionalTrimmed(512),
 })

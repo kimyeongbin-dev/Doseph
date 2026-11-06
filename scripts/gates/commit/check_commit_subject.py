@@ -73,6 +73,9 @@ ALLOWED_TYPES = frozenset({
   "merge",
 })
 
+#: 제목 길이 상한(코드 포인트). `CONTRIBUTING.md` 규약인데 기계가 안 봐서 51~78자가 쌓였다.
+SUBJECT_MAX = 50
+
 #: `type(scope): 설명` 또는 `type: 설명`. scope 는 선택이고 `!`(breaking)도 받는다.
 CONVENTIONAL = re.compile(r"^([a-z]+)(\([^)]+\))?!?: ")
 
@@ -106,6 +109,41 @@ def hygiene_reason(subject: str) -> str:
   if not first.isascii():
     return f"제목이 ASCII 가 아닌 문자({first!r})로 시작한다 — 이모지·한글 접두 금지"
   return f"제목이 영문자가 아닌 {first!r} 로 시작한다"
+
+
+# ── 길이·타입 규약 ────────────────────────────────────────────────────
+# 흐름: 제목 길이 -> `type: 설명` 꼴 -> 약속한 타입 -> 위반이면 이유를 찍고 True
+def violates_convention(subject: str) -> bool:
+  """제목이 길이·형식·타입 규약을 어기면 이유를 찍고 True 를 돌려준다."""
+  if len(subject) > SUBJECT_MAX:
+    print(f"\n[거부] 커밋 제목이 {len(subject)}자다 — 상한 {SUBJECT_MAX}자.\n", file=sys.stderr)
+    print(f"  제목: {subject!r}\n", file=sys.stderr)
+    return True
+
+  matched = CONVENTIONAL.match(subject)
+  if matched is None:
+    print("\n[거부] 커밋 제목이 `type: 설명` 꼴이 아니다.\n", file=sys.stderr)
+    print(f"  제목: {subject!r}", file=sys.stderr)
+    print(
+      "\n  꼴: `type: 설명` 또는 `type(scope): 설명` (예: `fix(fe): ...`)."
+      f"\n  타입: {' · '.join(sorted(ALLOWED_TYPES))}\n",
+      file=sys.stderr,
+    )
+    return True
+
+  kind = matched.group(1)
+  if kind not in ALLOWED_TYPES:
+    print(f"\n[거부] `{kind}` 은 약속한 타입이 아니다.\n", file=sys.stderr)
+    print(f"  제목: {subject!r}", file=sys.stderr)
+    print(
+      f"\n  타입: {' · '.join(sorted(ALLOWED_TYPES))}"
+      "\n  🔑 **기능명은 앞머리가 아니라 scope 다** — `ocr: ...` 이 아니라 `feat(ocr): ...`."
+      "\n  정본 = `CLAUDE.md` §6 · 경위 = `DOC_TRUTH_DRIFT` §C-2(`문서-3`).\n",
+      file=sys.stderr,
+    )
+    return True
+
+  return False
 
 
 # ── 커밋 제목 위생 검사 (commit-msg 훅) ─────────────────────────────────
@@ -162,30 +200,7 @@ def main() -> int:
   if subject.startswith(("Merge ", "Revert ")):
     return 0
 
-  matched = CONVENTIONAL.match(subject)
-  if matched is None:
-    print("\n[거부] 커밋 제목이 `type: 설명` 꼴이 아니다.\n", file=sys.stderr)
-    print(f"  제목: {subject!r}", file=sys.stderr)
-    print(
-      "\n  꼴: `type: 설명` 또는 `type(scope): 설명` (예: `fix(fe): ...`)."
-      f"\n  타입: {' · '.join(sorted(ALLOWED_TYPES))}\n",
-      file=sys.stderr,
-    )
-    return 1
-
-  kind = matched.group(1)
-  if kind not in ALLOWED_TYPES:
-    print(f"\n[거부] `{kind}` 은 약속한 타입이 아니다.\n", file=sys.stderr)
-    print(f"  제목: {subject!r}", file=sys.stderr)
-    print(
-      f"\n  타입: {' · '.join(sorted(ALLOWED_TYPES))}"
-      "\n  🔑 **기능명은 앞머리가 아니라 scope 다** — `ocr: ...` 이 아니라 `feat(ocr): ...`."
-      "\n  정본 = `CLAUDE.md` §6 · 경위 = `DOC_TRUTH_DRIFT` §C-2(`문서-3`).\n",
-      file=sys.stderr,
-    )
-    return 1
-
-  return 0
+  return 1 if violates_convention(subject) else 0
 
 
 if __name__ == "__main__":

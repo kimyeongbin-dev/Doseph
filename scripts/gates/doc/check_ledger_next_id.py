@@ -157,8 +157,10 @@ def audit(ledger: Ledger, text: str, archived: set[int] | None = None) -> tuple[
   ids = issued_ids(text, ledger.prefix)
   if len(ids) < ledger.floor:
     return (
-      f"`{ledger.path}` 의 발급 ID 가 **{len(ids)}건**으로 바닥값 {ledger.floor} 아래다 — "
-      "행 형식이 바뀌어 파서가 못 읽었을 수 있다",
+      (
+        f"`{ledger.path}` 의 발급 ID 가 **{len(ids)}건**으로 바닥값 {ledger.floor} 아래다 — "
+        "행 형식이 바뀌어 파서가 못 읽었을 수 있다"
+      ),
       "",
     )
 
@@ -167,8 +169,10 @@ def audit(ledger: Ledger, text: str, archived: set[int] | None = None) -> tuple[
   declared, highest = int(hits[0]), max(issued)
   if declared != highest + 1:
     return (
-      f"`{ledger.path}` 가 «다음 신규 = {ledger.prefix}-{declared}» 라고 말하는데 "
-      f"**이미 {ledger.prefix}-{highest} 까지 발급**됐다 (기대 {highest + 1})",
+      (
+        f"`{ledger.path}` 가 «다음 신규 = {ledger.prefix}-{declared}» 라고 말하는데 "
+        f"**이미 {ledger.prefix}-{highest} 까지 발급**됐다 (기대 {highest + 1})"
+      ),
       "",
     )
   ejected = len(issued) - len(ids)

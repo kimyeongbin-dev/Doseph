@@ -201,7 +201,7 @@ All feature development and session tasks MUST follow this loop. This project fo
 
 ---
 
-## 6. Commit Rules <!-- rule:커밋규약 강제:훅:commit-subject-hygiene,훅:no-ai-trailers 잔류:층2 — 하네스가 매 세션 반대 지시를 주입한다(D30) -->
+## 6. Commit Rules <!-- rule:커밋규약 강제:훅:commit-subject-hygiene,훅:commit-history-hygiene,훅:no-ai-trailers 잔류:층2 — 하네스가 매 세션 반대 지시를 주입한다(D30) -->
 
 > **제목 꼴 `type(scope): 설명`** 과 타입 어휘는 `commit-subject-hygiene` 훅이,
 > 트레일러는 `no-ai-trailers` 훅이 `commit-msg` 단계에서 **막는다.**

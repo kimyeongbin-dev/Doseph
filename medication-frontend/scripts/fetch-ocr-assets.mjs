@@ -1,8 +1,9 @@
 // ── 브라우저 OCR 자산 준비 (빌드·dev 전 단계) ─────────────────────────
-// 흐름: 모델 3종 -> 있으면 SHA-256 대조, 없거나 다르면 고정 리비전에서 받기 -> 대조 실패면 빌드 중단
-//       -> onnxruntime-web 설치본 버전 확인 -> WASM 런타임 2종을 public/ocr/ort/ 로 복사
+// 흐름: 모델 3종 -> public 또는 빌드 캐시에 있으면 SHA-256 대조만 -> 없으면 Release·예비 출처에서 재시도하며 받기
+//       -> 대조 실패면 빌드 중단 -> onnxruntime-web 설치본 버전 확인 -> WASM 런타임 2종을 버전 경로로 복사
 // 전제: 결과물(public/ocr/)은 커밋하지 않는다(.gitignore) — 18MB 바이너리를 저장소에 넣지 않으려고.
-//       같은 출처로 내보내므로 런타임에 제3자(Hugging Face)로 요청이 나가지 않는다.
+//       같은 출처로 내보내므로 런타임에 제3자로 요청이 나가지 않는다.
+//       경로에 버전이 있어 _headers 가 immutable 로 캐시한다. 파일을 바꾸면 MODEL_VERSION 을 올린다.
 
 import { createHash } from 'node:crypto'
 import {
@@ -11,12 +12,18 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// 모델 저장소의 커밋을 고정한다 — main 을 가리키면 저쪽이 바뀔 때 조용히 다른 모델을 받는다.
+// 1차 출처 = 우리 불변 Release. Hugging Face 는 IP 단위 제한이 있어 Cloudflare 빌드가 429 로 실패했다.
+// 이 값과 ocr.worker.js 의 MODEL_BASE 는 같이 바꾼다.
+export const MODEL_VERSION = 'v1'
+const RELEASE_BASE = 'https://github.com/kimyeongbin-dev/Doseph/releases/download/ocr-models-v1'
+
+// 예비 출처 — 모델 저장소의 커밋을 고정한다. main 을 가리키면 저쪽이 바뀔 때 조용히 다른 모델을 받는다.
 export const MODEL_REVISION = 'bf1d5edb0335d3262be7caf13f766ba274b4cadd'
 const MODEL_REPO = 'https://huggingface.co/snowfluke/ppu-paddle-ocr-models/resolve'
 
@@ -46,6 +53,10 @@ export function modelUrl(model, revision = MODEL_REVISION) {
   return `${MODEL_REPO}/${revision}/${model.path}`
 }
 
+export function modelSources(model) {
+  return [`${RELEASE_BASE}/${model.file}`, modelUrl(model)]
+}
+
 export function sha256Hex(bytes) {
   return createHash('sha256').update(bytes).digest('hex')
 }
@@ -70,16 +81,88 @@ export function assertPinnedVersion(name, declared, installed) {
   }
 }
 
-async function ensureModel(model, modelDir) {
+const RETRY_ATTEMPTS = 3
+const RETRY_BASE_MS = 1000
+const RETRY_AFTER_MAX_MS = 30000
+
+// 일시적 실패만 다시 시도한다. 404 같은 실패는 기다려도 안 바뀌니 바로 다음 출처로 넘어간다.
+function isTransient(status) {
+  return status === 429 || status >= 500
+}
+
+function retryDelayMs(response, attempt) {
+  const seconds = Number(response?.headers?.get('retry-after'))
+  if (seconds > 0) return Math.min(seconds * 1000, RETRY_AFTER_MAX_MS)
+  return RETRY_BASE_MS * 2 ** attempt
+}
+
+// ── 한 출처에서 받기 ──────────────────────────────────────────────────
+// 흐름: 요청 -> 성공이면 바이트 반환 -> 일시적 실패면 기다렸다 재시도 -> 횟수를 넘기면 throw
+export async function fetchWithRetry(url, { fetchFn = fetch, sleep = delay } = {}) {
+  let lastError
+  for (let attempt = 0; attempt < RETRY_ATTEMPTS; attempt += 1) {
+    let response = null
+    try {
+      response = await fetchFn(url)
+      if (response.ok) return Buffer.from(await response.arrayBuffer())
+      lastError = new Error(`HTTP ${response.status}`)
+      if (!isTransient(response.status)) throw lastError
+    } catch (error) {
+      if (error === lastError) throw error
+      lastError = error
+    }
+    if (attempt < RETRY_ATTEMPTS - 1) await sleep(retryDelayMs(response, attempt))
+  }
+  throw lastError
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// ── 모델 받기 ─────────────────────────────────────────────────────────
+// 흐름: 출처를 차례로 시도 -> 받은 바이트의 해시 대조 -> 전부 실패면 사유를 모아 throw
+// 해시가 다른 파일은 어느 출처에서 왔든 쓰지 않는다.
+export async function downloadModel(model, options) {
+  const failures = []
+  for (const url of modelSources(model)) {
+    try {
+      const bytes = await fetchWithRetry(url, options)
+      assertDigest(model.file, bytes, model.sha256)
+      return bytes
+    } catch (error) {
+      failures.push(`${new URL(url).hostname}: ${error.message}`)
+    }
+  }
+  throw new Error(`[fetch-ocr-assets] ${model.file} 받기 실패 (${failures.join(' / ')})`)
+}
+
+function hasValidCopy(path, model) {
+  return existsSync(path) && sha256Hex(readFileSync(path)) === model.sha256
+}
+
+// ── 모델 준비 ─────────────────────────────────────────────────────────
+// 흐름: public 사본 -> 빌드 캐시 사본 -> 받기(캐시에도 저장) 순서로 찾는다
+// 캐시 파일 이름이 해시라 모델을 바꾸면 옛 사본을 쓸 일이 없다.
+export async function ensureModel(model, modelDir, cacheDir, options) {
   const target = join(modelDir, model.file)
-  if (existsSync(target) && sha256Hex(readFileSync(target)) === model.sha256) return 'cached'
-  const response = await fetch(modelUrl(model))
-  if (!response.ok)
-    throw new Error(`[fetch-ocr-assets] ${model.file} 받기 실패: HTTP ${response.status}`)
-  const bytes = Buffer.from(await response.arrayBuffer())
-  assertDigest(model.file, bytes, model.sha256)
+  if (hasValidCopy(target, model)) return 'public'
+  const cached = join(cacheDir, model.sha256)
+  if (hasValidCopy(cached, model)) {
+    copyFileSync(cached, target)
+    return 'build-cache'
+  }
+  const bytes = await downloadModel(model, options)
   writeFileSync(target, bytes)
+  writeFileSync(cached, bytes)
   return 'downloaded'
+}
+
+// 버전을 올리면 옛 경로가 산출물에 남지 않게 지운다.
+function removeOtherVersions(parent, keep) {
+  for (const entry of readdirSync(parent)) {
+    if (entry !== keep) rmSync(join(parent, entry), { recursive: true, force: true })
+  }
 }
 
 // ── 빌드 산출물의 런타임 참조 대조 (--verify-build) ─────────────────
@@ -123,13 +206,16 @@ function verifyBuild(root) {
 
 // onnxruntime-web 은 exports 에 package.json 을 열어 두지 않아 require.resolve 로 못 찾는다 —
 // 이 패키지가 직접 설치한 경로를 읽는다.
-function copyOrtRuntime(root, ortDir) {
+function copyOrtRuntime(root, ortParent) {
   const declared = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).dependencies[
     'onnxruntime-web'
   ]
   const ortRoot = join(root, 'node_modules', 'onnxruntime-web')
   const installed = JSON.parse(readFileSync(join(ortRoot, 'package.json'), 'utf8')).version
   assertPinnedVersion('onnxruntime-web', declared, installed)
+  const ortDir = join(ortParent, installed)
+  mkdirSync(ortDir, { recursive: true })
+  removeOtherVersions(ortParent, installed)
   for (const file of ORT_RUNTIME_FILES) {
     copyFileSync(join(ortRoot, 'dist', file), join(ortDir, file))
   }
@@ -142,16 +228,21 @@ async function main() {
     verifyBuild(root)
     return
   }
-  const modelDir = join(root, 'public', 'ocr', 'models')
-  const ortDir = join(root, 'public', 'ocr', 'ort')
+  const modelParent = join(root, 'public', 'ocr', 'models')
+  const modelDir = join(modelParent, MODEL_VERSION)
+  const ortParent = join(root, 'public', 'ocr', 'ort')
+  // Cloudflare Pages 는 .next/cache 를 빌드 사이에 보존한다(대시보드 설정). CI 는 actions/cache 가 맡는다.
+  const cacheDir = join(root, '.next', 'cache', 'ocr-models')
   mkdirSync(modelDir, { recursive: true })
-  mkdirSync(ortDir, { recursive: true })
+  mkdirSync(ortParent, { recursive: true })
+  mkdirSync(cacheDir, { recursive: true })
+  removeOtherVersions(modelParent, MODEL_VERSION)
 
   for (const model of MODELS) {
-    const state = await ensureModel(model, modelDir)
+    const state = await ensureModel(model, modelDir, cacheDir)
     console.log(`[fetch-ocr-assets] ${model.file} ${state} (sha256 ok)`)
   }
-  const version = copyOrtRuntime(root, ortDir)
+  const version = copyOrtRuntime(root, ortParent)
   console.log(
     `[fetch-ocr-assets] onnxruntime-web ${version} WASM ${ORT_RUNTIME_FILES.length}개 복사`,
   )

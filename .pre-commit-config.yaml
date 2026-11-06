@@ -140,6 +140,16 @@ repos:
         always_run: true
         stages: [commit-msg]
 
+      # 최종 커밋 객체의 제목·본문 길이와 충돌 주석 잔재 (pre-push). 정본 = check_commit_range
+      - id: commit-history-hygiene
+        name: ✍️ 푸시할 커밋 메시지 검사
+        entry: uv run python -m scripts.gates.commit.check_commit_range
+        language: system
+        require_serial: true
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       # 완료기록 ↔ PLAN 스냅샷 대조 (pre-push)
       # "완료기록과 아카이브는 한 동작" 규칙을 6회 어겼다(대장 D27).
       # 감각이 아니라 셈으로 잡는다. docs-private 이 없는 환경(CI)에서는 조용히 통과.
