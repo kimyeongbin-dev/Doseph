@@ -76,6 +76,7 @@ def orm_config(database: str) -> dict[str, Any]:
       }
     },
     "apps": TORTOISE_ORM["apps"],
+    "use_tz": TORTOISE_ORM["use_tz"],
     "timezone": TORTOISE_ORM["timezone"],
   }
 

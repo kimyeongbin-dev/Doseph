@@ -108,7 +108,8 @@ async def test_tsvector_trigger_fills_content_tsv(db: None) -> None:
   """Inserting content must populate content_tsv through the trigger."""
   connection = connections.get("default")
   # medicine_chunk.medicine_info_id 는 NOT NULL FK 라 부모 행이 먼저 필요하다.
-  _, parent = await connection.execute_query(
+  # tortoise-orm 1.x 의 execute_query 는 INSERT 의 RETURNING 행을 버린다.
+  parent = await connection.execute_query_dict(
     "insert into medicine_info (medicine_name) values ('트리거테스트약') returning id"
   )
   medicine_info_id = parent[0]["id"]

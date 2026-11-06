@@ -82,6 +82,8 @@ def build_tortoise_orm(cfg: Config | None = None) -> dict[str, Any]:
         "models": TORTOISE_APP_MODELS,
       },
     },
+    # tortoise-orm 1.x 에서 False 는 조회 값을 시간대 없는 UTC 로 돌려준다. 한국 시간 aware 값을 지키려면 True 다.
+    "use_tz": True,
     "timezone": "Asia/Seoul",
   }
 

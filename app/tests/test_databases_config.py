@@ -39,3 +39,11 @@ def test_builder_preserves_core_credentials() -> None:
   assert creds["host"] == "db.example.com"
   assert creds["user"] == "tester"
   assert creds["database"] == "Doseph"
+
+
+def test_builder_pins_use_tz_true() -> None:
+  """use_tz must stay explicit so query results keep the Korea time offset."""
+  orm = build_tortoise_orm(Config())
+
+  assert orm["use_tz"] is True
+  assert orm["timezone"] == "Asia/Seoul"
