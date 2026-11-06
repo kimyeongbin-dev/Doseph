@@ -5,6 +5,7 @@ including family relationships and health survey data.
 """
 
 from enum import StrEnum
+from uuid import UUID
 
 from tortoise import fields, models
 
@@ -68,6 +69,8 @@ class Profile(models.Model):
 
   id = fields.UUIDField(primary_key=True)
   account = fields.ForeignKeyField("models.Account", related_name="profiles")
+  # Tortoise 가 실행 중에 만드는 FK 열 속성 — 타입 검사기에 알리는 표기일 뿐 필드를 더하지 않는다.
+  account_id: UUID
   relation_type = fields.CharEnumField(enum_type=RelationType, max_length=16)
   gender = fields.CharEnumField(enum_type=Gender, max_length=8, null=True)
   name = fields.CharField(max_length=32)

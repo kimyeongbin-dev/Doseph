@@ -21,6 +21,8 @@ import pytest
 
 _HELPER = "app.services.medication_service.check_and_alert_on_medication_save"
 _TRANSACTION = "app.services.medication_service.in_transaction"
+# 등록 직후 모달 페이로드용 회수 조회 — 막지 않으면 Tortoise 미초기화 예외가 «우연히» 잡혀 넘어간다.
+_RECALL_REPO = "app.services.medication_service.DrugRecallRepository"
 
 
 class _NoopTransaction:
@@ -78,12 +80,16 @@ async def test_f3_1_create_medication_invokes_helper_once() -> None:
   with (
     patch(_HELPER, new=AsyncMock(return_value=None)) as helper,
     patch(_TRANSACTION, return_value=_NoopTransaction()),
+    patch(_RECALL_REPO) as recall_repo,
   ):
+    recall_repo.return_value.find_by_item_seq_or_name = AsyncMock(return_value=[])
     result = await service.create_medication(profile_id=uuid4(), data=_build_create_dto())
 
   assert result is medication
   helper.assert_awaited_once()
-  args, kwargs = helper.await_args
+  call = helper.await_args
+  assert call is not None
+  args, kwargs = call
   # 헬퍼가 받은 medication 인스턴스가 repository 가 만든 그것과 동일한지
   assert (args[0] if args else kwargs["medication"]) is medication
 
@@ -107,7 +113,9 @@ async def test_f3_2_helper_exception_does_not_break_create() -> None:
   with (
     patch(_HELPER, new=AsyncMock(side_effect=boom)),
     patch(_TRANSACTION, return_value=_NoopTransaction()),
+    patch(_RECALL_REPO) as recall_repo,
   ):
+    recall_repo.return_value.find_by_item_seq_or_name = AsyncMock(return_value=[])
     result = await service.create_medication(profile_id=uuid4(), data=_build_create_dto())
 
   # 예외가 위로 새지 않고 medication 객체가 그대로 반환됨

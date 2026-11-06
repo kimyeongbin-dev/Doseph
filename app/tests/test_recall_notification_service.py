@@ -15,6 +15,8 @@ from uuid import uuid4
 
 import pytest
 
+from app.models.messages import ChatMessage, SenderType
+
 
 def _recall(item_seq: str = "200903973") -> Any:
   row = MagicMock()
@@ -49,13 +51,15 @@ class TestSendRecallAlert:
     with (
       patch.object(svc, "_already_notified", new=AsyncMock(return_value=False)),
       patch.object(svc, "_resolve_target_session_id", new=AsyncMock(return_value=uuid4())),
-      patch.object(svc.ChatMessage, "create", new=AsyncMock()) as create,
+      patch.object(ChatMessage, "create", new=AsyncMock()) as create,
     ):
       await svc.send_recall_alert(profile_id=profile_id, recall=recall, medication=medication)
 
     create.assert_awaited_once()
-    kw = create.await_args.kwargs
-    assert kw["sender_type"] == svc.SenderType.ASSISTANT
+    call = create.await_args
+    assert call is not None
+    kw = call.kwargs
+    assert kw["sender_type"] == SenderType.ASSISTANT
     # 메시지 내용 검증
     assert "마데카솔케어연고" in kw["content"]
     assert "포장재 불량(코팅 벗겨짐)" in kw["content"]
@@ -74,7 +78,7 @@ class TestSendRecallAlert:
 
     with (
       patch.object(svc, "_already_notified", new=AsyncMock(return_value=True)),
-      patch.object(svc.ChatMessage, "create", new=AsyncMock()) as create,
+      patch.object(ChatMessage, "create", new=AsyncMock()) as create,
     ):
       result = await svc.send_recall_alert(profile_id=uuid4(), recall=_recall(), medication=_medication())
 
@@ -89,7 +93,7 @@ class TestSendRecallAlert:
     with (
       patch.object(svc, "_already_notified", new=AsyncMock(return_value=False)),
       patch.object(svc, "_resolve_target_session_id", new=AsyncMock(return_value=None)),
-      patch.object(svc.ChatMessage, "create", new=AsyncMock()) as create,
+      patch.object(ChatMessage, "create", new=AsyncMock()) as create,
     ):
       result = await svc.send_recall_alert(profile_id=uuid4(), recall=_recall(), medication=_medication())
 
@@ -130,6 +134,7 @@ class TestCheckAndAlertOnMedicationSave:
       result = await svc.check_and_alert_on_medication_save(med, drug_recall_repo=repo)
 
     assert result is recalls[0]
+    repo.find_match.assert_awaited_once_with(med)
     assert send.await_count == 3
     # 모든 호출이 동일 medication + profile_id 를 사용했는지 확인
     for call in send.await_args_list:
